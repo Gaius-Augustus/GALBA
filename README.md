@@ -19,8 +19,8 @@ Katharina J. Hoff<sup name="aff1">[a, ](#aff1)</sup><sup name="aff2">[b](#aff2)<
 Related Software
 ================
 
-  * GALBA was derived from GALBA, a fully automated pipeline for predicting genes in the genomes of novel species with RNA-Seq data and a large-scale database of protein sequences (that must not necessarily be closely related to the target species) with GeneMark-ES/ET/EP/ETP and AUGUSTUS. GALBA is available at https://github.com/Gaius-Augustus/GALBA
-  * TSEBRA can be used to combine GALBA gene sets with e.g. GALBA gene sets. TSEBRA is available at https://github.com/Gaius-Augustus/TSEBRA .
+  * GALBA was derived from BRAKER, a fully automated pipeline for predicting genes in the genomes of novel species with RNA-Seq data and a large-scale database of protein sequences (that must not necessarily be closely related to the target species) with GeneMark-ES/ET/EP/ETP and AUGUSTUS. BRAKER is available at https://github.com/Gaius-Augustus/BRAKER
+  * TSEBRA can be used to combine GALBA gene sets with e.g. BRAKER gene sets. TSEBRA is available at https://github.com/Gaius-Augustus/TSEBRA .
 
 Contents
 ========
