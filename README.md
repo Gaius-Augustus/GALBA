@@ -579,7 +579,7 @@ Check in `galba/yourSpecies/galba.log` at which step `galba.pl` crashed.
 
 There are a number of other files that might be of interest, depending on where in the pipeline the problem occurred. Some of the following files will not be present if they did not contain any errors.
 
--   `galba/yourSpecies/hintsfile.gff` - is this file empty? If yes, something went wrong during hints generation - does this file contain hints from source “b2h” and of type “intron”? If not: GeneMark-ET will not be able to execute properly. Conversely, GeneMark-EP+ will not be able to execute correctly if hints from the source "ProtHint" are missing.
+-   `galba/yourSpecies/hintsfile.gff` - is this file empty? If yes, something went wrong during hints generation - does this file contain hints from source “b2h” and of type “intron”?
 
 -   `galba/yourSpecies/align_gth/*err` - errors reported by the alignment tools gth
 
