@@ -2,12 +2,12 @@
 #                                                                                                  #
 # helpMod.pm                                                                                       #
 #                                                                                                  #
-# Component of braker.pl                                                                           #
+# Component of galba.pl, copied from the BRAKER project                                            #
 #                                                                                                  #
 # Authors: Katharina Hoff, Simone Lange, Mario Stanke, Alexandre Lomsadze, Mark Borodovsky         #
 #                                                                                                  #
 # Contact: katharina.hoff@uni-greifswald.de                                                        #
-#                                                                                                  #                                                             #
+#                                                                                                  #                                                        #
 # This script is under the Artistic Licence                                                        #
 # (http://www.opensource.org/licenses/artistic-license.php)                                        #
 #                                                                                                  #

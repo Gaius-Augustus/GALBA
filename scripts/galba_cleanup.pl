@@ -2,8 +2,8 @@
 
 ####################################################################################################
 #                                                                                                  #
-# braker_cleanup.pl                                                                                #
-# Script that deletes all files produced by BRAKER that are not deleted by the braker.pl script,   #
+# galba_cleanup.pl                                                                                #
+# Script that deletes all files produced by GALBA that are not deleted by the galba.pl script,   #
 # itself, and that are usually not required for downstream analysis, unless you wish to debug      #
 # something.                                                                                       #
 #                                                                                                  #
@@ -23,16 +23,16 @@ use warnings;
 
 my $usage = <<'ENDUSAGE';
 
-braker_cleanup.pl     delete braker.pl output files that are usually not required for 
+galba_cleanup.pl      delete galba.pl output files that are usually not required for 
                       downstream analysis
 
 SYNOPSIS
 
-braker_cleanup.pl --wdir=WDIR
+galba_cleanup.pl --wdir=WDIR
 
 OPTIONS
 
---wdir=WDIR         output directory of braker.pl job
+--wdir=WDIR         output directory of galba.pl job
 
 --help	            Display this help message
 

@@ -73,7 +73,7 @@ By default, if no path is given, script assumes they are in the current
 $PATH bash variable.
 --args=s                     additional command line parameters for alignment tool to be executed,
                              example: --args="-prinmatchlen 24 -prseedlength 10 -prhdist 4"
---nice                       Execute all system calls within braker.pl and its submodules with bash "nice"
+--nice                       Execute all system calls within galba.pl and its submodules with bash "nice"
 (default nice value)
 
 
