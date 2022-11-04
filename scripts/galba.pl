@@ -3351,7 +3351,7 @@ sub aln2hints {
             $AUGUSTUS_SCRIPTS_PATH, $AUGUSTUS_CONFIG_PATH
         );
         $perlCmdString .= "$string --in=$aln_file --out=$out_file_name ";
-       if ( $prg eq "gth" ) {
+        if ( $prg eq "gth" ) {
             $perlCmdString .= "--prg=gth --priority=5";
         }
         print LOG "$perlCmdString\n" if ($v > 3);
