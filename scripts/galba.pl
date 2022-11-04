@@ -153,10 +153,9 @@ CONFIGURATION OPTIONS (TOOLS CALLED BY GALBA)
                                     of AUGUSTUS relative to their location,
                                     i.e. for special cases of a global
                                     AUGUSTUS installation.
---ALIGNMENT_TOOL_PATH=/path/to/tool Set path to alignment tool
-                                    (Miniprot or GenomeThreader)
+--GENOMETHREADER_PATH=/path/to/tool Set path to GenomeThreader binary
                                     if not specified as environment
-                                    ALIGNMENT_TOOL_PATH variable. Has higher
+                                    GENOMETHREADER_PATH variable. Has higher
                                     priority than environment variable.
 --DIAMOND_PATH=/path/to/diamond     Set path to diamond, this is an alternative
                                     to NCIB blast; you only need to specify one 
@@ -372,10 +371,10 @@ my ( $target_1, $target_2, $target_3, $target_4, $target_5) = 0;
                       # training steps
 my $prg;              # variable to store protein alignment tool
 my @prot_seq_files;   # variable to store protein sequence file name
-my $ALIGNMENT_TOOL_PATH;
-         # stores path to binary of gth or miniprot for running
+my $GENOMETHREADER_PATH;
+         # stores path to binary of gth for running
          # protein alignments
-my $ALIGNMENT_TOOL_PATH_OP;    # higher priority than environment variable
+my $GENOMETHREADER_PATH_OP;    # higher priority than environment variable
 my $DIAMOND_PATH; # path to diamond, alternative to BLAST
 my $diamond_path; # command line argument value for $DIAMOND_PATH
 my $BLAST_PATH; # path to blastall and formatdb ncbi blast executable
@@ -422,7 +421,7 @@ GetOptions(
     'AUGUSTUS_CONFIG_PATH=s'       => \$augustus_cfg_path,
     'AUGUSTUS_BIN_PATH=s'          => \$augustus_bin_path,
     'AUGUSTUS_SCRIPTS_PATH=s'      => \$augustus_scripts_path,
-    'ALIGNMENT_TOOL_PATH=s'        => \$ALIGNMENT_TOOL_PATH_OP,
+    'GENOMETHREADER_PATH=s'        => \$GENOMETHREADER_PATH_OP,
     'DIAMOND_PATH=s'               => \$diamond_path,
     'BLAST_PATH=s'                 => \$blast_path,
     'PYTHON3_PATH=s'               => \$python3_path,
@@ -562,7 +561,7 @@ if (not ($skipAllTraining)){
 }
 
 if (@prot_seq_files){
-    set_ALIGNMENT_TOOL_PATH();
+    set_GENOMETHREADER_PATH();
 }
 
 if ( $makehub ) {
@@ -1375,31 +1374,31 @@ sub set_BAMTOOLS_PATH {
     }
 }
 
-####################### set_ALIGNMENT_TOOL_PATH ################################
-# * set path to protein alignment tool (Miniprot or GenomeThreader)
+####################### set_GENOMETRHEADER_PATH ################################
+# * set path to GenomeThreader
 ################################################################################
 
-sub set_ALIGNMENT_TOOL_PATH {
-    if (@prot_seq_files) {
+sub set_GENOMETHREADER_PATH {
+    if (@prot_seq_files && $prg=="gth") {
 
         # try go get from ENV
-        if ( defined( $ENV{'ALIGNMENT_TOOL_PATH'} ) && not (defined( $ALIGNMENT_TOOL_PATH_OP ) ) ) {
-            if ( -e $ENV{'ALIGNMENT_TOOL_PATH'} ) {
+        if ( defined( $ENV{'GENOMETHREADER_PATH'} ) && not (defined( $GENOMETHREADER_PATH_OP ) ) ) {
+            if ( -e $ENV{'GENOMETHREADER_PATH'} ) {
                 $prtStr
                     = "\# "
                     . (localtime)
-                    . ": Found environment variable \$ALIGNMENT_TOOL_PATH. "
-                    . "Setting \$ALIGNMENT_TOOL_PATH to "
-                    . $ENV{'ALIGNMENT_TOOL_PATH'}."\n";
+                    . ": Found environment variable \$GENOMETHREADER_PATH. "
+                    . "Setting \$GENOMETHREADER_PATH to "
+                    . $ENV{'GENOMETHREADER_PATH'}."\n";
                 $logString .= $prtStr if ($v > 1);
-                $ALIGNMENT_TOOL_PATH = $ENV{'ALIGNMENT_TOOL_PATH'};
+                $GENOMETHREADER_PATH = $ENV{'GENOMETHREADER_PATH'};
             }
         }
-        elsif(not(defined($ALIGNMENT_TOOL_PATH_OP))) {
+        elsif(not(defined($GENOMETHREADER_PATH_OP))) {
             $prtStr
                 = "\# "
                 . (localtime)
-                . ": Did not find environment variable \$ALIGNMENT_TOOL_PATH "
+                . ": Did not find environment variable \$GENOMETHREADER_PATH "
                 . "(either variable does not exist, or the path given in "
                 . "variable does not exist). Will try to set this variable in "
                 . "a different way, later.\n";
@@ -1407,101 +1406,70 @@ sub set_ALIGNMENT_TOOL_PATH {
         }
 
         # try to get from GALBA
-        if ( defined($ALIGNMENT_TOOL_PATH_OP) ) {
-            my $last_char = substr( $ALIGNMENT_TOOL_PATH_OP, -1 );
+        if ( defined($GENOMETHREADER_PATH_OP) ) {
+            my $last_char = substr( $GENOMETHREADER_PATH_OP, -1 );
             if ( $last_char eq "\/" ) {
-                chop($ALIGNMENT_TOOL_PATH_OP);
+                chop($GENOMETHREADER_PATH_OP);
             }
-            if ( -d $ALIGNMENT_TOOL_PATH_OP ) {
+            if ( -d $GENOMETHREADER_PATH_OP ) {
                 $prtStr
                     = "\# "
                     . (localtime)
-                    . ": Setting \$ALIGNMENT_TOOL_PATH to command line "
-                    . "argument --ALIGNMENT_TOOL_PATH value "
-                    . "$ALIGNMENT_TOOL_PATH_OP.\n";
+                    . ": Setting \$GENOMETHREADER_PATH to command line "
+                    . "argument --GENOMETHREADER_PATH value "
+                    . "$GENOMETHREADER_PATH_OP.\n";
                 $logString .= $prtStr if ($v > 1);
-                $ALIGNMENT_TOOL_PATH = $ALIGNMENT_TOOL_PATH_OP;
+                $GENOMETHREADER_PATH = $GENOMETHREADER_PATH_OP;
             }
         }
-        if ( not( defined($ALIGNMENT_TOOL_PATH) ) || length($ALIGNMENT_TOOL_PATH) == 0 ) {
+        if ( not( defined($GENOMETHREADER_PATH) ) || length($GENOMETHREADER_PATH) == 0 ) {
             if ( defined($prg) ) {
-                if ( $prg eq "gth" ) {
-                    $prtStr
-                        = "\# "
-                        . (localtime)
-                        . ": Trying to guess \$ALIGNMENT_TOOL_PATH from "
-                        . "location of GenomeThreader executable in your "
-                        . "\$PATH\n";
-                    $logString .= $prtStr if ($v > 1);
-                    my $epath = which 'gth';
-                    if( defined($epath) ) {
-                        if ( -d dirname($epath) ) {
-                            $prtStr
-                                = "\# "
-                                . (localtime)
-                                . ": Setting \$ALIGNMENT_TOOL_PATH to "
-                                . dirname($epath) . "\n";
-                            $logString .= $prtStr if ($v > 1);
-                            $ALIGNMENT_TOOL_PATH = dirname($epath);
-                        }
+                $prtStr
+                    = "\# "
+                    . (localtime)
+                    . ": Trying to guess \$GENOMETHREADER_PATH from "
+                    . "location of GenomeThreader executable in your "
+                    . "\$PATH\n";
+                $logString .= $prtStr if ($v > 1);
+                my $epath = which 'gth';
+                if( defined($epath) ) {
+                    if ( -d dirname($epath) ) {
+                        $prtStr
+                             = "\# "
+                            . (localtime)
+                            . ": Setting \$GENOMETHREADER_PATH to "
+                            . dirname($epath) . "\n";
+                        $logString .= $prtStr if ($v > 1);
+                        $GENOMETHREADER_PATH = dirname($epath);
                     }
-                    else {
-                        $prtStr = "#*********\n"
-                                . "# WARNING: Guessing the location of "
-                                . "\$ALIGNMENT_TOOL_PATH failed / GALBA failed to guess the "
-                                . "location of alignment tool with "
-                                . "\"which gth\"!\n"
-                                . "#*********\n";
-                        $logString .= $prtStr if ($v > 0);
-                    }
-                } elsif ( $prg eq "miniprot" ) {
-                    $prtStr
-                        = "\# "
-                        . (localtime)
-                        . ": Trying to guess \$ALIGNMENT_TOOL_PATH "
-                        . "from location of miniprot executable in your \$PATH\n";
-                    $logString .= $prtStr if ($v > 1);
-                    my $epath = which 'miniprot';
-                    if(defined($epath)){
-                        if ( -d dirname($epath) ) {
-                            $prtStr
-                                = "\# "
-                                . (localtime)
-                                . ": Setting \$ALIGNMENT_TOOL_PATH to "
-                                . dirname($epath) . "\n";
-                            $logString .= $prtStr if ($v > 1);
-                            $ALIGNMENT_TOOL_PATH = dirname($epath);
-                        }
-                    }
-                    else {
-                        $prtStr = "#*********\n"
-                                . "# WARNING: Guessing the location of "
-                                . "\$ALIGNMENT_TOOL_PATH failed / GALBA failed to "
-                                . "guess the location of alignment tool with "
-                                . "\"which miniprot\"!\n"
-                                . "#*********\n";
-                        $logString .= $prtStr if ($v > 0);
-                    }
+                } else {
+                    $prtStr = "#*********\n"
+                            . "# WARNING: Guessing the location of "
+                            . "\$GENOMETHREADER_PATH failed / GALBA failed to guess the "
+                            . "location of GenomeThreader with "
+                            . "\"which gth\"!\n"
+                            . "#*********\n";
+                    $logString .= $prtStr if ($v > 0);
                 }
             }
         }
 
-        if ( not( defined($ALIGNMENT_TOOL_PATH) ) ) {
+        if ( not( defined($GENOMETHREADER_PATH) ) ) {
             my $aln_err_str;
             $aln_err_str
                 .= "There are 3 alternative ways to set this variable for\n"
                 . " galba.pl:\n"
                 . "   a) provide command-line argument\n"
-                . "      --ALIGNMENT_TOOL_PATH=/your/path\n"
+                . "      --GENOMETHREADER_PATH=/your/path\n"
                 . "   b) use an existing environment variable\n"
-                . "      \$ALIGNMENT_TOOL_PATH for setting the environment\n"
+                . "      \$GENOMETHREADER_PATH for setting the environment\n"
                 . "      variable, run\n"
-                . "           export ALIGNMENT_TOOL_PATH=/your/path\n"
+                . "           export GENOMETHREADER_PATH=/your/path\n"
                 . "      in your shell. You may append this to your .bashrc\n"
                 . "      or .profile file in order to make the variable\n"
                 . "      available to all your bash sessions.\n"
                 . "   c) galba.pl can try guessing the location of\n"
-                . "      \$ALIGNMENT_TOOL_PATH from the location an alignment\n"
+                . "      \$GENOMETHREADER_PATH from the location an alignment\n"
                 . "      tool executable (corresponding to the alignment tool\n"
                 . "      given by command line argument --prg=yourTool (in\n"
                 . "      this case $prg) that is available in your \$PATH\n"
@@ -1509,14 +1477,13 @@ sub set_ALIGNMENT_TOOL_PATH {
                 . "      If you try to rely on this option, you can check by\n"
                 . "      typing\n"
                 . "           which gth\n"
-                . "           which miniprot\n"
                 . "      in your shell, whether there is an alignment tool\n"
                 . "      executable in your \$PATH\n";
             $prtStr
                 = "\# "
                 . (localtime)
                 . ": ERROR: in file " . __FILE__ ." at line ". __LINE__ ."\n"
-                . "\$ALIGNMENT_TOOL_PATH not set!\n";
+                . "\$GENOMETHREADER_PATH not set!\n";
             $logString .= $prtStr;
             $logString .= $aln_err_str if ($v > 1);
             print STDERR $logString;
@@ -2341,11 +2308,11 @@ sub check_upfront {
         exit(1);
     }
 
-    # check for alignment executable and in case of SPALN for environment variables
+    # check for alignment executable
     my $prot_aligner;
     if (@prot_seq_files && defined($prg)) {
         if ( $prg eq 'gth' ) {
-            $prot_aligner = "$ALIGNMENT_TOOL_PATH/gth";
+            $prot_aligner = "$GENOMETHREADER_PATH/gth";
             if ( !-f $prot_aligner ) {
                 $prtStr
                     = "\# "
@@ -2368,7 +2335,7 @@ sub check_upfront {
             }
         }
         elsif ( $prg eq 'miniprot' ) {
-            $prot_aligner = "$ALIGNMENT_TOOL_PATH/miniprot";
+            $prot_aligner = "$MINIPROT_PATH/miniprot";
             if ( !-f $prot_aligner ) {
                 $prtStr
                     = "\# "
@@ -3131,7 +3098,7 @@ sub make_prot_hints {
         ."\nFailed to execute $cmdString!\n");
 
     # from fasta files
-    if ( @prot_seq_files ) {
+    if ( @prot_seq_files && $prg=="gth") {
         $string = find(
             "startAlign.pl",        $AUGUSTUS_BIN_PATH,
             $AUGUSTUS_SCRIPTS_PATH, $AUGUSTUS_CONFIG_PATH);
@@ -3146,23 +3113,13 @@ sub make_prot_hints {
                     $perlCmdString .= "nice ";
                 }
                 $perlCmdString
-                    .= "perl $string --genome=$genome --prot=$prot_seq_files[$i] --ALIGNMENT_TOOL_PATH=$ALIGNMENT_TOOL_PATH ";
-                if ( $prg eq "gth" ) {
+                    .= "perl $string --genome=$genome --prot=$prot_seq_files[$i] --ALIGNMENT_TOOL_PATH=$GENOMETHREADER_PATH ";
                     $perlCmdString .= "--prg=gth ";
-                    print LOG "\# "
-                        . (localtime)
-                        . ": running Genome Threader to produce protein to "
-                        . "genome alignments\n"  if ($v > 3);
-                    print CITE $pubs{'gth'}; $pubs{'gth'} = "";
-                }
-                elsif ( $prg eq "miniprot" ) {
-                    $perlCmdString .= "--prg=miniprot ";
-                    print LOG "\# "
-                        . (localtime)
-                        . ": running minprot to produce protein to "
-                        . "genome alignments\n" if ($v > 3);
-                    print CITE $pubs{'miniprot'}; $pubs{'miniprot'} = "";
-                }
+                print LOG "\# "
+                    . (localtime)
+                    . ": running Genome Threader to produce protein to "
+                    . "genome alignments\n"  if ($v > 3);
+                print CITE $pubs{'gth'}; $pubs{'gth'} = "";
                 if ( $CPU > 1 ) {
                     $perlCmdString .= "--CPU=$CPU ";
                 }
@@ -3802,116 +3759,6 @@ sub training_augustus {
                     $prtStr);
         }
 
-        # all genes in train.gtf are "good" genes
-        $goodLstFile = $trainGenesGtf;
-
-        print LOG "\#  "
-            . (localtime)
-            . ": concatenating good GenomeThreader training genes to "
-            . "$goodLstFile.\n" if ($v > 3);
-        # get all remaining gth genes
-        open (GOODLST, ">>", $goodLstFile) or clean_abort(
-            "$AUGUSTUS_CONFIG_PATH/species/$species", $useexisting,
-            "ERROR in file " . __FILE__ ." at line ". __LINE__
-            . "\nCould not open file $goodLstFile!\n" );
-        open ( GTHGOOD, "<", $trainGenesGtf ) or clean_abort(
-            "$AUGUSTUS_CONFIG_PATH/species/$species", $useexisting,
-            "ERROR in file " . __FILE__ ." at line ". __LINE__
-            . "\nCould not open file $trainGenesGtf!\n" );
-        while ( <GTHGOOD> ) {
-            if ( $_ =~ m/\tgth\t/ ) {
-                print GOODLST $_;
-            }
-        }
-       close ( GTHGOOD ) or clean_abort(
-        "$AUGUSTUS_CONFIG_PATH/species/$species", $useexisting,
-        "ERROR in file " . __FILE__ ." at line ". __LINE__
-        . "\nCould not close file $trainGenesGtf!\n" );
-       close (GOODLST) or clean_abort(
-        "$AUGUSTUS_CONFIG_PATH/species/$species", $useexisting,
-        "ERROR in file " . __FILE__ ." at line ". __LINE__
-        . "\nCould not close file $goodLstFile!\n" );
-
-        # check whether goodLstFile has any content
-        open (GOODLST, "<", $goodLstFile) or clean_abort(
-             "$AUGUSTUS_CONFIG_PATH/species/$species", $useexisting,
-             "ERROR in file " . __FILE__ ." at line ". __LINE__
-             . "\nCould not open file $goodLstFile!\n" );
-        while(<GOODLST>){};
-        my $nGoodGenes = $.;
-        close (GOODLST) or clean_abort(
-            "$AUGUSTUS_CONFIG_PATH/species/$species", $useexisting,
-            "ERROR in file " . __FILE__ ." at line ". __LINE__
-            . "\nCould not close file $goodLstFile!\n" );
-        if($nGoodGenes < 1){
-            $prtStr = "\# "
-                . (localtime)
-                . " ERROR: file $goodLstFile contains no good training genes."
-                . " This means that with RNA-Seq data, there was insufficient"
-                . " coverage of introns; or with protein data, there was "
-                . "insufficient support from protein alignments/GaTech protein"
-                . " mapping pipeline hints; or without any evidence, there "
-                . " were only very short genes. In most cases, you will see "
-                . " this happening if GALBA was executed with some kind of "
-                . " extrinsic evidence (either/or RNA-Seq/protein). You can then "
-                . " try to re-run GALBA without any evidence for training "
-                . " and later use the such trained AUGUSTUS parameters for a "
-                . " GALBA run without any training and the available evidence."
-                . " Accuracy of training without any evidence is lower than with "
-                . " good evidence.\n";
-            print LOG $prtStr;
-            print STDERR $prtStr;
-            clean_abort("$AUGUSTUS_CONFIG_PATH/species/$species",
-            $   useexisting, "ERROR in file " . __FILE__ ." at line ". __LINE__
-                . "\nNo genes for training in file $goodLstFile!\n");
-        }
-
-        # filter good genes from trainGb1 into trainGb2
-        $string = find(
-                "filterGenesIn_mRNAname.pl",       $AUGUSTUS_BIN_PATH,
-                $AUGUSTUS_SCRIPTS_PATH, $AUGUSTUS_CONFIG_PATH
-            );
-        $errorfile     = "$errorfilesDir/filterGenesIn_mRNAname.stderr";
-        $perlCmdString = "";
-        if ($nice) {
-            $perlCmdString .= "nice ";
-        }
-        $perlCmdString
-            .= "perl $string $goodLstFile $trainGb1 > $trainGb2 2>$errorfile";
-        print LOG "\# "
-            . (localtime)
-            . ": Filtering train.gb for \"good\" mRNAs:\n" if ($v > 3);
-        print LOG "$perlCmdString\n" if ($v > 3);
-        system("$perlCmdString") == 0
-            or clean_abort("$AUGUSTUS_CONFIG_PATH/species/$species",
-            $useexisting, "ERROR in file " . __FILE__ ." at line ". __LINE__
-            . "\nFailed to execute: $perlCmdString\n");
-
-        # count how many genes are in trainGb2
-        my $nLociGb2 = count_genes_in_gb_file($trainGb2);
-        if( $nLociGb2 == 0){
-            $prtStr
-                = "\# "
-                . (localtime)
-                . ": ERROR: in file " . __FILE__ ." at line ". __LINE__ ."\n"
-                . "# Training gene file in genbank format $trainGb2 does not "
-                . "contain any training genes. Possible known causes:\n"
-                . "# (a) The AUGUSTUS script filterGenesIn_mRNAname.pl is not "
-                . "up-to-date with this version of GALBA. To solve this issue, "
-                . "either get the latest AUGUSTUS from its master branch with\n"
-                . "    git clone git\@github.com:Gaius-Augustus/Augustus.git\n"
-                . "or download the latest version of filterGenesIn_mRNAname.pl from "
-                . "https://github.com/Gaius-Augustus/Augustus/blob/master/scripts/filterGenesIn_mRNAname.pl "
-                . "and replace the old script in your AUGUSTUS installation folder.\n"
-                . "# (b) No training genes were generated by GenomeThreader or Miniprot "
-                . "If you think this is the cause for your problem, "
-                . "consider running BRAKER.\n";
-            print LOG $prtStr;
-            print STDERR $prtStr;
-                clean_abort("$AUGUSTUS_CONFIG_PATH/species/$species", $useexisting,
-                    $prtStr);
-        }
-
         # filter out genes that lead to etraining errors
         $augpath    = "$AUGUSTUS_BIN_PATH/etraining";
         $errorfile  = "$errorfilesDir/gbFilterEtraining.stderr";
@@ -3921,7 +3768,7 @@ sub training_augustus {
             $cmdString .= "nice ";
         }
         # species is irrelevant!
-        $cmdString .= "$augpath --species=$species --AUGUSTUS_CONFIG_PATH=$AUGUSTUS_CONFIG_PATH $trainGb2 1> $stdoutfile 2>$errorfile";
+        $cmdString .= "$augpath --species=$species --AUGUSTUS_CONFIG_PATH=$AUGUSTUS_CONFIG_PATH $trainGb1 1> $stdoutfile 2>$errorfile";
         print LOG "\# "
             . (localtime)
             . ": Running etraining to catch gene structure inconsistencies:\n"
@@ -3963,10 +3810,10 @@ sub training_augustus {
             $perlCmdString .= "nice ";
         }
         $perlCmdString
-            .= "perl $string $otherfilesDir/etrain.bad.lst $trainGb2 1> $trainGb3 2>$errorfile";
+            .= "perl $string $otherfilesDir/etrain.bad.lst $trainGb1 1> $trainGb3 2>$errorfile";
         print LOG "\# "
             . (localtime)
-            . ": Filtering $trainGb2 file to remove inconsistent gene structures...\n" if ($v > 3);
+            . ": Filtering $trainGb1 file to remove inconsistent gene structures...\n" if ($v > 3);
         print LOG "$perlCmdString\n" if ($v > 3);
         system("$perlCmdString") == 0
             or clean_abort("$AUGUSTUS_CONFIG_PATH/species/$species",
