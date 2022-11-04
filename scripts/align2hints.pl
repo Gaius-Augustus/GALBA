@@ -2,20 +2,23 @@
 
 ####################################################################################################
 #                                                                                                  #
-# align2hints.pl - generate hints from spaln [O0 (=gff3)], exonerate, genomeThreader (gth)         #
+# aln2hints.pl -   generate hints from spaln [O0 (=gff3)], exonerate, genomeThreader (gth)         #
 #                  or scipio output                                                                #
 #                                                                                                  #
-# Authors: Katharina Hoff, Simone Lange, Mario Stanke                                              #
+# Script is derived from align2hints.pl in BRAKER.                                                 #
+#                                                                                                  #
+# Authors: Katharina Hoff                                                                          #
 #                                                                                                  #
 # Contact: katharina.hoff@uni-greifswald.de                                                        #
 #                                                                                                  #
-# Last modification: August 29th 2019                                                              #
+# Last modification: November 4th 2022                                                             #
 #                                                                                                  #
 # This script is under the Artistic Licence                                                        #
 # (http://www.opensource.org/licenses/artistic-license.php)                                        #
 #                                                                                                  #
 # Usage:                                                                                           #
-# align2hints.pl [OPTIONS] --in=align.gff3 --out=hintsfile.gff --prg=gth|exonerate|spaln|scipio    #
+# align2hints.pl [OPTIONS] --in=align.gff3 --out=hintsfile.gff \                                   #
+#                --prg=miniprot|gth                                                                #
 #                                                                                                  #
 ####################################################################################################
 
@@ -27,27 +30,20 @@ use Cwd;
 
 my $usage = <<'ENDUSAGE';
 
-align2hints.pl    generate hints from spaln [O0 (=gff3)], exonerate,
-                  GenomeThreader (gth), scipio
-                  or GEMOMA output.
-                  Spaln2 run like this: spaln -O0 ... > spalnfile
-                  Exonerate run like this:
-                      exonerate --model protein2genome --showtargetgff T \
-                         ... > exfile
+aln2hints.pl    generate hints from miniprot or 
+                  GenomeThreader (gth) output
+                  Miniprot run like this:
+                      miniprot -ut16 --gtf genome.fa proteins.fa > miniprot.gtf
                   GenomeThreader run like this: 
                       gth -genomic genome.fa  -protein protein.fa -gff3out \
                          -skipalignmentout ... -o gthfile
-                  scipio run like this:
-                  scipio.1.4.1.pl genome.fa prot.fa | yaml2gff.1.4.pl \
-                      > scipio.gff
 
 SYNOPSIS
 
-align2hints.pl [OPTIONS] --in=align.gff3 --out=hintsfile.gff \
-                         --prg=gth|exonerate|spaln|scipio
+align2hints.pl [OPTIONS] --in=align.gff --out=hintsfile.gff \
+                         --prg=miniprot|gth
 
-  --in                 input file from gth (gff3), spaln (gff3) or exonerate
-                       output
+  --in                 input file from gth (gff3), miniprot (gtf)
   --out                contains CDSpart, CDS and intron hints
 
 
@@ -61,15 +57,15 @@ OPTIONS
     --minintronlen=n         Alignments with gaps shorter than this and longer
                              than maxgaplen are discarded (default 41).
     --priority=n             Priority of hint group (default 4).
-    --prg=s                  Alignment program of input file, either 'gth',
-                             'spaln', 'exonerate', 'scipio', or 'gemoma'.
+    --prg=s                  Alignment program of input file, either 'gth' or
+                             'miniprot'.
     --source=s               Source identifier (default 'P')
     --CDS                    Do not output CDSpart hints, but complete CDS
                              hints.
-    --genome_file=s          if prg is exonerate and start hints shall be
+    --genome_file=s          if prg is miniprot and start hints shall be
                              created, the genome file from which the
                              alignments were generated, must be specified.
-    --version                print version of align2hints.pl
+    --version                print version of aln2hints.pl
 
 Format:
   seqname <TAB> source <TAB> feature <TAB> start <TAB> end <TAB> score <TAB>
@@ -80,11 +76,11 @@ DESCRIPTION
 
   Example:
 
-    align2hints.pl [OPTIONS] --in=align.gff3 --out=hintsfile.gff --prg=gth
+    aln2hints.pl [OPTIONS] --in=align.gtf --out=hintsfile.gff --prg=miniprot
 
 ENDUSAGE
 
-my $version = 1.0;    # version of align2hints.pl
+my $version = 1.0;    # version of aln2hints.pl
 my $printVersion;
 my $alignfile;        # alignment input file
 my $CDSpart_cutoff = 15;           # cutoff for CDSpart hints
@@ -97,8 +93,6 @@ my $intron_start;      # start of intron (only for gth and spaln)
 my $intron_threshold;  # Threshold for current programme
 my $intron_threshold_gth
     = 0.7;    # introns from gth with a score below this are discarded
-my $intron_threshold_spn
-    = 200;    # introns from spaln with a score below this are discarded
 my $maxintronlen = 350000;    # maximal intron length
 my $minintronlen = 41;        # default minimal intron length
 my $parent;                   # current parent
@@ -109,9 +103,9 @@ my ( $qstart, $qend, $prevQend );
 my $prgsrc;    # source programme (exonerate, spaln or gth)
 my $priority = 4;      # priority for hints
 my $source   = "P";    # source for extrinsic file
-my $genome_file;       # genome file name
 my %genome;            # hash to store genome sequence
 my $CDS; # output CDS instead of CDSpart hints
+my $genome_file;
 my $help;
 
 if ( $#ARGV < 1 || $help ) {
@@ -128,10 +122,10 @@ GetOptions(
     'minintronlen:i'   => \$minintronlen,
     'priority:i'       => \$priority,
     'prg=s'            => \$prgsrc,
-    'genome_file=s'    => \$genome_file,
     'CDS!'             => \$CDS,
     'help!'            => \$help,
     'source:s'         => \$source,
+    'genome_file=s'    => \$genome_file,
     'version!'         => \$printVersion
 );
 
@@ -140,7 +134,7 @@ if ($printVersion) {
     exit(0);
 }
 
-# mainly for usage within BRAKER2
+# mainly for usage within GALBA
 if ( !defined($dir) ) {
     $dir = cwd();
 }
@@ -170,26 +164,17 @@ if ( !defined($prgsrc) ) {
 }
 
 # check program source option
-if (   $prgsrc ne "exonerate"
-    && $prgsrc ne "spaln"
-    && $prgsrc ne "gth"
-    && $prgsrc ne "scipio"
-    && $prgsrc ne "gemoma" )
+if (   $prgsrc ne "miniprot"
+    && $prgsrc ne "gth")
 {
     print STDERR
         "ERROR: Invalid value '$prgsrc' for option --prg. Possible Options "
-        . "are 'exonerate', 'spaln', 'gth', 'scipio', or 'gemoma'.\n";
+        . "are 'miniprot' and 'gth'.\n";
     exit(1);
 }
 
-# set source entry
-if ( $prgsrc eq "exonerate" ) {
-    $prgsrc = "xnt2h";
-}
-
-if ( $prgsrc eq "spaln" ) {
-    $prgsrc           = "spn2h";
-    $intron_threshold = $intron_threshold_spn;
+if ($prgsrc eq "miniprot") {
+    $prgsrc = "miniprot2h";
 }
 
 if ( $prgsrc eq "gth" ) {
@@ -197,22 +182,12 @@ if ( $prgsrc eq "gth" ) {
     $intron_threshold = $intron_threshold_gth;
 }
 
-if ( $prgsrc eq "scipio" ) {
-    $prgsrc = "scipio2h";
-}
-
-if ( $prgsrc eq "gemoma" ) {
-    $prgsrc = "gemoma2h";
-}
-
-if ( not( ( $prgsrc eq "xnt2h" ) || ( $prgsrc eq "gemoma2h" ) )
-    && defined($genome_file) )
+if ( not( $prgsrc eq "miniprot" ) && defined($genome_file) )
 {
     print STDERR
         "ERROR: program name is $prgsrc and a genome file was specified. "
         . "Will ignore genome file.\n";
-}
-elsif ( $prgsrc eq "xnt2h" && defined($genome_file) ) {
+} elsif ( $prgsrc eq "miniprot" && defined($genome_file) ) {
     open( GENOME, "<", $genome_file )
         or die("Could not open genome fasta file $genome_file!\n");
     my $header;
@@ -228,6 +203,7 @@ elsif ( $prgsrc eq "xnt2h" && defined($genome_file) ) {
     }
     close(GENOME) or die("Could not close genome fasta file $genome_file!\n");
 }
+
 
 if ($CDS) {
     $CDSpartid = "CDS";
@@ -253,12 +229,6 @@ while (<ALN>) {
         $end   = $tmp;
     }
 
-    # get target protein for exonerate
-    if ( $type eq "gene" && $prgsrc eq "xnt2h" ) {
-        /sequence (\S+) ; /;
-        $parent = $1;
-    }
-
     # get target protein for gth
     if ( $type eq "mRNA" && $prgsrc eq "gth2h" ) {
         my @info   = split( /\=/, $f[8] );
@@ -269,31 +239,9 @@ while (<ALN>) {
             = $info[0] . "_" . $seqname . "_" . $rnaid[0] . "_" . $geneid[0];
     }
 
-    # get target protein for spaln
-    if ( $prgsrc eq "spn2h" && ( $type eq "CDS" || $type eq "cds" ) ) {
-        my @info = split( /\=/, $f[8] );
-        @info = split( /\s/, $info[-1] );
-        $parent = $info[0];
-    }
-
-    # get target protein for scipio
-    if ( $type eq "protein_match" && $prgsrc eq "scipio2h" ) {
-        $f[8] =~ m/Query=(\S+) (\d+) (\d+)/;
-        $parent = $1;
-        $qstart = $2;    # start of alignment in query protein
-        $qend   = $3;    # start of alignment in query protein
-    }
-
-    # get target protein for gemoma
-    if ( $type eq "prediction" && $prgsrc eq "gemoma2h" ) {
-        my @info = split( /;/, $f[8] );
-        @info = split( /=/, $info[0] );
-        $parent = $info[1];
-    }
-
-    # create start and stop hints from exonerate
-    if ( ( $type eq "gene" && $prgsrc eq "xnt2h" && defined($genome_file) ) )
-    { # || ($type eq "gene" && $prgsrc eq "gemoma2h" && defined($genome_file))){
+    # create start and stop hints from miniprot
+    if ( ( $type eq "gene" && $prgsrc eq "miniprot" && defined($genome_file) ) )
+    {
         my $pot_start;
         if ( $strand eq "+" ) {
             $pot_start = substr( $genome{$seqname}, $start - 1, 3 );
@@ -321,30 +269,6 @@ while (<ALN>) {
             print_stop( $seqname, $strand, $start, $end );
         }
     }
-    elsif ( $prgsrc eq "spn2h" || $prgsrc eq "gth2h" ) {
-        if ((      $type eq "cds"
-                && $f[8] =~ m/Target=.* (\d+) \d+ (\+|-)/
-                && $prgsrc eq "spn2h"
-            )
-            || (   $type eq "mRNA"
-                && $f[8] =~ m/Target=.* (\d+) \d+ (\+|-)/
-                && $prgsrc eq "gth2h" )
-            )
-        {
-            if ( $1 == 1 ) {
-                print_start( $seqname, $strand, $start, $end );
-                print_stop( $seqname, $strand, $start, $end );
-            }
-        }
-    }
-    elsif ( $prgsrc eq "gemoma2h" && $f[8] =~ m/start=(\w);stop=(.);/ ) {
-        if ( $1 eq "M" ) {
-            print_start( $seqname, $strand, $start, $end );
-        }
-        if ( $2 eq "*" ) {
-            print_stop( $seqname, $strand, $start, $end );
-        }
-    }
 
     if ( $type eq "CDS" || $type eq "cds" || $type eq "protein_match" ) {
         if ( !$CDS ) {
@@ -359,39 +283,25 @@ while (<ALN>) {
         print HINTS
             "$seqname\t$prgsrc\t$CDSpartid\t$start\t$end\t$score\t$strand\t"
             . "$frame\tsrc=$source;grp=$parent;pri=$priority\n";
-        if ( $prgsrc eq "spn2h" || $prgsrc eq "scipio2h" ) {
+        if ( $prgsrc eq "miniprot" ) {
             get_intron( \@f );
-        }
-        elsif ( $prgsrc eq "gemoma2h" ) {
-            get_gemoma_intron( \@f );
         }
     }
 
     if ( $type eq "exon" && $prgsrc eq "gth2h" ) {
         get_intron( \@f );
     }
-
-    # intron hints for exonerate
-    if ( $type eq "intron" ) {
-        if (   $end - $start + 1 >= $minintronlen
-            && $end - $start + 1 <= $maxintronlen )
-        {
-            print HINTS
-                "$seqname\t$prgsrc\tintron\t$start\t$end\t$score\t$strand\t"
-                . ".\tsrc=$source;grp=$parent;pri=$priority\n";
-        }
-    }
 }
 close(ALN)   or die("Could not close file $alignfile!\n");
 close(HINTS) or die("Could not close file $hintsfilename!\n");
 
-# intron hints for spaln and gth
+# intron hints for miniprot and gth
 sub get_intron {
     my $line = shift;
     $intron_score = $prevScore + @{$line}[5] / 2;
     if ( $prevParent ne $parent ) {
         if ( @{$line}[6] eq "-"
-            && ( $prgsrc eq "spn2h" || $prgsrc eq "scipio2h" ) )
+            && ( $prgsrc eq "miniprot" ) )
         {
             $intron_end = @{$line}[3] - 1
                 ;   # these spliced aligners output in reverse order in genome
@@ -402,7 +312,7 @@ sub get_intron {
     }
     else {
         if ( @{$line}[6] eq "-"
-            && ( $prgsrc eq "spn2h" || $prgsrc eq "scipio2h" ) )
+            && ( $prgsrc eq "miniprot" ) )
         {
             $intron_start = @{$line}[4] + 1;
         }
@@ -423,8 +333,7 @@ sub get_intron {
                 || $intron_score > $intron_threshold )
             )
         {
-            if ( $prgsrc ne "scipio2h"
-                || ( defined($prevQend) && $prevQend + 1 == $qstart ) )
+            if ( ( defined($prevQend) && $prevQend + 1 == $qstart ) )
             {
                 print HINTS
                     "@{$line}[0]\t$prgsrc\tintron\t$intron_start\t$intron_end"
@@ -433,7 +342,7 @@ sub get_intron {
             }
         }
         if ( @{$line}[6] eq "-"
-            && ( $prgsrc eq "spn2h" || $prgsrc eq "scipio2h" ) )
+            && ( $prgsrc eq "miniprot" ) )
         {
             $intron_end = @{$line}[3] - 1;
         }
@@ -444,55 +353,6 @@ sub get_intron {
     $prevScore  = @{$line}[5] / 2;
     $prevParent = $parent;
     $prevQend   = $qend if ( defined($qend) );
-}
-
-sub get_gemoma_intron {
-    my $line = shift;
-    if ( @{$line}[6] eq "+" ) {
-        if ( $prevParent ne $parent ) {
-            $intron_start = @{$line}[4] + 1;
-        }
-        else {
-            $intron_end = @{$line}[3] - 1;
-            if ( $intron_end < $intron_start ) {
-                my $tmp = $intron_start;
-                $intron_start = $intron_end;
-                $intron_end   = $tmp;
-            }
-            if (   $intron_end - $intron_start + 1 >= $minintronlen
-                && $intron_end - $intron_start + 1 <= $maxintronlen )
-            {
-                print HINTS
-                    "@{$line}[0]\t$prgsrc\tintron\t$intron_start\t$intron_end"
-                    . "\t.\t@{$line}[6]\t.\tsrc=$source;"
-                    . "grp=$parent;pri=$priority\n";
-            }
-            $intron_start = @{$line}[4] + 1;
-        }
-    }
-    else {
-        if ( $prevParent ne $parent || not( defined($prevParent) ) ) {
-            $intron_end = @{$line}[3] - 1;
-        }
-        else {
-            $intron_start = @{$line}[4] + 1;
-            if ( $intron_start > $intron_end ) {
-                my $tmp = $intron_end;
-                $intron_end   = $intron_start;
-                $intron_start = $tmp;
-            }
-            if (   $intron_end - $intron_start + 1 >= $minintronlen
-                && $intron_end - $intron_start + 1 <= $maxintronlen )
-            {
-                print HINTS
-                    "@{$line}[0]\t$prgsrc\tintron\t$intron_start\t$intron_end"
-                    . "\t.\t@{$line}[6]\t.\tsrc=$source;grp=$parent;"
-                    . "pri=$priority\n";
-            }
-            $intron_end = @{$line}[3] - 1;
-        }
-    }
-    $prevParent = $parent;
 }
 
 sub print_start {
