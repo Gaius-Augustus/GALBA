@@ -85,11 +85,11 @@ FREQUENTLY USED OPTIONS
                                     files. (Disabled by default.)
 --gff3                              Output in GFF3 format (default is gtf
                                     format)
---cores                             Specifies the maximum number of cores that
+--threads                           Specifies the maximum number of threads that
                                     can be used during computation. Be aware:
                                     optimize_augustus.pl will use max. 8
-                                    cores; augustus will use max. nContigs in
-                                    --genome=file cores.
+                                    threads; augustus will use max. nContigs in
+                                    --genome=file threads.
 --workingdir=/path/to/wd/           Set path to working directory. In the
                                     working directory results and temporary
                                     files are stored
@@ -370,7 +370,7 @@ my ( $target_1, $target_2, $target_3, $target_4, $target_5) = 0;
                       # training steps
 my $prg;              # variable to store protein alignment tool
 my @prot_seq_files;   # variable to store protein sequence file name
-my $MINIPROT_PATH;
+my $MINIPROT_PATH = "";
 my $MINIPROT_PATH_OP;
 my $GENOMETHREADER_PATH;
          # stores path to binary of gth for running
@@ -402,6 +402,8 @@ my $skip_fixing_broken_genes; # skip execution of fix_in_frame_stop_codon_genes.
 my $traingtf;
 my $flanking_DNA;        # length of flanking DNA, default value is
                          # min{ave. gene length/2, 10000}
+my $prot_aligner;
+
 @forbidden_words = (
     "system",    "exec",  "passthru", "run",    "fork",   "qx",
     "backticks", "chmod", "chown",    "chroot", "unlink", "do",
@@ -430,8 +432,8 @@ GetOptions(
     'MAKEHUB_PATH=s'               => \$makehub_path,
     'bam=s'                        => \@bam,
     'BAMTOOLS_PATH=s'              => \$bamtools_path,
-    'cores=i'                      => \$CPU,
-    'extrinsicCfgFiles=s'           => \@extrinsicCfgFiles,
+    'threads=i'                    => \$CPU,
+    'extrinsicCfgFiles=s'          => \@extrinsicCfgFiles,
     'PROTHINT_PATH=s'              => \$prothint_path,
     'genome=s'                     => \$genome,
     'gff3'                         => \$gff3,
@@ -559,9 +561,20 @@ if (not ($skipAllTraining)){
     set_DIAMOND_PATH();
 }
 
-if(@prot_seq_files && $prg=="miniprot"){
+if(@prot_seq_files && $prg eq "miniprot"){
     set_MINIPROT_PATH();
-}elsif (@prot_seq_files && $prg=="gth"){
+    if(scalar(@prot_seq_files) > 1){
+        $prtStr = "\# "
+            . (localtime)
+            . ": ERROR: in file " . __FILE__ ." at line ". __LINE__ ."\n"
+            . "GALBA does currently  not support using multiple protein input"
+            . " files with Miniprot as an aligner. Please combine your protein"
+            . " fasta files into a single file before starting GALBA.\n";
+        $logString .= $prtStr;
+        print STDERR $logString;
+        exit(1);
+    }
+}elsif (@prot_seq_files && $prg eq "gth"){
     set_GENOMETHREADER_PATH();
 }
 
@@ -797,7 +810,7 @@ print LOG "\#*******************************************************************
 # make hints from protein data
 
 if( @prot_seq_files){
-    make_prot_hints(); # not ProtHint, but old pipeline for generating protein hints!
+    make_prot_hints(); # Miniprot or GenomeThreader pipeline for generating protein hints!
 }
 
 # add other user supplied hints
@@ -1380,7 +1393,7 @@ sub set_BAMTOOLS_PATH {
 ################################################################################
 
 sub set_MINIPROT_PATH {
-    if (@prot_seq_files && $prg=="gth") {
+    if (@prot_seq_files && $prg eq "miniprot") {
 
         # try go get from ENV
         if ( defined( $ENV{'MINIPROT_PATH'} ) && not (defined( $MINIPROT_PATH_OP ) ) ) {
@@ -1498,7 +1511,7 @@ sub set_MINIPROT_PATH {
 ################################################################################
 
 sub set_GENOMETHREADER_PATH {
-    if (@prot_seq_files && $prg=="gth") {
+    if (@prot_seq_files && $prg eq "gth") {
 
         # try go get from ENV
         if ( defined( $ENV{'GENOMETHREADER_PATH'} ) && not (defined( $GENOMETHREADER_PATH_OP ) ) ) {
@@ -2302,7 +2315,6 @@ sub check_upfront {
     }
 
     # check for alignment executable
-    my $prot_aligner;
     if (@prot_seq_files && defined($prg)) {
         if ( $prg eq 'gth' ) {
             $prot_aligner = "$GENOMETHREADER_PATH/gth";
@@ -2315,8 +2327,7 @@ sub check_upfront {
                 $logString .= $prtStr;
                 print STDERR $logString;
                 exit(1);
-            }
-            elsif ( !-x $prot_aligner ) {
+            } elsif ( !-x $prot_aligner ) {
                 $prtStr
                     = "\# "
                     . (localtime)
@@ -2326,8 +2337,7 @@ sub check_upfront {
                 print STDERR $logString;
                 exit(1);
             }
-        }
-        elsif ( $prg eq 'miniprot' ) {
+        } elsif ( $prg eq 'miniprot' ) {
             $prot_aligner = "$MINIPROT_PATH/miniprot";
             if ( !-f $prot_aligner ) {
                 $prtStr
@@ -2411,7 +2421,7 @@ sub check_upfront {
         $AUGUSTUS_SCRIPTS_PATH, $AUGUSTUS_CONFIG_PATH
     );
     find(
-        "align2hints.pl",       $AUGUSTUS_BIN_PATH,
+        "aln2hints.pl",       $AUGUSTUS_BIN_PATH,
         $AUGUSTUS_SCRIPTS_PATH, $AUGUSTUS_CONFIG_PATH
     );
     find(
@@ -3069,7 +3079,7 @@ sub check_fasta_headers {
 }
 
 ####################### make_prot_hints ########################################
-# * run protein to genome alignment (gth or miniprot)
+# * run protein to genome alignment (miniprot or gth)
 # * convert alignments to hints (calls aln2hints)
 # * converts GenomeThreader alignments to hints (calls gth2gtf)
 ################################################################################
@@ -3091,7 +3101,7 @@ sub make_prot_hints {
         ."\nFailed to execute $cmdString!\n");
 
     # from fasta files
-    if ( @prot_seq_files && $prg=="gth") {
+    if ( @prot_seq_files && $prg eq "gth") {
         $string = find(
             "startAlign.pl",        $AUGUSTUS_BIN_PATH,
             $AUGUSTUS_SCRIPTS_PATH, $AUGUSTUS_CONFIG_PATH);
@@ -3140,8 +3150,7 @@ sub make_prot_hints {
                             $useexisting, "ERROR in file " . __FILE__
                             . " at line ". __LINE__
                             . "\nFailed to execute $cmdString!\n");
-                }
-                else {
+                } else {
                     print LOG "\# " . (localtime) . ": alignment file "
                         . "$otherfilesDir/align_$prg/$prg.concat.aln in round $i "
                         . "was empty.\n" if ($v > 3);
@@ -3155,8 +3164,7 @@ sub make_prot_hints {
                     or clean_abort("$AUGUSTUS_CONFIG_PATH/species/$species",
                         $useexisting, "ERROR in file " . __FILE__ ." at line "
                         . __LINE__ ."\nFailed to execute: $cmdString!\n");
-            }
-            else {
+            } else {
                 $prtStr
                     = "\# "
                     . (localtime)
@@ -3166,7 +3174,68 @@ sub make_prot_hints {
                 print LOG $prtStr if ($v > 3);
             }
         }
+    }elsif ( @prot_seq_files && $prg eq "miniprot") {
+        $errorfile = "$errorfilesDir/miniprot.stderr";
+        $logfile   = "$otherfilesDir/miniprot_index.stdout";
+        # build genome index
+        $cmdString = "";
+        if ($nice) {
+            $cmdString .= "nice ";
+        }
+        if(not(defined($CPU))){
+            $CPU=1;
+        }
+        $cmdString .= "$prot_aligner -t$CPU -d $otherfilesDir/genome.mpi $genome";
+        $cmdString .= "> $logfile 2>>$errorfile";
+        print LOG "\# "
+                    . (localtime)
+                    . ": running Miniprot to produce protein to "
+                    . "genome alignments, first producing genome index:\n"  if ($v > 3);
+        print LOG "$cmdString\n" if ($v > 3);
+        print CITE $pubs{'miniprot'}; $pubs{'miniprot'} = "";
+        system("$cmdString") == 0
+                    or clean_abort("$AUGUSTUS_CONFIG_PATH/species/$species",
+                     $useexisting, "ERROR in file " . __FILE__ ." at line "
+                     . __LINE__ ."\nfailed to execute: $cmdString!\n");
+        # align proteins from all files
+        for ( my $i = 0; $i < scalar(@prot_seq_files); $i++ ) {
+            if ( !uptodate( [ $prot_seq_files[$i] ], [$prot_hintsfile] )
+                || $overwrite )
+            {
+                $cmdString = "";
+                if ($nice) {
+                    $cmdString .= "nice ";
+                }
+                $cmdString
+                    .= "$prot_aligner -ut$CPU --gtf $otherfilesDir/genome.mpi $prot_seq_files[$i] >> $prot_hintsfile ";
+                print LOG "\# "
+                    . (localtime)
+                    . ": running Miniprot to produce protein to "
+                    . "genome alignments\n"  if ($v > 3);
+                $perlCmdString .= "2>>$errorfile";
+                print LOG "$cmdString\n" if ($v > 3);
+                system("$cmdString") == 0
+                    or clean_abort("$AUGUSTUS_CONFIG_PATH/species/$species",
+                     $useexisting, "ERROR in file " . __FILE__ ." at line "
+                     . __LINE__ ."\nfailed to execute: $cmdString!\n");
+                print LOG "\# "
+                    . (localtime)
+                    . ": Alignments from file $prot_seq_files[$i] created.\n" if ($v > 3);
+            } else {
+                $prtStr
+                    = "\# "
+                    . (localtime)
+                    . ": Skipping running alignment tool "
+                    . "because files $prot_seq_files[$i] and $prot_hintsfile "
+                    . "were up to date.\n";
+                print LOG $prtStr if ($v > 3);
+            }
+        }
+        # add intron feature to gtf file
+
     }
+
+exit(1);
 
     # convert pipeline created protein alignments to protein hints
     if ( @prot_seq_files && -e $alignment_outfile ) {
@@ -3278,7 +3347,7 @@ sub aln2hints {
             $perlCmdString .= "nice ";
         }
         $string = find(
-            "align2hints.pl",       $AUGUSTUS_BIN_PATH,
+            "aln2hints.pl",       $AUGUSTUS_BIN_PATH,
             $AUGUSTUS_SCRIPTS_PATH, $AUGUSTUS_CONFIG_PATH
         );
         $perlCmdString .= "$string --in=$aln_file --out=$out_file_name ";
@@ -3300,8 +3369,7 @@ sub aln2hints {
             "$AUGUSTUS_CONFIG_PATH/species/$species", $useexisting,
             "ERROR in file " . __FILE__ ." at line ". __LINE__
             . "\nFailed to execute: $cmdString\n");
-    }
-    else {
+    } else {
         print LOG "#*********\n"
                 . "# WARNING: Alignment file $aln_file was empty!\n"
                 . "#*********\n" if ($v > 0);

@@ -182,12 +182,12 @@ if ( $prgsrc eq "gth" ) {
     $intron_threshold = $intron_threshold_gth;
 }
 
-if ( not( $prgsrc eq "miniprot" ) && defined($genome_file) )
+if ( not( $prgsrc eq "miniprot2h" ) && defined($genome_file) )
 {
     print STDERR
         "ERROR: program name is $prgsrc and a genome file was specified. "
         . "Will ignore genome file.\n";
-} elsif ( $prgsrc eq "miniprot" && defined($genome_file) ) {
+} elsif ( $prgsrc eq "miniprot2h" && defined($genome_file) ) {
     open( GENOME, "<", $genome_file )
         or die("Could not open genome fasta file $genome_file!\n");
     my $header;
@@ -239,8 +239,14 @@ while (<ALN>) {
             = $info[0] . "_" . $seqname . "_" . $rnaid[0] . "_" . $geneid[0];
     }
 
-    # create start and stop hints from miniprot
-    if ( ( $type eq "gene" && $prgsrc eq "miniprot" && defined($genome_file) ) )
+    # define parent for miniprot
+    if ($type eq "gene" && $prgsrc eq "miniprot2h"){
+        $f[8] =~ m/gene_id \"([^"]+)\"/;
+        $parent = $1;
+    }
+
+    # create start and stop hints from miniprot, stop codon excluded from CDS
+    if ( ( $type eq "gene" && $prgsrc eq "miniprot2h" && defined($genome_file) ) )
     {
         my $pot_start;
         if ( $strand eq "+" ) {
@@ -253,15 +259,15 @@ while (<ALN>) {
         }
         if ( defined($pot_start) ) {
             if ( $pot_start =~ m/(ATG)|(TTG)|(GTG)|(CTG)/i ) {
-                print_start( $seqname, $strand, $start, $end );
+                print_start( $seqname, $strand, $start, $end , $parent);
             }
         }
         my $pot_stop;
         if ( $strand eq "+" ) {
-            $pot_stop = substr( $genome{$seqname}, $end - 3, 3 );
+            $pot_stop = substr( $genome{$seqname}, $end, 3 );
         }
         else {
-            $pot_stop = substr( $genome{$seqname}, $start - 1, 3 );
+            $pot_stop = substr( $genome{$seqname}, $start - 4, 3 );
             $pot_stop =~ tr/acgtACGT/tgcaTGCA/;
             $pot_stop = reverse($pot_stop);
         }
@@ -283,7 +289,7 @@ while (<ALN>) {
         print HINTS
             "$seqname\t$prgsrc\t$CDSpartid\t$start\t$end\t$score\t$strand\t"
             . "$frame\tsrc=$source;grp=$parent;pri=$priority\n";
-        if ( $prgsrc eq "miniprot" ) {
+        if ( $prgsrc eq "miniprot2h" ) {
             get_intron( \@f );
         }
     }
@@ -298,10 +304,14 @@ close(HINTS) or die("Could not close file $hintsfilename!\n");
 # intron hints for miniprot and gth
 sub get_intron {
     my $line = shift;
-    $intron_score = $prevScore + @{$line}[5] / 2;
+    if($prgsrc eq "gth2h"){
+        $intron_score = $prevScore + @{$line}[5] / 2;
+    }else{
+        $intron_score = 0;
+    }
     if ( $prevParent ne $parent ) {
         if ( @{$line}[6] eq "-"
-            && ( $prgsrc eq "miniprot" ) )
+            && ( $prgsrc eq "miniprot2h" ) )
         {
             $intron_end = @{$line}[3] - 1
                 ;   # these spliced aligners output in reverse order in genome
@@ -312,7 +322,7 @@ sub get_intron {
     }
     else {
         if ( @{$line}[6] eq "-"
-            && ( $prgsrc eq "miniprot" ) )
+            && ( $prgsrc eq "miniprot2h" ) )
         {
             $intron_start = @{$line}[4] + 1;
         }
@@ -325,24 +335,31 @@ sub get_intron {
             $intron_end   = $tmp;
         }
 
-# check conditions: length of intron is at least $minintronlen and maximal
-# $maxintronlen and its score is greater than $intron_threshold
-        if (   $intron_end - $intron_start + 1 >= $minintronlen
-            && $intron_end - $intron_start + 1 <= $maxintronlen
-            && ( !defined($intron_threshold)
-                || $intron_score > $intron_threshold )
-            )
-        {
-            if ( ( defined($prevQend) && $prevQend + 1 == $qstart ) )
+        if( $prgsrc eq "miniprot2h"){
+            print HINTS
+                "@{$line}[0]\t$prgsrc\tintron\t$intron_start\t$intron_end"
+                . "\t$intron_score\t@{$line}[6]\t.\tsrc=$source;"
+                . "grp=$parent;pri=$priority\n";
+        }else{
+            # for GTH check conditions: length of intron is at least $minintronlen and maximal
+            # $maxintronlen and its score is greater than $intron_threshold
+            if (   $intron_end - $intron_start + 1 >= $minintronlen
+                && $intron_end - $intron_start + 1 <= $maxintronlen
+                && ( !defined($intron_threshold)
+                    || $intron_score > $intron_threshold )
+                )
             {
-                print HINTS
-                    "@{$line}[0]\t$prgsrc\tintron\t$intron_start\t$intron_end"
-                    . "\t$intron_score\t@{$line}[6]\t.\tsrc=$source;"
-                    . "grp=$parent;pri=$priority\n";
+                if ( ( defined($prevQend) && $prevQend + 1 == $qstart ) )
+                {
+                    print HINTS
+                        "@{$line}[0]\t$prgsrc\tintron\t$intron_start\t$intron_end"
+                        . "\t$intron_score\t@{$line}[6]\t.\tsrc=$source;"
+                        . "grp=$parent;pri=$priority\n";
+                }
             }
         }
         if ( @{$line}[6] eq "-"
-            && ( $prgsrc eq "miniprot" ) )
+            && ( $prgsrc eq "miniprot2h" ) )
         {
             $intron_end = @{$line}[3] - 1;
         }
@@ -360,6 +377,7 @@ sub print_start {
     my $strand  = shift;
     my $start   = shift;
     my $end     = shift;
+    my $parent  = shift;
     print HINTS "$seqname\t$prgsrc\tstart\t";
     if ( $strand eq "+" ) {
         print HINTS "$start\t" . ( $start + 2 );
