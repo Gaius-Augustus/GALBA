@@ -161,9 +161,7 @@ CONFIGURATION OPTIONS (TOOLS CALLED BY GALBA)
                                     required if --prg="gth"
 --DIAMOND_PATH=/path/to/diamond     Set path to diamond, this is an alternative
                                     to NCIB blast; you only need to specify one 
-                                    out of DIAMOND_PATH or BLAST_PATH, not both.
-                                    DIAMOND is a lot faster that BLAST and yields 
-                                    highly similar results for GALBA.
+                                    out of DIAMOND_PATH.
 --PYTHON3_PATH=/path/to             Set path to python3 executable (if not 
                                     specified as envirnonment variable and if
                                     executable is not in your $PATH).
@@ -380,8 +378,6 @@ my $GENOMETHREADER_PATH;
 my $GENOMETHREADER_PATH_OP;    # higher priority than environment variable
 my $DIAMOND_PATH; # path to diamond, alternative to BLAST
 my $diamond_path; # command line argument value for $DIAMOND_PATH
-my $BLAST_PATH; # path to blastall and formatdb ncbi blast executable
-my $blast_path; # command line argument value for $BLAST_PATH
 my $python3_path; # command line argument value for $PYTHON3_PATH
 my $java_path;
 my $JAVA_PATH;
@@ -427,7 +423,6 @@ GetOptions(
     'MINIPROT_PATH=s'              => \$MINIPROT_PATH_OP,
     'GENOMETHREADER_PATH=s'        => \$GENOMETHREADER_PATH_OP,
     'DIAMOND_PATH=s'               => \$diamond_path,
-    'BLAST_PATH=s'                 => \$blast_path,
     'PYTHON3_PATH=s'               => \$python3_path,
     'JAVA_PATH=s'                  => \$java_path,
     'GUSHR_PATH=s'                 => \$gushr_path,
@@ -561,7 +556,7 @@ set_AUGUSTUS_SCRIPTS_PATH();
 set_PYTHON3_PATH();
 
 if (not ($skipAllTraining)){
-    set_BLAST_or_DIAMOND_PATH();
+    set_DIAMOND_PATH();
 }
 
 if(@prot_seq_files && $prg=="miniprot"){
@@ -1616,181 +1611,94 @@ sub set_GENOMETHREADER_PATH {
     }
 }
 
-####################### set_BLAST_or_DIAMOND_PATH ##############################
+####################### set_DIAMOND_PATH ##############################
 # * set path to diamond (preferred) or to blastp and formatdb
 ################################################################################
 
-sub set_BLAST_or_DIAMOND_PATH {
-    # first try to set DIAMOND_PATH because that is much faster
+sub set_DIAMOND_PATH {
 
-    if(not(defined($blast_path))){ # unless blast_path is given explicitely on command line
-        # try to get path from ENV
-        if ( defined( $ENV{'DIAMOND_PATH'} ) && not (defined($diamond_path)) ) {
-            if ( -e $ENV{'DIAMOND_PATH'} ) {
-                $prtStr
-                    = "\# "
-                    . (localtime)
-                    . ": Found environment variable \$DIAMOND_PATH. Setting "
-                    . "\$DIAMOND_PATH to ".$ENV{'DIAMOND_PATH'}."\n";
-                $logString .= $prtStr if ($v > 1);
-                $DIAMOND_PATH = $ENV{'DIAMOND_PATH'};
-            }
-        }
-        elsif(not(defined($diamond_path))) {
+    # try to get path from ENV
+    if ( defined( $ENV{'DIAMOND_PATH'} ) && not (defined($diamond_path)) ) {
+        if ( -e $ENV{'DIAMOND_PATH'} ) {
             $prtStr
                 = "\# "
                 . (localtime)
-                . ": Did not find environment variable \$DIAMOND_PATH\n";
+                . ": Found environment variable \$DIAMOND_PATH. Setting "
+                . "\$DIAMOND_PATH to ".$ENV{'DIAMOND_PATH'}."\n";
             $logString .= $prtStr if ($v > 1);
-        }
-
-        # try to get path from command line
-        if ( defined($diamond_path) ) {
-            my $last_char = substr( $diamond_path, -1 );
-            if ( $last_char eq "\/" ) {
-                chop($diamond_path);
-            }
-            if ( -d $diamond_path ) {
-                $prtStr
-                    = "\# "
-                    . (localtime)
-                    . ": Setting \$DIAMOND_PATH to command line argument "
-                    . "--DIAMOND_PATH value $diamond_path.\n";
-                $logString .= $prtStr if ($v > 1);
-                $DIAMOND_PATH = $diamond_path;
-            }
-            else {
-                $prtStr = "#*********\n"
-                        . "# WARNING: Command line argument --DIAMOND_PATH was "
-                        . "supplied but value $diamond_path is not a directory. Will not "
-                        . "set \$DIAMOND_PATH to $diamond_path!\n"
-                        . "#*********\n";
-                $logString .= $prtStr if ($v > 0);
-            }
-        }
-
-        # try to guess
-        if ( not( defined($DIAMOND_PATH) )
-            || length($DIAMOND_PATH) == 0 )
-        {
-            $prtStr
-                = "\# "
-                . (localtime)
-                . ": Trying to guess \$DIAMOND_PATH from location of diamond"
-                . " executable that is available in your \$PATH\n";
-            $logString .= $prtStr if ($v > 1);
-            my $epath = which 'diamond';
-            if(defined($epath)){
-                if ( -d dirname($epath) ) {
-                    $prtStr
-                        = "\# "
-                        . (localtime)
-                        . ": Setting \$DIAMOND_PATH to "
-                        . dirname($epath) . "\n";
-                    $logString .= $prtStr if ($v > 1);
-                    $DIAMOND_PATH = dirname($epath);
-                }
-            }
-            else {
-                $prtStr = "#*********\n"
-                        . "# WARNING: Guessing the location of \$DIAMOND_PATH "
-                        . "failed / GALBA failed "
-                        . " to detect a diamond binary with \"which diamond\"!\n"
-                        . "#*********\n";
-                $logString .= $prtStr if ($v > 0);
-            }
+            $DIAMOND_PATH = $ENV{'DIAMOND_PATH'};
         }
     }
-
-    if(not(defined($DIAMOND_PATH))){
-        # try to get path from ENV
-        if ( defined( $ENV{'BLAST_PATH'} ) && not (defined($blast_path)) ) {
-            if ( -e $ENV{'BLAST_PATH'} ) {
-                $prtStr
-                    = "\# "
-                    . (localtime)
-                    . ": Found environment variable \$BLAST_PATH. Setting "
-                    . "\$BLAST_PATH to ".$ENV{'BLAST_PATH'}."\n";
-                $logString .= $prtStr if ($v > 1);
-                $BLAST_PATH = $ENV{'BLAST_PATH'};
-            }
-        }
-        elsif(not(defined($blast_path))) {
-            $prtStr
-                = "\# "
-                . (localtime)
-                . ": Did not find environment variable \$BLAST_PATH\n";
-            $logString .= $prtStr if ($v > 1);
-        }
+    elsif(not(defined($diamond_path))) {
+        $prtStr
+            = "\# "
+            . (localtime)
+            . ": Did not find environment variable \$DIAMOND_PATH\n";
+        $logString .= $prtStr if ($v > 1);
     }
 
-    # try to get path from command line, overrule $DIAMOND_PATH
-    if ( defined($blast_path) ) {
-        my $last_char = substr( $blast_path, -1 );
+    # try to get path from command line
+    if ( defined($diamond_path) ) {
+        my $last_char = substr( $diamond_path, -1 );
         if ( $last_char eq "\/" ) {
-            chop($blast_path);
+            chop($diamond_path);
         }
-        if ( -d $blast_path ) {
+        if ( -d $diamond_path ) {
             $prtStr
                 = "\# "
                 . (localtime)
-                . ": Setting \$BLAST_PATH to command line argument "
-                . "--BLAST_PATH value $blast_path.\n";
+                . ": Setting \$DIAMOND_PATH to command line argument "
+                . "--DIAMOND_PATH value $diamond_path.\n";
             $logString .= $prtStr if ($v > 1);
-            $BLAST_PATH = $blast_path;
+            $DIAMOND_PATH = $diamond_path;
         }
         else {
             $prtStr = "#*********\n"
-                    . ": WARNING: Command line argument --BLAST_PATH was "
-                    . "supplied but value $blast_path is not a directory. Will not "
-                    . "set \$BLAST_PATH to $blast_path!\n"
+                    . "# WARNING: Command line argument --DIAMOND_PATH was "
+                    . "supplied but value $diamond_path is not a directory. Will not "
+                    . "set \$DIAMOND_PATH to $diamond_path!\n"
                     . "#*********\n";
             $logString .= $prtStr if ($v > 0);
         }
     }
 
     # try to guess
-    if(not(defined($DIAMOND_PATH))){
-        if ( not( defined($BLAST_PATH) )
-            || length($BLAST_PATH) == 0 )
-        {
-            $prtStr
-                = "\# "
-                . (localtime)
-                . ": Trying to guess \$BLAST_PATH from location of blastp"
-                . " executable that is available in your \$PATH\n";
-            $logString .= $prtStr if ($v > 1);
-            my $epath = which 'blastp';
-            if(defined($epath)){
-                if ( -d dirname($epath) ) {
-                    $prtStr
-                        = "\# "
-                        . (localtime)
-                        . ": Setting \$BLAST_PATH to "
-                        . dirname($epath) . "\n";
-                    $logString .= $prtStr if ($v > 1);
-                    $BLAST_PATH = dirname($epath);
-                }
+    if ( not( defined($DIAMOND_PATH) )
+        || length($DIAMOND_PATH) == 0 )
+    {
+        $prtStr
+            = "\# "
+            . (localtime)
+            . ": Trying to guess \$DIAMOND_PATH from location of diamond"
+            . " executable that is available in your \$PATH\n";
+        $logString .= $prtStr if ($v > 1);
+        my $epath = which 'diamond';
+        if(defined($epath)){
+            if ( -d dirname($epath) ) {
+                $prtStr
+                    = "\# "
+                    . (localtime)
+                    . ": Setting \$DIAMOND_PATH to "
+                    . dirname($epath) . "\n";
+                $logString .= $prtStr if ($v > 1);
+                $DIAMOND_PATH = dirname($epath);
             }
-            else {
-                $prtStr = "#*********\n"
-                        . "# WARNING: Guessing the location of \$BLAST_PATH "
-                        . "failed / GALBA failed to "
-                        . " detect BLAST with \"which blastp\"!\n"
-                        . "#*********\n";
-                $logString .= $prtStr if ($v > 0);
-            }
+        }
+        else {
+            $prtStr = "#*********\n"
+                    . "# WARNING: Guessing the location of \$DIAMOND_PATH "
+                    . "failed / GALBA failed "
+                    . " to detect a diamond binary with \"which diamond\"!\n"
+                    . "#*********\n";
+            $logString .= $prtStr if ($v > 0);
         }
     }
 
-    if ( not( defined($BLAST_PATH) ) && not ( defined($DIAMOND_PATH)) ) {
+    if ( not ( defined($DIAMOND_PATH)) ) {
         my $blast_err;
-        $blast_err .= "aa2nonred.pl can be exectued either with DIAMOND\n"
-                   .  "or with BLAST (much slower than DIAMOND). We recommend\n"
-                   .  "using DIAMOND.\n"
-                   .  "There are 6 different ways to set one of the required\n"
-                   .  "variables \$DIAMOND_PATH or \$BLAST_PATH. Please be\n"
-                   .  "aware that you need to set only one of them, not both!\n"
+        $blast_err .= "aa2nonred.pl can be exectued with DIAMOND\n"
+                   .  "There are 3 different ways to set the required\n"
+                   .  "variables \$DIAMOND_PATH.\n"
                    .  "   a) provide command-line argument\n"
                    .  "      --DIAMOND_PATH=/your/path\n"
                    .  "   b) use an existing environment variable\n"
@@ -1808,59 +1716,20 @@ sub set_BLAST_or_DIAMOND_PATH {
                    . "       can check by typing\n"
                    .  "           which diamond\n"
                    .  "      in your shell, whether there is a diamond\n"
-                   .  "      executable in your \$PATH\n"
-                   .  "   d) provide command-line argument\n"
-                   .  "      --BLAST_PATH=/your/path\n"
-                   .  "      This will enforce the usage of BLAST in case you"
-                   .  "      have installed both BLAST and DIAMOND\n"
-                   .  "   e) use an existing environment variable\n"
-                   . "       \$BLAST_PATH\n"
-                   .  "      for setting the environment variable, run\n"
-                   .  "           export BLAST_PATH=/your/path\n"
-                   .  "      in your shell. You may append this to your "
-                   .  ".bashrc or .profile file in\n"
-                   .  "      order to make the variable available to all your\n"
-                   .  "      bash sessions.\n"
-                   .  "      GALBA will only check for this variable if it was\n"
-                   .  "      previously unable to set a \$DIAMOND_PATH.\n"
-                   .  "   f) aa2nonred.pl can try guessing the location of\n"
-                   .  "      \$BLAST_PATH from the location of a blastp\n"
-                   .  "      executable that is available in your \$PATH\n"
-                   .  "      variable. If you try to rely on this option, you\n"
-                   .  "      can check by typing\n"
-                   .  "           which blastp\n"
-                   .  "      in your shell, whether there is a blastp\n"
-                   .  "      executable in your \$PATH\n"
-                   .  "      GALBA will only try this if it did not find diamond.\n";
+                   .  "      executable in your \$PATH\n";
         $prtStr = "\# " . (localtime) . " ERROR: in file " . __FILE__
-            . " at line ". __LINE__ . "\n" . "\$BLAST_PATH not set!\n";
+            . " at line ". __LINE__ . "\n" . "\$DIAMOND_PATH not set!\n";
         $logString .= $prtStr;
         $logString .= $blast_err if ($v > 1);
         print STDERR $logString;
         exit(1);
     }
 
-    if(defined($DIAMOND_PATH) and not(defined($blast_path))){
+    if(defined($DIAMOND_PATH)){
         if ( not ( -x "$DIAMOND_PATH/diamond" ) ) {
             $prtStr = "\# " . (localtime) . " ERROR: in file " . __FILE__
                 ." at line ". __LINE__ ."\n"
                 . "$DIAMOND_PATH/diamond is not an executable file!\n";
-            $logString .= $prtStr;
-            print STDERR $logString;
-            exit(1);
-        }
-    }else{
-        if ( not ( -x "$BLAST_PATH/blastp" ) ) {
-            $prtStr = "\# " . (localtime) . " ERROR: in file " . __FILE__
-                ." at line ". __LINE__ ."\n"
-                . "$BLAST_PATH/blastp is not an executable file!\n";
-            $logString .= $prtStr;
-            print STDERR $logString;
-            exit(1);
-        }elsif( not ( -x "$BLAST_PATH/makeblastdb" ) ){
-            $prtStr = "\# " . (localtime) . " ERROR: in file " . __FILE__
-                . " at line ". __LINE__ ."\n"
-                . "$BLAST_PATH/makeblastdb is not an executable file!\n";
             $logString .= $prtStr;
             print STDERR $logString;
             exit(1);
@@ -4059,19 +3928,12 @@ sub training_augustus {
         if ($nice) {
             $perlCmdString .= "nice ";
         }
-        if(defined($DIAMOND_PATH) and not(defined($blast_path))){
+        if(defined($DIAMOND_PATH)){
             $perlCmdString .= "perl $string $otherfilesDir/traingenes.good.fa "
                            .  "$otherfilesDir/traingenes.good.nr.fa "
                            .  "--DIAMOND_PATH=$DIAMOND_PATH --cores=$CPU "
                            .  "--diamond 1> $stdoutfile 2>$errorfile";
             print CITE $pubs{'diamond'}; $pubs{'diamond'} = "";
-        }else{
-            $perlCmdString .= "perl $string $otherfilesDir/traingenes.good.fa "
-                           .  "$otherfilesDir/traingenes.good.nr.fa "
-                           .  "--BLAST_PATH=$BLAST_PATH --cores=$CPU 1> "
-                           .  "$stdoutfile 2>$errorfile";
-            print CITE $pubs{'blast1'}; $pubs{'blast1'} = "";
-            print CITE $pubs{'blast2'}; $pubs{'blast2'} = "";
         }
         print LOG "\# "
             . (localtime)
@@ -4082,7 +3944,7 @@ sub training_augustus {
                 $useexisting, "ERROR in file " . __FILE__ ." at line "
                 . __LINE__ ."\nFailed to execute: $perlCmdString\n");
 
-        # parse output of blast
+        # parse output of DIAMOND
         my %nonRed;
         open (BLASTOUT, "<", "$otherfilesDir/traingenes.good.nr.fa") or
             clean_abort("$AUGUSTUS_CONFIG_PATH/species/$species",
