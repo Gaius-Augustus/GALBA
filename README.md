@@ -48,7 +48,6 @@ Contents
             -   [Optional tools](#optional-tools)
 -   [Running GALBA](#running-galba)
     -   [GALBA pipeline modes](#different-galba-pipeline-modes)
-        -   [GALBA with proteins of short evolutionary distance](#galba-with-proteins-of-short-evolutionary-distance)
     -   [Description of selected GALBA command line options](#description-of-selected-galba-command-line-options)
         -   [--ab_initio](#--ab_initio)
         -   [--augustus_args=--some\_arg=bla](#--augustus_args--some_argbla)
@@ -393,9 +392,6 @@ GALBA will try to locate the make_hub.py script by using an environment variable
 
 Running GALBA
 ===============
-
-Different GALBA pipeline modes
---------------------------------
 
 In the following, we describe the GALBA calls for Miniprot and GenomeThreader. In general, we recommend that you run GALBA on genomic sequences that have been softmasked for Repeats. If your genome has been softmasked, include the `--softmasking` flag in your GALBA call!
 
