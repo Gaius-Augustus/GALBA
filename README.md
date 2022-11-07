@@ -66,12 +66,11 @@ Contents
 What is GALBA?
 ===============
 
-The rapidly growing number of sequenced genomes requires fully automated methods for accurate gene structure annotation. Here, we provide a fully automated gene pipeline that trains AUGUSTUS<sup name="a3">[R3, ](#f3)</sup><sup name="a4">[R4](#f4)</sup> for a novel species and subsequently predicts genes with AUGUSTUS in the genome of that species. GALBA uses protein sequences of **one closely related species** to generate a training gene set for AUGUSTUS with either miniprot<sup name="a1">[R1, ](#f1)</sup> or GenomeThreader<sup name="a2">[R2](#f2)</sup>. After training, GALBA uses the evidence from training genes during gene prediction.
+The rapidly growing number of sequenced genomes requires fully automated methods for accurate gene structure annotation. Here, we provide a fully automated gene pipeline that trains AUGUSTUS<sup name="a3">[R3, ](#f3)</sup><sup name="a4">[R4](#f4)</sup> for a novel species and subsequently predicts genes with AUGUSTUS in the genome of that species. GALBA uses protein sequences of **one closely related species** to generate a training gene set for AUGUSTUS with either miniprot<sup name="a1">[R1, ](#f1)</sup> or GenomeThreader<sup name="a2">[R2](#f2)</sup>. After training, GALBA uses the evidence from training genes during gene prediction. 
 
-:warning: Please note that the popular BRAKER<sup name="a5">[R5](#f5)</sup><sup name="a6">[R6](#f6)</sup> pipeline might produce more accurate results. Instead of using protein sequences of only one closely related species, **BRAKER is capable of using proteins of a large sequence database** where the species in the database must not necessarily be closely related to the target species. BRAKER can also incorporate RNA-Seq data. In contrast to GALBA, BRAKER achieves high gene prediction accuracy even in the absence of the annotation of very closely related species (and in the absence of RNA-Seq data).
+GALBA code was derived from BRAKER code, where a similar pipeline for using GenomeThreader with BRAKER was once published in <sup name="a9">[R9](#f9)</sup>. Were hereby acknowledge the contributions of all BRAKER authors to the code that GALBA was derived from, and funding for BRAKER development by National Institutes of Health (NIH) grant GM128145, which indirectly also also supported development of GALBA.
 
-
-
+:warning: Please note that the popular BRAKER<sup name="a5">[R5, ](#f5)</sup><sup name="a6">[R6](#f6)</sup> pipeline might produce more accurate results. Instead of using protein sequences of only one closely related species, **BRAKER is capable of using proteins of a large sequence database** where the species in the database must not necessarily be closely related to the target species. BRAKER can also incorporate RNA-Seq data. In contrast to GALBA, BRAKER achieves high gene prediction accuracy even in the absence of the annotation of very closely related species (and in the absence of RNA-Seq data).
 
 Keys to successful gene prediction
 ==================================
@@ -87,12 +86,15 @@ Keys to successful gene prediction
 Overview running GALBA
 ====================================
 
-GALBA mainly features semi-unsupervised, protein sequence evidence data supported training of AUGUSTUS with integration of extrinsic evidence in the final gene prediction step. GALBA can be used either with Miniprot or GenomeThreader as protein spliced aligner.
+GALBA mainly features semi-unsupervised, protein sequence evidence data supported training of AUGUSTUS with integration of extrinsic evidence in the final gene prediction step. GALBA can be used either with Miniprot or GenomeThreader as protein spliced aligner. Miniprot is our preferred aligner because it continues to undergo development and it is faster than GenomeThreader.
 
+![galba-miniprot\[fig1\]](docs/figs/galba_miniprot.png)
 
-![galba2-sidetrack-b\[fig5\]](docs/figs/galba2_gth.png)
+Figure a: training AUGUSTUS on the basis of spliced alignment information from proteins of a very closely related species against the target genome with miniprot.
 
-Figure a: training AUGUSTUS on the basis of spliced alignment information from proteins of a very closely related species against the target genome with Miniprot or GenomeThreader.
+![galba-gth\[fig2\]](docs/figs/galba_gth.png)
+
+Figure b:training AUGUSTUS on the basis of spliced alignment information from proteins of a very closely related species against the target genome with GenomeThreader.
 
 
 Installation
@@ -103,13 +105,13 @@ Supported software versions
 
 At the time of release, this GALBA version was tested with:
 
--   AUGUSTUS 3.4.0 <sup name="g3">[F3, ](#g3)</sup><sup name="g4">[F4, ](#g4)</sup>
+-   AUGUSTUS 3.4.0 <sup name="g3">[R3, ](#g3)</sup><sup name="g4">[R4](#g4)</sup>
 
--   GenomeThreader 1.7.0<sup name="a2">[R2](#f2)</sup>
+-   Miniprot 0.5-r181<sup name="a1">[R1](#f1)</sup>
 
--   Miniprot<sup name="a1">[R1](#f1)</sup>
+-   GenomeThreader 1.7.3<sup name="a2">[R2](#f2)</sup>
 
--   DIAMOND 0.9.24<sup name="a7">[R7](#f7)</sup>
+-   DIAMOND 0.9.230<sup name="a7">[R7](#f7)</sup>
 
 -   cdbfasta 0.99
 
@@ -146,7 +148,6 @@ installed:
 -   `File::HomeDir`
 
 
-
 On Ubuntu, for example, install the modules with CPANminus<sup name="g4">[F4](#g4)</sup>: `sudo cpanm Module::Name`, e.g. `sudo cpanm Hash::Merge`.
 
 GALBA also uses a Perl module `helpMod.pm` that is not available on CPAN. This module is part of the GALBA release and does not require separate installation.
@@ -179,7 +180,7 @@ Subsequently install GALBA and other software "as usual" while being in your con
 
 GALBA is a collection of Perl and Python scripts and a Perl module. The main script that will be called in order to run GALBA is `galba.pl`. Additional Perl and Python components are:
 
--   `align2hints.pl`
+-   `aln2hints.pl`
 
 -   `filterIntronsFindStrand.pl`
 
@@ -187,11 +188,9 @@ GALBA is a collection of Perl and Python scripts and a Perl module. The main scr
 
 -   `helpMod.pm`
 
--   `findGenesInIntrons.pl`
-
 -   `downsample_traingenes.pl`
 
--   `ensure_n_training_genes.py`
+-   `galba_cleanup.pl`
 
 All scripts (files ending with `*.pl` and `*.py`) that are part of GALBA must be executable in order to run GALBA. This should already be the case if you download GALBA from GitHub. Executability may be overwritten if you e.g. transfer GALBA on a USB-stick to another computer. In order to check whether required files are executable, run the following command in the directory that contains GALBA Perl scripts:
 
@@ -200,15 +199,11 @@ All scripts (files ending with `*.pl` and `*.py`) that are part of GALBA must be
 The output should be similar to this:
 
 ```
-    -rwxr-xr-x 1 katharina katharina  18191 Mai  7 10:25 align2hints.pl
+    -rwxr-xr-x 1 katharina katharina  18191 Mai  7 10:25 aln2hints.pl
     -rwxr-xr-x 1 katharina katharina   6090 Feb 19 09:35 galba_cleanup.pl
     -rwxr-xr-x 1 katharina katharina 408782 Aug 17 18:24 galba.pl
     -rwxr-xr-x 1 katharina katharina   5024 Mai  7 10:25 downsample_traingenes.pl
-    -rwxr-xr-x 1 katharina katharina   5024 Mai  7 10:23 ensure_n_training_genes.py
-    -rwxr-xr-x 1 katharina katharina   4542 Apr  3  2019 filter_augustus_gff.pl
     -rwxr-xr-x 1 katharina katharina   5754 Mai  7 10:25 filterIntronsFindStrand.pl
-    -rwxr-xr-x 1 katharina katharina   7765 Mai  7 10:25 findGenesInIntrons.pl
-    -rwxr-xr-x 1 katharina katharina   4679 Jan  9 13:55 merge_transcript_sets.pl
     -rwxr-xr-x 1 katharina katharina  41674 Mai  7 10:25 startAlign.pl
 ```
 
@@ -240,7 +235,7 @@ Download AUGUSTUS from its master branch at <https://github.com/Gaius-Augustus/A
 
 You should compile AUGUSTUS on your own system in order to avoid problems with versions of libraries used by AUGUSTUS. Compilation instructions are provided in the AUGUSTUS `README.TXT` file (`Augustus/README.txt`).
 
-AUGUSTUS consists of `augustus`, the gene prediction tool, additional C++ tools located in `Augustus/auxprogs` and Perl scripts located in `Augustus/scripts`. Perl scripts must be executable (see instructions in section [GALBA components](#executability). GALBA does not use any of the `auxprogs`. 
+AUGUSTUS consists of `augustus`, the gene prediction tool, additional C++ tools located in `Augustus/auxprogs` and Perl scripts located in `Augustus/scripts`. Perl scripts must be executable (see instructions in section [GALBA components](#executability). GALBA does not use any of the `auxprogs`.
 
 Since GALBA is a pipeline that trains AUGUSTUS, i.e. writes species specific parameter files, GALBA needs writing access to the configuration directory of AUGUSTUS that contains such files (`Augustus/config/`). If you install AUGUSTUS globally on your system, the `config` folder will typically not be writable by all users. Either make the directory where `config` resides recursively writable to users of AUGUSTUS, or copy the `config/` folder (recursively) to a location where users have writing permission.
 
@@ -260,11 +255,11 @@ In order to make the variable available to all Bash sessions, add the above line
 GALBA expects the entire `config` directory of AUGUSTUS at `$AUGUSTUS_CONFIG_PATH`, i.e. the subfolders `species` with its contents (at least `generic`) and `extrinsic`! Providing a writable but empty folder at `$AUGUSTUS_CONFIG_PATH` will not work for GALBA. If you need
 to separate augustus binary and `$AUGUSTUS_CONFIG_PATH`, we recommend that you recursively copy the un-writable config contents to a writable location.
 
-If you have a system-wide installation of AUGUSTUS at `/usr/bin/augustus`, an unwritable copy of `config` sits at `/usr/bin/augustus_config/`. The folder `/home/yours/` is writable to you. Copy with the following command (and additionally set the then required variables):
+If you have a system-wide installation of AUGUSTUS at `/usr/bin/augustus`, an unwritable copy of `config` sits at `/usr/bin/augustus_config/`. The folder `${HOME}` is writable to you. Copy with the following command (and additionally set the then required variables):
 
 ```
-cp -r /usr/bin/Augustus/config/ /home/yours/
-export AUGUSTUS_CONFIG_PATH=/home/yours/augustus_config
+cp -r /usr/bin/Augustus/config/ ${HOME}/augustus_config
+export AUGUSTUS_CONFIG_PATH=${HOME}/augustus_config
 export AUGUSTUS_BIN_PATH=/usr/bin
 export AUGUSTUS_SCRIPTS_PATH=/usr/bin/augustus_scripts
 ```
@@ -276,22 +271,29 @@ automatically. It is not a requirement for running GALBA to do this, because GAL
 environment variable (`$AUGUSTUS_CONFIG_PATH`), or both directories can be supplied as command line arguments to `galba.pl`, but we recommend to add them to your `$PATH` variable. For your current bash session, type:
 
 ```
-    PATH=:/your_path_to_augustus/bin/:/your_path_to_augustus/scripts/:$PATH
-    export PATH
+PATH=:/your_path_to_augustus/bin/:/your_path_to_augustus/scripts/:$PATH
+export PATH
 ```
 
 For all your BASH sessions, add the above lines to a startup script (e.g.`~/.bashrc`).
+
+#### Miniprot
+
+This tool is required, only, if you would like to run protein to genome alignments with GALBA using Miniprot. Download Miniprot from <https://github.com/lh3/miniprot>:
+
+```
+git clone https://github.com/lh3/miniprot.git
+cd miniprot
+make
+```
+
+GALBA will try to locate the Miniprot executable by using an environment variable `$MINIPROT_PATH`. Alternatively, this can be supplied as command line argument (`--MINIPROT_PATH=/your/path/to/miniprot/`).
 
 #### GenomeThreader
 
 This tool is required, only, if you would like to run protein to genome alignments with GALBA using GenomeThreader. Download GenomeThreader from <http://genomethreader.org/>. Unpack and install according to `gth/README`.
 
-GALBA will try to locate the GenomeThreader executable by using an environment variable `$ALIGNMENT_TOOL_PATH`. Alternatively, this can be supplied as command line argument (`--ALIGNMENT_TOOL_PATH=/your/path/to/gth`).
-
-#### Miniprot
-
-
-This tool is required, only, if you would like to run protein to genome alignments with GALBA using Miniprot. ... 
+GALBA will try to locate the GenomeThreader executable by using an environment variable `$GENOMETHREADER_PATH`. Alternatively, this can be supplied as command line argument (`--GENOMETHREADER_PATH=/your/path/to/gth/`).
 
 
 #### Python3
@@ -393,7 +395,13 @@ In the following, we describe the GALBA calls for Miniprot and GenomeThreader. I
 
 ### GALBA with Miniprot
 
-...
+For running GALBA with Miniprot, type:
+
+```
+    galba.pl --species=yourSpecies --genome=genome.fasta \
+       --prot_seq=proteins.fa \
+       --MINIPROT_PATH=/path/to/miniprot/binary/
+```
 
 ### GALBA with GenomeThreader
 
@@ -402,45 +410,17 @@ For running GALBA with GenomeThreader, type:
 ```
     galba.pl --species=yourSpecies --genome=genome.fasta \
        --prot_seq=proteins.fa --prg=gth \
-       --ALIGNMENT_TOOL_PATH=/path/to/gth/binary \
-       --trainFromGth
+       --ALIGNMENT_TOOL_PATH=/path/to/gth/binary/
 ```
-
-It is possible to generate protein alignments externally, prior running GALBA, itself. The compatible command for running GenomeThreader prior running GALBA, is:
-
-```
-    gth -genomic genome.fa  -protein protein.fa -gff3out \
-       -skipalignmentout -o gth.aln
-```
-
-In order to use such externally created alignment files, run:
-
-```
-    galba.pl --species=yourSpecies --genome=genome.fasta \
-       --prot_aln=proteins.aln --prg=gth --trainFromGth
-```
-
-It is also possible to run GALBA in this mode using an already prepared hints file. In this case, run:
-
-```
-    galba.pl --species=yourSpecies --genome=genome.fasta \
-       --hints=hints.gff --prg=gth --trainFromGth
-```
-
-Format of the hints file should look like this:
-
-```
-    chrName   gth2h   CDSpart 105984  106633  .     -    .    src=P;grp=FBpp0285205;pri=4
-    chrName   gth2h   start   106646  106648  .     -    .    src=P;grp=FBpp0285205;pri=4
-```
-
-Supported features in column 3 are intron, CDSpart, start, stop.
-
 
 Description of selected GALBA command line options
 ----------------------------------------------------
 
 Please run `galba.pl --help` to obtain a full list of options.
+
+### --prg
+
+Use either `miniprot` (default) or `gth` (for GenomeThreader) to generate training genes and hints.
 
 ### --ab\_initio
 
@@ -450,9 +430,9 @@ Compute AUGUSTUS *ab initio* predictions in addition to AUGUSTUS predictions wit
 
 One or several command line arguments to be passed to AUGUSTUS, if several arguments are given, separate them by whitespace, i.e. `"--first_arg=sth --second_arg=sth"`. This may be be useful if you know that gene prediction in your particular species benefits from a particular AUGUSTUS argument during the prediction step.
 
-### --cores=INT
+### --threads=INT
 
-Specifies the maximum number of cores that can be used during computation. GALBA has to run some steps on a single core, others can take advantage of multiple cores. If you use more than 8 cores, this will not speed up all parallelized steps, in particular, the time consuming `optimize_augustus.pl` will not use more than 8 cores. However, if you don’t mind some cores being idle, using more than 8 cores will speed up other steps.
+Specifies the maximum number of threads that can be used during computation. GALBA has to run some steps on a single thread, others can take advantage of multiple threads. If you use more than 8 threads, this will not speed up all parallelized steps, in particular, the time consuming `optimize_augustus.pl` will not use more than 8 threads.
 
 ### --softmasking
 
@@ -460,7 +440,7 @@ Softmasking option for soft masked genome files. (Disabled by default.)
 
 ### --useexisting
 
-Use the present config and parameter files if they exist for 'species'; will overwrite original parameters if GALBA performs an AUGUSTUS training.
+Use the present config and parameter files if they exist for 'species'; will overwrite original parameters if GALBA performs an AUGUSTUS training. :warning: Please use BRAKER and not GALBA if your pre-trained parameter set has UTR parameters. GALBA can not handle UTR parameters, correctly.
 
 ### --crf
 
@@ -516,8 +496,6 @@ Example data
 
 An example data set is contained in the directory `GALBA/example`.
 
-In case you have trouble accessing that file, there's also a copy available from another server:
-
 The example data set was not compiled in order to achieve optimal prediction accuracy, but in order to quickly test pipeline components. The small subset of the genome used in these test examples is not long enough for GALBA training to work well.
 
 Data description
@@ -525,7 +503,7 @@ Data description
 
 Data corresponds to the last 1,000,000 nucleotides of _Arabidopsis thaliana_'s chromosome Chr5, split into 8 artificial contigs.
 
-The protein sequences are a subset of [OrthoDB v10 plants proteins](https://v100.orthodb.org/download/odb10_plants_fasta.tar.gz).
+The protein sequences are a subset from *Arabidopsis lyrata subsp. lyrata* genome assembly GCA_000004255.1.
 
 List of files:
 
@@ -534,7 +512,7 @@ List of files:
 
 The below given commands assume that you configured all paths to tools by exporting bash variables or that you have the necessary tools in your $PATH.
 
-The example data set also contains scripts `tests/test*.sh` that will execute below listed commands for testing GALBA with the example data set. You find example results of AUGUSTUS in the folder `results/test*`. Be aware that GALBA contains several parts where random variables are used, i.e. results that you obtain when running the tests may not be exactly identical. To compare your test results with the reference ones, you can use the [compare_intervals_exact.pl](https://github.com/Gaius-Augustus/BRAKER/blob/master/scripts/compare_intervals_exact.pl) script from BRAKER as follows:
+The example data set also contains scripts `tests/test*.sh` that will execute below listed commands for testing GALBA with the example data set. You find example results of AUGUSTUS in the folder `results/test*`. Be aware that GALBA contains several parts where random variables are used, i.e. results that you obtain when running the tests may not be exactly identical. To compare your test results with the reference ones, you can use the [compare_intervals_exact.pl](https://github.com/Gaius-Augustus/BRAKER/blob/master/scripts/compare_intervals_exact.pl) script from GALBA as follows:
 
     # Compare CDS features
     compare_intervals_exact.pl --f1 augustus.hints.gtf --f2 ../../results/test${N}/augustus.hints.gtf --verbose
@@ -546,15 +524,23 @@ We give runtime estimations derived from computing on *Intel(R) Xeon(R) CPU E553
 Testing GALBA with Miniprot
 ---------------------------
 
+```
+galba.pl --genome=genome.fa --prot_seq=proteins.fa \
+    --skipOptimize --softmasking --threads 8
+```
+
+This test is implemented in `test1.sh`, expected runtime is ~2 minutes. The fast runtime of this test is mostly caused by generating a low number of training genes, and by skipping an optimization step for AUGUSTUS training.
+
 Testing GALBA with GenomeThreader
 ---------------------------------
 
-    galba.pl --genome genome.fa --prot_seq proteins.fa --prg gth \
-        --trainFromGth --softmasking --cores N
+```
+galba.pl --genome=genome.fa --prot_seq=proteins.fa \
+    --skipOptimize --softmasking --prg=gth --workingdir=$wd \
+    --threads 8
+```
 
-
-This test is implemented in `test1.sh`, expected runtime is ~7 minutes. The fast runtime of this test is mostly caused by generating a low number of training genes. Note that this approach does not scale well with increasing genome size and the number of proteins in a protein database.
-
+This test is implemented in `test2.sh`, expected runtime is ~2:15 minutes. The fast runtime of this test is mostly caused by generating a low number of training genes, and by skipping an optimization step for AUGUSTUS training.
 
 Testing GALBA with pre-trained parameters
 ------------------------------------------
@@ -562,11 +548,12 @@ Testing GALBA with pre-trained parameters
 The training step of all pipelines can be skipped with the option `--skipAllTraining`. This means, only AUGUSTUS predictions will be performed, using pre-trained, already existing parameters. For example, you can predict genes with the command:
 
 ```
-    galba.pl --genome=genome.fa --bam RNAseq.bam --species=arabidopsis \
-        --skipAllTraining --softmasking --cores N
+galba.pl --genome=genome.fa --prot_seq=proteins.fa \
+    --skipAllTraining --softmasking \
+    --threads 8 --species=arabidopsis
 ```
 
-This test is implemented in `test3.sh`, expected runtime is ~1 minute.
+This test is implemented in `test3.sh`, expected runtime is 2:30 minutes.
 
 Bug reporting
 =============
@@ -586,8 +573,6 @@ There are a number of other files that might be of interest, depending on where 
 
 -   `galba/yourSpecies/hintsfile.gff` - is this file empty? If yes, something went wrong during hints generation - does this file contain hints from source “b2h” and of type “intron”?
 
--   `galba/yourSpecies/align_gth/*err` - errors reported by the alignment tools gth
-
 -   `galba/yourSpecies/genbank.good.gb` - try a “grep -c LOCUS genbank.good.gb” to determine the number of training genes for training AUGUSTUS, should not be low
 
 -   `galba/yourSpecies/errors/firstetraining.stderr` - contains errors from first iteration of training AUGUSTUS
@@ -598,16 +583,12 @@ There are a number of other files that might be of interest, depending on where 
 
 -   `galba/yourSpecies/errors/augustus*.stderr` - contain AUGUSTUS execution errors
 
--   `galba/yourSpecies/startAlign.stderr` - if you provided a protein fasta file and `--prg` option and this file is not empty, something went wrong during protein alignment
+-   `galba/yourSpecies/startAlign.stderr` - if you provided a protein fasta file and `--prg=gth` option and this file is not empty, something went wrong during protein alignment
 
 -   `galba/yourSpecies/startAlign.stdout` - may give clues on at which point protein alignment went wrong
 
 Common problems
 ---------------
-
--   *There are duplicate Loci in the `train.gb` file (after using GenomeThreader)!*
-
-    This issue arises if outdated versions of AUGUSTUS and GALBA are used. Solution: Please update AUGUSTUS and GALBA from github (<https://github.com/Gaius-Augustus/Augustus>, <https://github.com/Gaius-Augustus/GALBA>).
 
 -   *[something] failed to execute!*
 
@@ -635,13 +616,15 @@ Since GALBA is a pipeline that calls several Bioinformatics tools, publication o
 
     -   Hoff, K.J., Lomsadze, A., Borodovsky, M. and Stanke, M. (2019). Whole-Genome Annotation with BRAKER. Methods Mol Biol. 1962:65-95, doi: 10.1007/978-1-4939-9173-0_5.
 
+    -   Hoff, K. and Stanke, M. 2019. “Predicting genes in single genomes with AUGUSTUS.“ *Current Protocols in Bioinformatics*, 65(1), e57.
+
     -   Stanke. M., Schöffmann, O., Morgenstern, B. and Waack, S. (2006). Gene prediction in eukaryotes with a generalized hidden Markov model that uses hints from external sources. BMC Bioinformatics 7, 62.
 
-    - Buchfink, B., Xie, C., Huson, D.H. (2015). Fast and sensitive protein alignment using DIAMOND. Nature Methods 12:59-60.
+    -   Buchfink, B., Xie, C., Huson, D.H. (2015). Fast and sensitive protein alignment using DIAMOND. Nature Methods 12:59-60.
 
 -   If GALBA was executed with Miniprot, cite:
 
-    -   ...
+    -   Li, H. (2022) “Protein-to-genome alignment with miniprot.” arXiv:2210.08052v1.
 
 -   If GALBA was executed with GenomeThreader, cite:
 
@@ -673,7 +656,7 @@ References
 
 <b id="f3">[R3]</b> Stanke, M., Schöffmann, O., Morgenstern, B., and Waack., S. 2006. “Gene Prediction in Eukaryotes with a Generalized Hidden Markov Model That Uses Hints from External Sources.” *BMC Bioinformatics* 7 (1). BioMed Central: 62.[↩](#a3)
 
-<b id="f4"><R4></b> Hoff, K. and Stanke, M. 2019. “Predicting genes in single genomes with AUGUSTUS.“ *Current Protocols in Bioinformatics*, 65(1), e57.[↩](#a4)
+<b id="f4">[R4]</b> Hoff, K. and Stanke, M. 2019. “Predicting genes in single genomes with AUGUSTUS.“ *Current Protocols in Bioinformatics*, 65(1), e57.[↩](#a4)
 
 <b id="f5">[R5]</b> Bruna, T., Hoff, K. J.,  Lomsadze, A., Stanke, M., and Borodvsky, M. 2021. “BRAKER2: automatic eukaryotic genome annotation with GeneMark-EP+ and AUGUSTUS supported by a protein database." *NAR Genomics and Bioinformatics* 3(1):lqaa108.[↩](#a5)
 
@@ -682,3 +665,5 @@ References
 <b id="f7">[R7]</b>Buchfink, B., Xie, C., and Huson, D. H. 2015. Fast and sensitive protein alignment using DIAMOND. *Nature Methods*, 12(1), 59-60.[↩](#a7)
 
 <b id="f8">[R8]</b> Hoff, K.J. 2019. MakeHub: Fully automated generation of UCSC Genome Browser Assembly Hubs. *Genomics, Proteomics and Bioinformatics*, in press, preprint on bioarXive, doi: <https://doi.org/10.1101/550145>.[↩](#a8)
+
+<b id="f9">[R9]</b>Hoff, K.J., Lomsadze, A., Borodovsky, M. and Stanke, M. (2019). Whole-Genome Annotation with BRAKER. Methods Mol Biol. 1962:65-95, doi: 10.1007/978-1-4939-9173-0_5.[↩](#a9)
