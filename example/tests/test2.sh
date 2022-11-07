@@ -1,10 +1,10 @@
-wd=test1
+wd=test2
 
 if [ -d $wd ]; then
     rm -r $wd
 fi
 
-# The expected runtime of this test is ~2 minutes. The fast runtime of
+# The expected runtime of this test is ~2:15 minutes. The fast runtime of
 # this test is mostly caused by generating a low number of training genes.
 # Note that this approach does not scale well with increasing genome size
 # and the number of proteins in a protein database. The runtime on a full
@@ -13,4 +13,4 @@ fi
 # this flag for annotating a real genome!
 
 
-( time galba.pl --genome=../genome.fa --prot_seq=../proteins.fa --skipOptimize --softmasking --workingdir=$wd --threads 8) &> test1.log
+( time galba.pl --genome=../genome.fa --prot_seq=../proteins.fa --skipOptimize --softmasking --prg=gth --workingdir=$wd --threads 8) &> test2.log
