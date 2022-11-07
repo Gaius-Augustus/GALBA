@@ -8,10 +8,10 @@ https://github.com/Gaius-Augustus/GALBA:</u>
 Katharina J. Hoff, University of Greifswald, Germany, katharina.hoff@uni-greifswald.de, +49 3834 420 4624
 
 
-Authors of GALBA
+Author of GALBA
 ================
 
-Katharina J. Hoff<sup name="aff1">[a, ](#aff1)</sup><sup name="aff2">[b](#aff2)</sup>, Natalia Nenasheva<sup name="aff1">[a, ](#aff1)</sup><sup name="aff2">[b](#aff2)</sup>, Mario Stanke<sup name="aff1">[a, ](#aff1)</sup><sup name="aff2">[b](#aff2)</sup>
+Katharina J. Hoff<sup name="aff1">[a, ](#aff1)</sup><sup name="aff2">[b](#aff2)</sup>
 
 <b id="aff1">[a]</b> University of Greifswald, Institute for Mathematics and Computer Science, Walther-Rathenau-Str. 47, 17489 Greifswald, Germany
 
@@ -66,9 +66,9 @@ Contents
 What is GALBA?
 ===============
 
-The rapidly growing number of sequenced genomes requires fully automated methods for accurate gene structure annotation. Here, we provide a fully automated gene pipeline that trains AUGUSTUS<sup name="a3">[R3, ](#f3)</sup><sup name="a4">[R4](#f4)</sup> for a novel species and subsequently predicts genes with AUGUSTUS in the genome of that species. GALBA uses protein sequences of a closely related species to generate a training gene set for AUGUSTUS with either GenomeThreader or Miniprot. After training, GALBA uses the evidence from training genes during gene prediction.
+The rapidly growing number of sequenced genomes requires fully automated methods for accurate gene structure annotation. Here, we provide a fully automated gene pipeline that trains AUGUSTUS<sup name="a3">[R3, ](#f3)</sup><sup name="a4">[R4](#f4)</sup> for a novel species and subsequently predicts genes with AUGUSTUS in the genome of that species. GALBA uses protein sequences of a closely related species to generate a training gene set for AUGUSTUS with either miniprot<sup name="a1">[R1, ](#f1)</sup> or GenomeThreader<sup name="a2">[R2](#f2)</sup>. After training, GALBA uses the evidence from training genes during gene prediction.
 
-Please note that the popular BRAKER<sup name="a1">[R1](#f1)</sup><sup name="a0">[R0](#f0)</sup> pipeline might produce better results. Instead of using protein sequences of only one closely related species, BRAKER is capable of using proteins for a large sequence database where the species in the database must not necessarily be closely related to the target species. BRAKER can also incorporate RNA-Seq data. In contrast to GALBA, BRAKER reaches high gene prediction accuracy even in the absence of the annotation of very closely related species (and in the absence of RNA-Seq data).
+Please note that the popular BRAKER<sup name="a5">[R5](#f5)</sup><sup name="a6">[R6](#f6)</sup> pipeline might produce better results. Instead of using protein sequences of only one closely related species, BRAKER is capable of using proteins for a large sequence database where the species in the database must not necessarily be closely related to the target species. BRAKER can also incorporate RNA-Seq data. In contrast to GALBA, BRAKER reaches high gene prediction accuracy even in the absence of the annotation of very closely related species (and in the absence of RNA-Seq data).
 
 Keys to successful gene prediction
 ==================================
@@ -100,13 +100,13 @@ Supported software versions
 
 At the time of release, this GALBA version was tested with:
 
--   AUGUSTUS 3.4.0 <sup name="g2">[F2](#g2)</sup>
+-   AUGUSTUS 3.4.0 <sup name="g3">[F3, ](#g3)</sup><sup name="g4">[F4, ](#g4)</sup>
 
--   GenomeThreader 1.7.0<sup name="a7">[R7](#f7)</sup>
+-   GenomeThreader 1.7.0<sup name="a2">[R2](#f2)</sup>
 
--   Miniprot
+-   Miniprot<sup name="a1">[R1](#f1)</sup>
 
--   DIAMOND 0.9.24
+-   DIAMOND 0.9.24<sup name="a7">[R7](#f7)</sup>
 
 -   cdbfasta 0.99
 
@@ -325,7 +325,7 @@ Add the above line to a startup script (e.g. `~/.bashrc`) in order to set the e
 
 #### Biopython
 
-If Biopython is installed, GALBA can generate FASTA-files with coding sequences and protein sequences predicted by AUGUSTUS and generate track data hubs for visualization of a GALBA run with MakeHub <sup name="a16">[R16](#f16)</sup>.
+If Biopython is installed, GALBA can generate FASTA-files with coding sequences and protein sequences predicted by AUGUSTUS and generate track data hubs for visualization of a GALBA run with MakeHub <sup name="a8">[R8](#f8)</sup>.
 These are optional steps. The first can be disabled with the command-line flag `--skipGetAnnoFromFasta`, the second can be activated by using the command-line options `--makehub --email=your@mail.de`, Biopython is not required if neither of these optional steps shall be performed.
 
 On Ubuntu, install Python3 package manager with:
@@ -663,14 +663,19 @@ Footnotes
 
 
 References
-==========
 
-<b id="f2">[R2]</b> Lomsadze, Alexandre, Paul D Burns, and Mark Borodovsky. 2014. “Integration of Mapped Rna-Seq Reads into Automatic Training of Eukaryotic Gene Finding Algorithm.” *Nucleic Acids Research* 42 (15). Oxford University Press: e119--e119.[↩](#a2)
+<b id="f1">[R1]</b> Li, H. (2022) “Protein-to-genome alignment with miniprot.” arXiv:2210.08052v1.[↩](#a1)
 
-<b id="f4">[R4]</b> Stanke, Mario, Oliver Schöffmann, Burkhard Morgenstern, and Stephan Waack. 2006. “Gene Prediction in Eukaryotes with a Generalized Hidden Markov Model That Uses Hints from External Sources.” *BMC Bioinformatics* 7 (1). BioMed Central: 62.[↩](#a4)
+<b id="f2">[R2]</b> Gremme, G. 2013. “Computational Gene Structure Prediction.” PhD thesis, Universität Hamburg.[↩](#a2)
 
-<b id="f7">[R7]</b> Gremme, G. 2013. “Computational Gene Structure Prediction.” PhD thesis, Universität Hamburg.[↩](#a7)
+<b id="f3">[R3]</b> Stanke, M., Schöffmann, O., Morgenstern, B., and Waack., S. 2006. “Gene Prediction in Eukaryotes with a Generalized Hidden Markov Model That Uses Hints from External Sources.” *BMC Bioinformatics* 7 (1). BioMed Central: 62.[↩](#a3)
 
-<b id="f11">[R11]</b> Slater, Guy St C, and Ewan Birney. 2005. “Automated Generation of Heuristics for Biological Sequence Comparison.” *BMC Bioinformatics* 6(1). BioMed Central: 31.[↩](#a11)
+<b id="f4"><R4></b> Hoff, K. and Stanke, M. 2019. “Predicting genes in single genomes with AUGUSTUS.“ *Current Protocols in Bioinformatics*, 65(1), e57.[↩](#a4)
 
-<b id="f16">[R16]</b> Hoff, K.J. 2019. MakeHub: Fully automated generation of UCSC Genome Browser Assembly Hubs. *Genomics, Proteomics and Bioinformatics*, in press, preprint on bioarXive, doi: <https://doi.org/10.1101/550145>.[↩](#a16)
+<b id="f5">[R5]</b> Bruna, T., Hoff, K. J.,  Lomsadze, A., Stanke, M., and Borodvsky, M. 2021. “BRAKER2: automatic eukaryotic genome annotation with GeneMark-EP+ and AUGUSTUS supported by a protein database." *NAR Genomics and Bioinformatics* 3(1):lqaa108.[↩](#a5)
+
+<b id="f6">[R6]</b> Hoff, K. J., Lange, S., Lomsadze, A., Borodovsky, M., and Stanke, M. 2015. “BRAKER1: Unsupervised Rna-Seq-Based Genome Annotation with Genemark-et and Augustus.” *Bioinformatics* 32 (5), 767--69.[↩](#a6)
+
+<b id="f7">[R7]</b>Buchfink, B., Xie, C., and Huson, D. H. 2015. Fast and sensitive protein alignment using DIAMOND. *Nature Methods*, 12(1), 59-60.[↩](#a7)
+
+<b id="f8">[R8]</b> Hoff, K.J. 2019. MakeHub: Fully automated generation of UCSC Genome Browser Assembly Hubs. *Genomics, Proteomics and Bioinformatics*, in press, preprint on bioarXive, doi: <https://doi.org/10.1101/550145>.[↩](#a8)
