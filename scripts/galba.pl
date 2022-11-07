@@ -495,6 +495,7 @@ $pubs{'aug-hmm'} = "\nStanke, M., Schöffmann, O., Morgenstern, B., & Waack, S. 
 $pubs{'diamond'} = "\nBuchfink, B., Xie, C., & Huson, D. H. (2015). Fast and sensitive protein alignment using DIAMOND. Nature Methods, 12(1), 59.\n";
 $pubs{'gth'} = "\nGremme, G. (2013). Computational gene structure prediction.\n";
 $pubs{'miniprot'} = "\nLi, H. (2022). Protein-to-genome alignment with miniprot. arXiv:2210.08052v1.\n";
+$pubs{'augustus-prot'} = "Hoff, K. and Stanke, M. 2019. “Predicting genes in single genomes with AUGUSTUS.“ Current Protocols in Bioinformatics, 65(1), e57.\n"
 
 # Make paths to input files absolute ###########################################
 
@@ -4860,6 +4861,7 @@ sub augustus {
     print LOG "\# " . (localtime) . ": RUNNING AUGUSTUS\n" if ($v > 2);
 
     print CITE $pubs{'aug-hmm'}; $pubs{'aug-hmm'} = "";
+    print CITE $pubs{'augustus-prot'}; $pubs{'augustus-prot'} = "";
 
     $augpath = "$AUGUSTUS_BIN_PATH/augustus";
     my @genome_files;
