@@ -11,11 +11,20 @@ Katharina J. Hoff, University of Greifswald, Germany, katharina.hoff@uni-greifsw
 Author of GALBA
 ================
 
-Katharina J. Hoff<sup name="aff1">[a, ](#aff1)</sup><sup name="aff2">[b](#aff2)</sup>
+Katharina J. Hoff<sup name="aff1">[a, ](#aff1)</sup><sup name="aff2">[b](#aff2)</sup>, Heng Li<sup name="aff3">[c, ](#aff3)</sup><sup name="aff4">[d ](#aff4)</sup>, and Mario Stanke<sup name="aff1">[a, ](#aff1)</sup><sup name="aff2">[b](#aff2)</sup>
 
 <b id="aff1">[a]</b> University of Greifswald, Institute for Mathematics and Computer Science, Walther-Rathenau-Str. 47, 17489 Greifswald, Germany
 
 <b id="aff2">[b]</b> University of Greifswald, Center for Functional Genomics of Microbes, Felix-Hausdorff-Str. 8, 17489 Greifswald, Germany
+
+<b id="aff3">[c]</b> Dana-Farber Cancer Institute, 450 Brookline Ave, Boston, MA 02215, USA
+
+<b id="aff4">[d]</b> Harvard Medical School, 10 Shattuck St, Boston, MA 02215, USA
+
+Acknowldgements
+===============
+
+GALBA code was derived from BRAKER code, where a similar pipeline for using GenomeThreader with BRAKER was once published in <sup name="a9">[R9](#f9)</sup>. Were hereby acknowledge the contributions of all BRAKER authors to the code that GALBA was derived from, and we are grateful for funding for BRAKER development by the National Institutes of Health (NIH) grant GM128145, which indirectly also also supported development of GALBA.
 
 
 Related Software
@@ -67,8 +76,6 @@ What is GALBA?
 ===============
 
 The rapidly growing number of sequenced genomes requires fully automated methods for accurate gene structure annotation. Here, we provide a fully automated gene pipeline that trains AUGUSTUS<sup name="a3">[R3, ](#f3)</sup><sup name="a4">[R4](#f4)</sup> for a novel species and subsequently predicts genes with AUGUSTUS in the genome of that species. GALBA uses protein sequences of **one closely related species** to generate a training gene set for AUGUSTUS with either miniprot<sup name="a1">[R1, ](#f1)</sup> or GenomeThreader<sup name="a2">[R2](#f2)</sup>. After training, GALBA uses the evidence from training genes during gene prediction. 
-
-GALBA code was derived from BRAKER code, where a similar pipeline for using GenomeThreader with BRAKER was once published in <sup name="a9">[R9](#f9)</sup>. Were hereby acknowledge the contributions of all BRAKER authors to the code that GALBA was derived from, and funding for BRAKER development by National Institutes of Health (NIH) grant GM128145, which indirectly also also supported development of GALBA.
 
 :warning: Please note that the popular BRAKER<sup name="a5">[R5, ](#f5)</sup><sup name="a6">[R6](#f6)</sup> pipeline might produce more accurate results. Instead of using protein sequences of only one closely related species, **BRAKER is capable of using proteins of a large sequence database** where the species in the database must not necessarily be closely related to the target species. BRAKER can also incorporate RNA-Seq data. In contrast to GALBA, BRAKER achieves high gene prediction accuracy even in the absence of the annotation of very closely related species (and in the absence of RNA-Seq data).
 
