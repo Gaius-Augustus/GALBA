@@ -21,7 +21,7 @@ Katharina J. Hoff<sup name="aff1">[a, ](#aff1)</sup><sup name="aff2">[b](#aff2)<
 Related Software
 ================
 
-  * GALBA was derived from BRAKER, a fully automated pipeline for predicting genes in the genomes of novel species with RNA-Seq data and a large-scale database of protein sequences (that must not necessarily be closely related to the target species) with GeneMark-ES/ET/EP/ETP and AUGUSTUS. BRAKER is available at https://github.com/Gaius-Augustus/BRAKER
+  * GALBA code was derived from BRAKER, a fully automated pipeline for predicting genes in the genomes of novel species with RNA-Seq data and a large-scale database of protein sequences (that must not necessarily be closely related to the target species) with GeneMark-ES/ET/EP/ETP and AUGUSTUS. BRAKER is available at https://github.com/Gaius-Augustus/BRAKER
   * TSEBRA can be used to combine GALBA gene sets with e.g. BRAKER gene sets. TSEBRA is available at https://github.com/Gaius-Augustus/TSEBRA .
 
 Contents
@@ -68,7 +68,15 @@ What is GALBA?
 
 The rapidly growing number of sequenced genomes requires fully automated methods for accurate gene structure annotation. Here, we provide a fully automated gene pipeline that trains AUGUSTUS<sup name="a3">[R3, ](#f3)</sup><sup name="a4">[R4](#f4)</sup> for a novel species and subsequently predicts genes with AUGUSTUS in the genome of that species. GALBA uses protein sequences of a closely related species to generate a training gene set for AUGUSTUS with either miniprot<sup name="a1">[R1, ](#f1)</sup> or GenomeThreader<sup name="a2">[R2](#f2)</sup>. After training, GALBA uses the evidence from training genes during gene prediction.
 
-Please note that the popular BRAKER<sup name="a5">[R5](#f5)</sup><sup name="a6">[R6](#f6)</sup> pipeline might produce better results. Instead of using protein sequences of only one closely related species, BRAKER is capable of using proteins for a large sequence database where the species in the database must not necessarily be closely related to the target species. BRAKER can also incorporate RNA-Seq data. In contrast to GALBA, BRAKER reaches high gene prediction accuracy even in the absence of the annotation of very closely related species (and in the absence of RNA-Seq data).
+<div class="panel panel-warning">
+**Important**
+{: .panel-heading}
+<div class="panel-body">
+Please note that the popular BRAKER<sup name="a5">[R5](#f5)</sup><sup name="a6">[R6](#f6)</sup> pipeline might produce more accurate results. Instead of using protein sequences of only one closely related species, BRAKER is capable of using proteins for a large sequence database where the species in the database must not necessarily be closely related to the target species. BRAKER can also incorporate RNA-Seq data. In contrast to GALBA, BRAKER achieves high gene prediction accuracy even in the absence of the annotation of very closely related species (and in the absence of RNA-Seq data).
+</div>
+</div>
+
+
 
 Keys to successful gene prediction
 ==================================
