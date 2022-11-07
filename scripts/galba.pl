@@ -2455,7 +2455,7 @@ sub check_upfront {
     }
 
     # check whether all extrinsic cfg files are available
-    find_ex_cfg ("cfg/gth.cfg");
+    find_ex_cfg ("cfg/galba.cfg");
 
     # check whether provided translation table is compatible
     # GALBA has only been implemented to alter to nuclear code
@@ -4878,7 +4878,7 @@ sub augustus {
             if(defined($extrinsicCfgFile1)){
                 $extrinsicCfgFile = $extrinsicCfgFile1;
             }else{
-                 assign_ex_cfg ("gth.cfg");
+                 assign_ex_cfg ("galba.cfg");
             }
             copy_ex_cfg($extrinsicCfgFile, "ex1.cfg");
             my $hintId = "hints";
@@ -4907,7 +4907,7 @@ sub augustus {
             if(defined($extrinsicCfgFile1)){
                 $extrinsicCfgFile = $extrinsicCfgFile1;
             }else{
-                assign_ex_cfg ("gth.cfg");
+                assign_ex_cfg ("galba.cfg");
             }
             my $hintId = "hints";
             copy_ex_cfg($extrinsicCfgFile, "ex1.cfg");
