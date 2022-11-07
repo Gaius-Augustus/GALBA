@@ -159,7 +159,7 @@ if ( defined($alignfile) ) {
 if ( !defined($prgsrc) ) {
     print STDERR
         "ERROR: Please assign the source programme with --prg. Possible "
-        . "Options are 'exonerate', 'spaln', 'gth' or 'scipio'.\n";
+        . "Options are 'gth' or 'miniprot'.\n";
     exit(1);
 }
 

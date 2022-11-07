@@ -239,9 +239,6 @@ EXPERT OPTIONS
 
 DEVELOPMENT OPTIONS (PROBABLY STILL DYSFUNCTIONAL)
 
---overwrite                         Overwrite existing files (except for
-                                    species parameter files) Beware, currently
-                                    not implemented properly!
 --CfgFiles=file.cfg                 Specify custom extrinsic.cfg file
                                     unless you know what you are doing!
 --translation_table=INT             Change translation table from non-standard
@@ -368,7 +365,7 @@ my $nice;    # flag that determines whether system calls should be executed
 my ( $target_1, $target_2, $target_3, $target_4, $target_5) = 0;
                       # variables that store AUGUSTUS accuracy after different
                       # training steps
-my $prg;              # variable to store protein alignment tool
+my $prg = "miniprot";              # variable to store protein alignment tool
 my @prot_seq_files;   # variable to store protein sequence file name
 my $MINIPROT_PATH = "";
 my $MINIPROT_PATH_OP;
@@ -386,7 +383,7 @@ my $GUSHR_PATH;
 my %hintTypes;    # stores hint types occuring over all generated and supplied
                   # hints for comparison
 my $rounds = 5;   # rounds used by optimize_augustus.pl
-my $gthTrainGeneFile;    # globally accessible file name variable
+my $trainGenesGtf;
 my $ab_initio;    # flag for output of AUGUSTUS ab initio predictions
 my $foundProteinHint = 0; # stores whether hintsfile contains src=P
 my $lambda = 2; # labmda of poisson distribution for downsampling of training genes
@@ -497,7 +494,7 @@ $pubs{'GALBA-whole'} = "\nHoff, K. J., Lomsadze, A., Borodovsky, M., & Stanke, M
 $pubs{'aug-hmm'} = "\nStanke, M., Schöffmann, O., Morgenstern, B., & Waack, S. (2006). Gene prediction in eukaryotes with a generalized hidden Markov model that uses hints from external sources. BMC Bioinformatics, 7(1), 62.\n";
 $pubs{'diamond'} = "\nBuchfink, B., Xie, C., & Huson, D. H. (2015). Fast and sensitive protein alignment using DIAMOND. Nature Methods, 12(1), 59.\n";
 $pubs{'gth'} = "\nGremme, G. (2013). Computational gene structure prediction.\n";
-$pubs{'miniprot'} = "\nto be added.\n";
+$pubs{'miniprot'} = "\nLi, H. (2022). Protein-to-genome alignment with miniprot. arXiv:2210.08052v1.\n";
 
 # Make paths to input files absolute ###########################################
 
@@ -691,8 +688,8 @@ print CITE $pubs{'GALBA-whole'}; $pubs{'GALBA-whole'} = "";
 # set hintsfile
 $hintsfile = "$otherfilesDir/hintsfile.gff";
 
-# set gthTrainGenes file
-$gthTrainGeneFile = "$otherfilesDir/gthTrainGenes.gtf";
+# set trainGenes file
+$trainGenesGtf = "$otherfilesDir/traingenes.gtf";
 
 # create parameter directory
 if ( !-d $parameterDir ) {
@@ -804,7 +801,7 @@ if ( (scalar(@nScaffs) > 30000) && ($CPU > 1) ) {
 }
 
 print LOG "\#**********************************************************************************\n"
-        . "\#                               PROCESSING HINTS                                   \n"
+        . "\#            PROCESSING HINTS AND GENERATING TRAINING GENES                        \n"
         . "\#**********************************************************************************\n";
 
 # make hints from protein data
@@ -820,7 +817,7 @@ if (@hints) {
 
 if ( $skipAllTraining == 0 ) {
     print LOG "\#**********************************************************************************\n"
-            . "\#                               TRAIN AUGUSTUS                                     \n"
+            . "\#                            TRAINING AUGUSTUS                                     \n"
             . "\#**********************************************************************************\n";
     # train AUGUSTUS
     training_augustus();
@@ -3087,9 +3084,9 @@ sub check_fasta_headers {
 sub make_prot_hints {
     print LOG "\# " . (localtime) . ": Making protein hints\n" if ($v > 2);
     my $prot_hints;
-    my $prot_hints_file_temp = "$otherfilesDir/prot_hintsfile.temp.gff";
-    $prot_hintsfile = "$otherfilesDir/prot_hintsfile.gff";
-    my $alignment_outfile = "$otherfilesDir/protein_alignment_$prg.gff3";
+    my $prot_hints_file_temp = "$otherfilesDir/prot_align_out.temp.gff";
+    $prot_hintsfile = "$otherfilesDir/prot_align_out.gff";
+    my $alignment_outfile = "$otherfilesDir/protein_alignment_$prg.gff";
 
     # change to working directory
     $cmdString = "cd $otherfilesDir";
@@ -3173,6 +3170,9 @@ sub make_prot_hints {
                     . "were up to date.\n";
                 print LOG $prtStr if ($v > 3);
             }
+
+
+
         }
     }elsif ( @prot_seq_files && $prg eq "miniprot") {
         $errorfile = "$errorfilesDir/miniprot.stderr";
@@ -3207,7 +3207,7 @@ sub make_prot_hints {
                     $cmdString .= "nice ";
                 }
                 $cmdString
-                    .= "$prot_aligner -ut$CPU --gtf $otherfilesDir/genome.mpi $prot_seq_files[$i] >> $prot_hintsfile ";
+                    .= "$prot_aligner -ut$CPU --gtf $otherfilesDir/genome.mpi $prot_seq_files[$i] >> $alignment_outfile ";
                 print LOG "\# "
                     . (localtime)
                     . ": running Miniprot to produce protein to "
@@ -3231,12 +3231,7 @@ sub make_prot_hints {
                 print LOG $prtStr if ($v > 3);
             }
         }
-        # add intron feature to gtf file
-
     }
-
-exit(1);
-
     # convert pipeline created protein alignments to protein hints
     if ( @prot_seq_files && -e $alignment_outfile ) {
         if ( !uptodate( [$alignment_outfile], [$prot_hintsfile] )
@@ -3323,7 +3318,18 @@ exit(1);
         clean_abort("$AUGUSTUS_CONFIG_PATH/species/$species", $useexisting,
             $prtStr);
     }
-    gth2gtf( $alignment_outfile, $gthTrainGeneFile );
+    if ( $prg eq "gth") {
+        gth2gtf( $alignment_outfile, $trainGenesGtf );
+    } elsif ( $prg eq "miniprot" ) {
+        print LOG "\#  "
+        . (localtime)
+        . ": creating softlink of $alignment_outfile to "
+        . "$trainGenesGtf.\n" if ($v > 2);
+    $cmdString =  "ln -s $alignment_outfile $trainGenesGtf";
+    print LOG "$cmdString\n" if ($v > 2);
+    system($cmdString) == 0 or die("ERROR in file " . __FILE__ ." at line "
+        . __LINE__ ."\nFailed to execute: $cmdString!\n");
+    }
 }
 
 ####################### aln2hints ##############################################
@@ -3352,8 +3358,11 @@ sub aln2hints {
         );
         $perlCmdString .= "$string --in=$aln_file --out=$out_file_name ";
         if ( $prg eq "gth" ) {
-            $perlCmdString .= "--prg=gth --priority=5";
+            $perlCmdString .= "--prg=gth ";
+        } elsif ( $prg eq "miniprot") {
+            $perlCmdString .= "--prg=miniprot ";
         }
+        $perlCmdString .= "--priority=4";
         print LOG "$perlCmdString\n" if ($v > 3);
         system("$perlCmdString") == 0
             or clean_abort("$AUGUSTUS_CONFIG_PATH/species/$species",
@@ -3384,7 +3393,7 @@ sub gth2gtf {
     my $align = shift;
     print LOG "\# " . (localtime) . ": Converting GenomeThreader file $align "
     . "to gtf format\n" if ($v > 2);
-    my $out   = shift;    # writes to $gthTrainGeneFile
+    my $out   = shift;    # writes to $trainGenesGtf
     open( GTH,    "<", $align ) or clean_abort(
         "$AUGUSTUS_CONFIG_PATH/species/$species", $useexisting,
         "ERROR in file " . __FILE__ ." at line ". __LINE__
@@ -3756,8 +3765,6 @@ sub new_species {
 sub training_augustus {
     print LOG "\# " . (localtime) . ": training AUGUSTUS\n" if ($v > 2);
     if ( !$useexisting ) {
-        my $gthGtf = $gthTrainGeneFile;
-        my $trainGenesGtf = "$otherfilesDir/traingenes.gtf";
         my $trainGb1 = "$otherfilesDir/train.gb";
         my $trainGb2 = "$otherfilesDir/train.f.gb";
         my $trainGb3 = "$otherfilesDir/train.ff.gb";
@@ -3765,33 +3772,6 @@ sub training_augustus {
         my $goodLstFile = "$otherfilesDir/good_genes.lst";
         my $t_b_t = 0; # to be tested gene set size, used to determine
                        # stop codon setting and to compute k for cores>8
-
-        # set contents of trainGenesGtf file
-        if ( defined($traingtf) ){
-            print LOG "\# "
-                . (localtime)
-                . ": creating softlink from $traingtf to $trainGenesGtf.\n"
-                if ($v > 3);
-            $cmdString = "ln -s $traingtf $trainGenesGtf";
-            print LOG "$cmdString\n" if ($v > 3);
-            system($cmdString) == 0
-                or clean_abort("$AUGUSTUS_CONFIG_PATH/species/$species",
-                    $useexisting, "ERROR in file " . __FILE__ ." at line "
-                    . __LINE__ ."\nfailed to execute: $cmdString!\n");
-        }else {
-            # create softlink from gth.gtf to traingenes.gtf
-             # make gth gb final
-            print LOG "\#  "
-                . (localtime)
-                . ": creating softlink from $gthGtf to $trainGenesGtf.\n"
-                if ($v > 3);
-            $cmdString = "ln -s $gthGtf $trainGenesGtf";
-            print LOG "$cmdString\n" if ($v > 3);
-            system($cmdString) == 0
-                or clean_abort("$AUGUSTUS_CONFIG_PATH/species/$species",
-                    $useexisting, "ERROR in file " . __FILE__ ." at line "
-                    . __LINE__ ."\nfailed to execute: $cmdString!\n");
-        }
 
         # convert gtf to gb
         gtf2gb ($trainGenesGtf, $trainGb1);
@@ -3828,7 +3808,17 @@ sub training_augustus {
         if ($nice) {
             $cmdString .= "nice ";
         }
-        # species is irrelevant!
+        # species is irrelevant, but stopCodonExcludedFromCDS must be set
+        print LOG "\# "
+            . (localtime)
+            . ": Setting value of \"stopCodonExcludedFromCDS\" in "
+            . "$AUGUSTUS_CONFIG_PATH/species/$species/$species\_parameters.cfg "
+            . "to \"true\"\n" if ($v > 3);
+        setParInConfig(
+            $AUGUSTUS_CONFIG_PATH
+                . "/species/$species/$species\_parameters.cfg",
+            "stopCodonExcludedFromCDS", "true"
+        );
         $cmdString .= "$augpath --species=$species --AUGUSTUS_CONFIG_PATH=$AUGUSTUS_CONFIG_PATH $trainGb1 1> $stdoutfile 2>$errorfile";
         print LOG "\# "
             . (localtime)
@@ -4195,18 +4185,6 @@ sub training_augustus {
             )
             )
         {
-            # set "stopCodonExcludedFromCDS" to true
-            print LOG "\# "
-                . (localtime)
-                . ": Setting value of \"stopCodonExcludedFromCDS\" in "
-                . "$AUGUSTUS_CONFIG_PATH/species/$species/$species\_parameters.cfg "
-                . "to \"true\"\n" if ($v > 3);
-            setParInConfig(
-                $AUGUSTUS_CONFIG_PATH
-                    . "/species/$species/$species\_parameters.cfg",
-                "stopCodonExcludedFromCDS", "true"
-            );
-
             # first try with etraining
             $augpath    = "$AUGUSTUS_BIN_PATH/etraining";
             $errorfile  = "$errorfilesDir/firstetraining.stderr";
@@ -4651,7 +4629,7 @@ sub training_augustus {
 #   $label -> unique identifier for the AUGUSTUS run that is postprocessed
 #   $gtf_in -> gtf output file of AUGUSTUS run
 #   $bad_lst -> output file of getAnnoFastaFromJoingenes.py
-#   $utr_here -> on/off
+#   $utr_here -> off
 #   $spec -> augustus species name 
 #   $aug_c_p -> AUGUSTUS_CONFIG_PATH
 #   $aug_b_p -> AUGUSTUS_BIN_PATH
@@ -4662,7 +4640,7 @@ sub training_augustus {
 ################################################################################
 
 sub fix_ifs_genes{
-    my ($label, $gtf_in, $bad_lst, $utr_here, $spec, 
+    my ($label, $gtf_in, $bad_lst, $spec, 
          $aug_c_p, $aug_b_p, $aug_s_p, $h_file, $cfg_file) = @_;
     #print("Overview of fix_ifs_genes arguments:\n");
     #foreach(@_){
@@ -4670,9 +4648,7 @@ sub fix_ifs_genes{
     #}
     my $fix_ifs_out_stem = $label."_fix_ifs_";
     my $print_utr_here = "off";
-    if($utr_here eq "on"){
-        $print_utr_here = "on";
-    }
+    my $utr_here = "off";
     print LOG "\# " . (localtime) . ": fixing AUGUSTUS genes with in frame "
             . "stop codons...\n" if ($v > 2);
     $string = find( "fix_in_frame_stop_codon_genes.py", $aug_b_p, 
@@ -4883,7 +4859,6 @@ sub gtf2gb {
 sub augustus {
     print LOG "\# " . (localtime) . ": RUNNING AUGUSTUS\n" if ($v > 2);
 
-    print CITE $pubs{'aug-cdna'}; $pubs{'aug-cdna'} = "";
     print CITE $pubs{'aug-hmm'}; $pubs{'aug-hmm'} = "";
 
     $augpath = "$AUGUSTUS_BIN_PATH/augustus";
@@ -6017,10 +5992,8 @@ sub clean_up {
                 . __FILE__ ." at line ". __LINE__
                 . "\nFailed to delete $otherfilesDir/miniprot!\n");
         }
-
-
         $string = find(
-            "GALBA_cleanup.pl", $AUGUSTUS_BIN_PATH,
+            "galba_cleanup.pl", $AUGUSTUS_BIN_PATH,
             $AUGUSTUS_SCRIPTS_PATH, $AUGUSTUS_CONFIG_PATH
         );
         $perlCmdString = "";
@@ -6033,4 +6006,3 @@ sub clean_up {
         print LOG $loginfo;
     }
 }
-
