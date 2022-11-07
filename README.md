@@ -1,5 +1,3 @@
-Nothing is working, yet! Dummy code!
-
 # GALBA User Guide
 
 <u>Contact for Github Repository of GALBA at
@@ -8,7 +6,7 @@ https://github.com/Gaius-Augustus/GALBA:</u>
 Katharina J. Hoff, University of Greifswald, Germany, katharina.hoff@uni-greifswald.de, +49 3834 420 4624
 
 
-Author of GALBA
+Authors of GALBA
 ================
 
 Katharina J. Hoff<sup name="aff1">[a, ](#aff1)</sup><sup name="aff2">[b](#aff2)</sup>, Heng Li<sup name="aff3">[c, ](#aff3)</sup><sup name="aff4">[d ](#aff4)</sup>, and Mario Stanke<sup name="aff1">[a, ](#aff1)</sup><sup name="aff2">[b](#aff2)</sup>
@@ -37,6 +35,7 @@ Contents
 ========
 
 -   [Authors](#authors-of-galba)
+-   [Acknowledgements](#acknowledgements)
 -   [What is GALBA?](#what-is-galba)
 -   [Keys to successful gene prediction](#keys-to-successful-gene-prediction)
 -   [Installation](#installation)
