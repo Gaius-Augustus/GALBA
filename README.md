@@ -22,14 +22,14 @@ Katharina J. Hoff<sup name="aff1">[a, ](#aff1)</sup><sup name="aff2">[b](#aff2)<
 Acknowldgements
 ===============
 
-GALBA code was derived from BRAKER code, where a similar pipeline for using GenomeThreader with BRAKER was once published in <sup name="a9">[R9](#f9)</sup>. Were hereby acknowledge the contributions of all BRAKER authors to the code that GALBA was derived from, and we are grateful for funding for BRAKER development by the National Institutes of Health (NIH) grant GM128145, which indirectly also also supported development of GALBA.
+GALBA code was derived from the BRAKER code, where a similar pipeline for using GenomeThreader with BRAKER was once published in <sup name="a9">[R9](#f9)</sup>. We hereby acknowledge the contributions of all BRAKER authors to the code that GALBA was derived from, and we are grateful for funding for BRAKER development by the National Institutes of Health (NIH) grant GM128145, which indirectly also supported development of GALBA.
 
 
 Related Software
 ================
 
   * GALBA code was derived from BRAKER, a fully automated pipeline for predicting genes in the genomes of novel species with RNA-Seq data and a large-scale database of protein sequences (that must not necessarily be closely related to the target species) with GeneMark-ES/ET/EP/ETP and AUGUSTUS. BRAKER is available at https://github.com/Gaius-Augustus/BRAKER
-  * TSEBRA can be used to combine GALBA gene sets with e.g. BRAKER gene sets. TSEBRA is available at https://github.com/Gaius-Augustus/TSEBRA .
+  * TSEBRA can be used to combine GALBA gene sets with BRAKER gene sets. TSEBRA is available at https://github.com/Gaius-Augustus/TSEBRA .
 
 Contents
 ========
@@ -51,7 +51,7 @@ Contents
     -   [Description of selected GALBA command line options](#description-of-selected-galba-command-line-options)
         -   [--ab_initio](#--ab_initio)
         -   [--augustus_args=--some\_arg=bla](#--augustus_args--some_argbla)
-        -   [--cores=INT](#--coresint)
+        -   [--threads=INT](#--threadsint)
         -   [--softmasking](#--softmasking)
         -   [--useexisting](#--useexisting)
         -   [--crf](#--crf)
@@ -73,9 +73,9 @@ Contents
 What is GALBA?
 ===============
 
-The rapidly growing number of sequenced genomes requires fully automated methods for accurate gene structure annotation. Here, we provide a fully automated gene pipeline that trains AUGUSTUS<sup name="a3">[R3, ](#f3)</sup><sup name="a4">[R4](#f4)</sup> for a novel species and subsequently predicts genes with AUGUSTUS in the genome of that species. GALBA uses protein sequences of **one closely related species** to generate a training gene set for AUGUSTUS with either miniprot<sup name="a1">[R1, ](#f1)</sup> or GenomeThreader<sup name="a2">[R2](#f2)</sup>. After training, GALBA uses the evidence from training genes during gene prediction. 
+The rapidly growing number of sequenced genomes requires fully automated methods for accurate gene structure annotation. Here, we provide a fully automated gene pipeline that trains AUGUSTUS<sup name="a3">[R3, ](#f3)</sup><sup name="a4">[R4](#f4)</sup> for a novel species and subsequently predicts genes with AUGUSTUS in the genome of that species. GALBA uses the protein sequences of **one closely related species** to generate a training gene set for AUGUSTUS with either miniprot<sup name="a1">[R1, ](#f1)</sup> or GenomeThreader<sup name="a2">[R2](#f2)</sup>. After training, GALBA uses the evidence from protein to genome alignment during gene prediction. 
 
-:warning: Please note that the popular BRAKER<sup name="a5">[R5, ](#f5)</sup><sup name="a6">[R6](#f6)</sup> pipeline might produce more accurate results. Instead of using protein sequences of only one closely related species, **BRAKER is capable of using proteins of a large sequence database** where the species in the database must not necessarily be closely related to the target species. BRAKER can also incorporate RNA-Seq data. In contrast to GALBA, BRAKER achieves high gene prediction accuracy even in the absence of the annotation of very closely related species (and in the absence of RNA-Seq data).
+:warning: Please note that the popular BRAKER<sup name="a5">[R5, ](#f5)</sup><sup name="a6">[R6](#f6)</sup> pipeline might produce more accurate results. Instead of using protein sequences of only one closely related species, **BRAKER is capable of using proteins from a large sequence database** where the species in the database must not necessarily be closely related to the target species. BRAKER can also incorporate RNA-Seq data. In contrast to GALBA, BRAKER achieves high gene prediction accuracy even in the absence of the annotation of very closely related species (and in the absence of RNA-Seq data).
 
 Keys to successful gene prediction
 ==================================
@@ -84,14 +84,14 @@ Keys to successful gene prediction
 
 -   Use simple scaffold names in the genome file (e.g. ```>contig1``` will work better than ```>contig1my custom species namesome putative function /more/information/  and lots of special characters %&!*(){}```). Make the scaffold names in all your fasta files simple before running any alignment program.
 
--   In order to predict genes accurately in a novel genome, the genome should be masked for repeats. This will avoid the prediction of false positive gene structures in repetitive and low complexitiy regions. In case of AUGUSTUS, softmasking (i.e. putting repeat regions into lower case letters and all other regions into upper case letters) leads to better results than hardmasking (i.e. replacing letters in repetitive regions by the letter `N` for unknown nucleotide). If the genome is softmasked, use the `--softmasking` flag of `galba.pl`.
+-   In order to predict genes accurately in a novel genome, the genome should be masked for repeats. This will avoid the prediction of false positive gene structures in repetitive and low complexitiy regions. In the case of AUGUSTUS, softmasking (i.e., putting repeat regions into lower case letters and all other regions into upper case letters) leads to better results than hardmasking (i.e., replacing letters in repetitive regions by the letter `N` for unknown nucleotide). If the genome is softmasked, use the `--softmasking` flag of `galba.pl`.
 
--   Always check gene prediction results before further usage! You can e.g. use a genome browser for visual inspection of gene models in context with extrinsic evidence data. GALBA supports the generation of track data hubs for the UCSC Genome Browser with MakeHub for this purpose.
+-   Always check gene prediction results before further usage! You can, e.g. use a genome browser for visual inspection of gene models in context with extrinsic evidence data. GALBA supports the generation of track data hubs for the UCSC Genome Browser with MakeHub for this purpose.
 
 Overview running GALBA
 ====================================
 
-GALBA mainly features semi-unsupervised, protein sequence evidence data supported training of AUGUSTUS with integration of extrinsic evidence in the final gene prediction step. GALBA can be used either with Miniprot or GenomeThreader as protein spliced aligner. Miniprot is our preferred aligner because it continues to undergo development and it is faster than GenomeThreader.
+GALBA mainly features semi-unsupervised, protein sequence evidence data supported training of AUGUSTUS with integration of extrinsic evidence in the final gene prediction step. GALBA can be used either with Miniprot or GenomeThreader as a protein spliced aligner. Miniprot is our preferred aligner because it continues to undergo development and is faster than GenomeThreader.
 
 ![galba-miniprot\[fig1\]](docs/figs/galba_miniprot.png)
 
@@ -179,7 +179,7 @@ conda install -c bioconda perl-math-utils
 conda install -c bioconda cdbtools
 ```
 
-Subsequently install GALBA and other software "as usual" while being in your conda environment.
+Subsequently, install GALBA and other software "as usual" while in your conda environment.
 
 ### GALBA components
 
@@ -197,7 +197,7 @@ GALBA is a collection of Perl and Python scripts and a Perl module. The main scr
 
 -   `galba_cleanup.pl`
 
-All scripts (files ending with `*.pl` and `*.py`) that are part of GALBA must be executable in order to run GALBA. This should already be the case if you download GALBA from GitHub. Executability may be overwritten if you e.g. transfer GALBA on a USB-stick to another computer. In order to check whether required files are executable, run the following command in the directory that contains GALBA Perl scripts:
+All scripts (files ending with `*.pl` and `*.py`) that are part of GALBA must be executable in order to run GALBA. This should already be the case if you download GALBA from GitHub. Executability may be overwritten if you, e.g. transfer GALBA on a USB-stick to another computer. In order to check whether required files are executable, run the following command in the directory that contains GALBA Perl scripts:
 
     ls -l *.pl *.py
 
@@ -230,30 +230,30 @@ To make this `$PATH` modification available to all bash sessions, add the above 
 Bioinformatics software dependencies
 ------------------------------------
 
-GALBA calls upon various bioinformatics software tools that are not part of GALBA. Some tools are obligatory, i.e. GALBA will not run at all if these tools are not present on your system. Other tools are optional. Please install all tools that are required for running GALBA in the mode of your choice.
+GALBA calls upon various bioinformatics software tools that are not part of GALBA. Some tools are mandatory, i.e. GALBA will not run at all if these tools are not present on your system. Other tools are optional. Please install all tools that are required for running GALBA in the mode of your choice.
 
 ### Mandatory tools
 
 #### AUGUSTUS
 
-Download AUGUSTUS from its master branch at <https://github.com/Gaius-Augustus/Augustus>. Unpack AUGUSTUS and install AUGUSTUS according to AUGUSTUS `README.TXT`. ***Do not use outdated AUGUSTUS versions from other sources, e.g. Debian package or Bioconda package! GALBA highly depends in particular on an up-to-date Augustus/scripts directory, and other sources are often lagging behind.***
+Download AUGUSTUS from its master branch at <https://github.com/Gaius-Augustus/Augustus>. Unpack AUGUSTUS and install AUGUSTUS according to AUGUSTUS `README.TXT`. ***Do not use outdated AUGUSTUS versions from other sources, e.g. Debian package or the Bioconda package! GALBA highly depends in particular on an up-to-date Augustus/scripts directory, and other sources are often lagging behind.***
 
 You should compile AUGUSTUS on your own system in order to avoid problems with versions of libraries used by AUGUSTUS. Compilation instructions are provided in the AUGUSTUS `README.TXT` file (`Augustus/README.txt`).
 
 AUGUSTUS consists of `augustus`, the gene prediction tool, additional C++ tools located in `Augustus/auxprogs` and Perl scripts located in `Augustus/scripts`. Perl scripts must be executable (see instructions in section [GALBA components](#executability). GALBA does not use any of the `auxprogs`.
 
-Since GALBA is a pipeline that trains AUGUSTUS, i.e. writes species specific parameter files, GALBA needs writing access to the configuration directory of AUGUSTUS that contains such files (`Augustus/config/`). If you install AUGUSTUS globally on your system, the `config` folder will typically not be writable by all users. Either make the directory where `config` resides recursively writable to users of AUGUSTUS, or copy the `config/` folder (recursively) to a location where users have writing permission.
+Since GALBA is a pipeline that trains AUGUSTUS, i.e., writes species specific parameter files, GALBA needs write access to the configuration directory of AUGUSTUS that contains such files (`Augustus/config/`). If you install AUGUSTUS globally on your system, the `config` folder will typically not be writable by all users. Either make the directory where `config` resides recursively writable to users of AUGUSTUS, or copy the `config/` folder (recursively) to a location where users have writing permission.
 
-AUGUSTUS will locate the `config` folder by looking for an environment variable `$AUGUSTUS_CONFIG_PATH`. If the `$AUGUSTUS_CONFIG_PATH`
+AUGUSTUS will locate the `config` folder by looking for the environment variable `$AUGUSTUS_CONFIG_PATH`. If the `$AUGUSTUS_CONFIG_PATH`
 environment variable is not set, then GALBA will look in the path `../config` relative to the directory in which it finds an AUGUSTUS
-executable. Alternatively, you can supply the variable as a command line argument to GALBA (`--AUGUSTUS_CONFIG_PATH=/your_path_to_AUGUSTUS/Augustus/config/`). We recommend that you export the variable e.g. for your current bash
+executable. Alternatively, you can supply the variable as a command line argument to GALBA (`--AUGUSTUS_CONFIG_PATH=/your_path_to_AUGUSTUS/Augustus/config/`). We recommend that you export the variable, e.g., for your current bash
 session:
 
 ```
     export AUGUSTUS_CONFIG_PATH=/your_path_to_AUGUSTUS/Augustus/config/
 ```
 
-In order to make the variable available to all Bash sessions, add the above line to a startup script, e.g. `~/.bashrc`.
+In order to make the variable available to all Bash sessions, add the above line to a startup script, e.g., `~/.bashrc`.
 
 ##### Important:
 
@@ -284,7 +284,7 @@ For all your BASH sessions, add the above lines to a startup script (e.g.`~/.bas
 
 #### Miniprot
 
-This tool is required, only, if you would like to run protein to genome alignments with GALBA using Miniprot. Download Miniprot from <https://github.com/lh3/miniprot>:
+This tool is only required, if you would like to run protein to genome alignments with GALBA using Miniprot. Download Miniprot from <https://github.com/lh3/miniprot>:
 
 ```
 git clone https://github.com/lh3/miniprot.git
@@ -296,7 +296,7 @@ GALBA will try to locate the Miniprot executable by using an environment variabl
 
 #### GenomeThreader
 
-This tool is required, only, if you would like to run protein to genome alignments with GALBA using GenomeThreader. Download GenomeThreader from <http://genomethreader.org/>. Unpack and install according to `gth/README`.
+This tool is only required, if you would like to run protein to genome alignments with GALBA using GenomeThreader. Download GenomeThreader from <http://genomethreader.org/>. Unpack and install according to `gth/README`.
 
 GALBA will try to locate the GenomeThreader executable by using an environment variable `$GENOMETHREADER_PATH`. Alternatively, this can be supplied as command line argument (`--GENOMETHREADER_PATH=/your/path/to/gth/`).
 
