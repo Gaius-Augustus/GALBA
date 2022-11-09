@@ -2531,6 +2531,16 @@ sub check_gff {
             exit(1);
         }
         else {
+            # there's something weird about the miniprot hints: they sometimes have
+            # a negative scores (?) Currently not sure whether that's output of
+            # miniprot, or whether it's introduced during hints conversion
+            # we can't have them negative for re-running with a hintsfile
+            # therefore set to 1 if negative
+            if ( $gff_line[1] eq "miniprot2h" && $gff_line[5] < 0 ) {
+                $gff_line[5] = 1;
+            } # THIS DOES NOT AFFECT HINTS IN AUGUSTUS!
+              # It only goes around our parser
+              # need to check what is happening...
             if (   !isint( $gff_line[3] )
                 || !isint( $gff_line[4] )
                 || $gff_line[5] =~ m/[^\d\.]/g
