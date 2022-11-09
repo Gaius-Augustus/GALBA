@@ -77,6 +77,8 @@ The rapidly growing number of sequenced genomes requires fully automated methods
 
 :warning: Please note that the popular BRAKER<sup name="a5">[R5, ](#f5)</sup><sup name="a6">[R6](#f6)</sup> pipeline will very likely produce more accurate results than GALBA. Instead of using protein sequences of only one closely related species, **BRAKER is capable of using proteins from a large sequence database** where the species in the database must not necessarily be closely related to the target species. BRAKER can also incorporate RNA-Seq data. In contrast to GALBA, BRAKER achieves high gene prediction accuracy even in the absence of the annotation of very closely related species (and in the absence of RNA-Seq data). Before deciding to use GALBA, please read the [Accuracy](#accuracy) section.
 
+**If you are not sure which pipeline to use: GALBA or BRAKER? The answer is: use BRAKER, first!**
+
 Keys to successful gene prediction
 ==================================
 
