@@ -53,7 +53,6 @@ Contents
         -   [--augustus_args=--some\_arg=bla](#--augustus_args--some_argbla)
         -   [--threads=INT](#--threadsint)
         -   [--softmasking](#--softmasking)
-        -   [--useexisting](#--useexisting)
         -   [--crf](#--crf)
         -   [--lambda=int](#--lambdaint)
 	    -   [--makehub --email=your@mail.de](#--makehub---emailyourmailde)
@@ -440,10 +439,6 @@ Specifies the maximum number of threads that can be used during computation. GAL
 ### --softmasking
 
 Softmasking option for soft masked genome files. (Disabled by default.)
-
-### --useexisting
-
-Use the present config and parameter files if they exist for 'species'; will overwrite original parameters if GALBA performs an AUGUSTUS training. :warning: Please use BRAKER and not GALBA if your pre-trained parameter set has UTR parameters. GALBA can not handle UTR parameters, correctly.
 
 ### --crf
 
