@@ -567,7 +567,7 @@ Figure c: accuracy results of GALBA and BRAKER2 in *Drosophila melanogaster*. Sh
 
 :warning: As Figure c demonstrates, BRAKER2 (<https://github.com/Gaius-Augustus/BRAKER>) generates more accurate results than GALBA in fruit fly. We have computed similar results for *Arabidopsis thaliana* and *Caenorhabditis elegans*. Therefore, we generally recommend that you use BRAKER instead of GALBA!
 
-There may be some special cases where GALBA obtains better results than BRAKER. For example, if you observe a "split gene" problem with BRAKER, and if you have a proteins of a very close relative at hand, then GALBA may improve over BRAKER. Also, if you miss genes that are known in relatives of your species of interest in a BRAKER output, it might be worth trying GALBA and combining the resulting gene set and hintsfile with TSEBRA with a BRAKER output.
+There may be some special cases where GALBA obtains better results than BRAKER. For example, if you observe a "split gene" problem with BRAKER, and if you have proteins of a very close relative at hand, then GALBA may improve over BRAKER. Also, if you miss genes that are known in relatives of your species of interest in a BRAKER output, it might be worth trying GALBA and combining the resulting gene set and hintsfile with TSEBRA with a BRAKER output.
 
 Bug reporting
 =============
