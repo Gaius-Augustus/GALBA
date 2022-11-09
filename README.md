@@ -49,7 +49,7 @@ Contents
 -   [Running GALBA](#running-galba)
     -   [GALBA pipeline modes](#different-galba-pipeline-modes)
     -   [Description of selected GALBA command line options](#description-of-selected-galba-command-line-options)
-        -   [--ab_initio](#--ab_initio)
+        -   [--AUGUSTUS_ab_initio](#--AUGUSTUS_ab_initio)
         -   [--augustus_args=--some\_arg=bla](#--augustus_args--some_argbla)
         -   [--threads=INT](#--threadsint)
         -   [--softmasking](#--softmasking)
@@ -424,11 +424,11 @@ Please run `galba.pl --help` to obtain a full list of options.
 
 Use either `miniprot` (default) or `gth` (for GenomeThreader) to generate training genes and hints.
 
-### --ab\_initio
+### --AUGUSTUS_ab_initio
 
 Compute AUGUSTUS *ab initio* predictions in addition to AUGUSTUS predictions with hints (additional output files: `augustus.ab_initio.*`. This may be useful for estimating the quality of training gene parameters when inspecting predictions in a Browser.
 
-### --augustus\_args="--some\_arg=bla"
+### --augustus_args="--some_arg=bla"
 
 One or several command line arguments to be passed to AUGUSTUS, if several arguments are given, separate them by whitespace, i.e. `"--first_arg=sth --second_arg=sth"`. This may be be useful if you know that gene prediction in your particular species benefits from a particular AUGUSTUS argument during the prediction step.
 
