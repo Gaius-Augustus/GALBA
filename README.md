@@ -63,6 +63,7 @@ Contents
     -   [Testing GALBA with Miniprot](#testing-galba-with-miniprot)
     -   [Testing GALBA with GenomeThreader](#testing-galba-with-genomethreader)
     -   [Testing GALBA with pre-trained parameters](#testing-galba-with-pre-trained-parameters)
+-   [Accuracy](#accuracy)
 -   [Bug reporting](#bug-reporting)
     -   [Reporting bugs on github](#reporting-bugs-on-github)
     -   [Common problems](#common-problems)
@@ -75,7 +76,7 @@ What is GALBA?
 
 The rapidly growing number of sequenced genomes requires fully automated methods for accurate gene structure annotation. Here, we provide a fully automated gene pipeline that trains AUGUSTUS<sup name="a3">[R3, ](#f3)</sup><sup name="a4">[R4](#f4)</sup> for a novel species and subsequently predicts genes with AUGUSTUS in the genome of that species. GALBA uses the protein sequences of **one closely related species** to generate a training gene set for AUGUSTUS with either miniprot<sup name="a1">[R1, ](#f1)</sup> or GenomeThreader<sup name="a2">[R2](#f2)</sup>. After training, GALBA uses the evidence from protein to genome alignment during gene prediction. 
 
-:warning: Please note that the popular BRAKER<sup name="a5">[R5, ](#f5)</sup><sup name="a6">[R6](#f6)</sup> pipeline might produce more accurate results. Instead of using protein sequences of only one closely related species, **BRAKER is capable of using proteins from a large sequence database** where the species in the database must not necessarily be closely related to the target species. BRAKER can also incorporate RNA-Seq data. In contrast to GALBA, BRAKER achieves high gene prediction accuracy even in the absence of the annotation of very closely related species (and in the absence of RNA-Seq data).
+:warning: Please note that the popular BRAKER<sup name="a5">[R5, ](#f5)</sup><sup name="a6">[R6](#f6)</sup> pipeline will very likely produce more accurate results than GALBA. Instead of using protein sequences of only one closely related species, **BRAKER is capable of using proteins from a large sequence database** where the species in the database must not necessarily be closely related to the target species. BRAKER can also incorporate RNA-Seq data. In contrast to GALBA, BRAKER achieves high gene prediction accuracy even in the absence of the annotation of very closely related species (and in the absence of RNA-Seq data). Before deciding to use GALBA, please read the [Accuracy](#accuracy) section.
 
 Keys to successful gene prediction
 ==================================
@@ -556,6 +557,13 @@ galba.pl --genome=genome.fa --prot_seq=proteins.fa \
 ```
 
 This test is implemented in `test3.sh`, expected runtime is 2:30 minutes.
+
+Accuracy
+========
+
+![galba-miniprot-fly\[fig3\]](docs/figs/galba_miniprot_fly.png)
+
+Figure c: accuracy results of GALBA and BRAKER2 in *Drosophila melanogaster*. Shown are results from running GALBA with protein input from *D. simulans* (dsim), *D. erecta* (dere), *D. ananassae* (dana), *D. speudoobscura* (dpse), *D. willistoni* (dwil), *D. virilis* (dvir), and *D. grimshawi* (dgri). In addition, GALBA was run with proteins of the house fly (mdom). For "combo", the input proteins were a concatenation of dana, dpse, dwil, dere, and dgri. BRAKER2 results were computed with the OrthoDB Arthropoda partition, excluding *D. melanogaster* proteins.
 
 Bug reporting
 =============
