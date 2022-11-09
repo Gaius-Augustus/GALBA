@@ -79,6 +79,8 @@ The rapidly growing number of sequenced genomes requires fully automated methods
 
 **If you are not sure which pipeline to use: GALBA or BRAKER? The answer is: use BRAKER, first!**
 
+GALBA is named after Servius Sulpicius Galba, who ruled the Roman Empire only for a short time, before he was murdered. The named seems appropriate, because both BRAKER2 and also the soon published BRAKER3 achieve higher accuracy than GALBA ever will.
+
 Keys to successful gene prediction
 ==================================
 
