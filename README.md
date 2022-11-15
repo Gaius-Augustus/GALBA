@@ -409,6 +409,8 @@ Execute GALBA from galba.sif like this:
 singularity exec galba.sif galba.pl
 ```
 
+**We only include Miniprot in Docker & Singularity!** GenomeThreader is not included.
+
 Running GALBA
 ===============
 
