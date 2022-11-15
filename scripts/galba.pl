@@ -550,9 +550,10 @@ $prtStr
     . (localtime)
     . ": Configuring of GALBA for using external tools...\n";
 $logString .= $prtStr if ( $v > 2 );
-set_AUGUSTUS_CONFIG_PATH();
-set_AUGUSTUS_BIN_PATH();
+set_AUGUSTUS_CONFIG_PATH(); # set the variable, regardless of whether it is writable
+set_AUGUSTUS_BIN_PATH(); # determine bin and scripts relative to config path
 set_AUGUSTUS_SCRIPTS_PATH();
+fix_AUGUSTUS_CONFIG_PATH(); # if not writable, set to ~/.augustus
 set_PYTHON3_PATH();
 
 if (not ($skipAllTraining)){
@@ -897,6 +898,51 @@ sub make_paths_absolute {
 
 }
 
+####################### fix_AUGUSTUS_CONFIG_PATH ###############################                                                                                                                            # * if AUGUSTUS_CONFIG_PATH is not writable, make a copy of config directory to                                                                                                                             #   ~/.augustus                                                                                                                                                                                             ################################################################################                                                                                                                             
+sub fix_AUGUSTUS_CONFIG_PATH {
+    if ( not( -w "$AUGUSTUS_CONFIG_PATH/species" ) )
+    {    # check whether config path is writable                                                                                                                                                             
+        $prtStr
+            = "\# "
+            . (localtime)
+            . ": WARNING: \$AUGUSTUS_CONFIG_PATH/species (in this case "
+            . "$AUGUSTUS_CONFIG_PATH/species ) is not writeable.\n";
+	$logString .= $prtStr if ($v > 1);
+        if(not(-d $ENV{'HOME'}."/.augustus/species")) {
+            # copy augustus config path into ${HOME}/.augustus                                                                                                                                              
+            $cmdString = "cp -r $AUGUSTUS_CONFIG_PATH ".$ENV{'HOME'}."/.augustus";
+            $prtStr = "\# "
+                . (localtime)
+                . ": copying unwritable augustus config path to writable location\n";
+	    $prtStr .= $cmdString."\n" if ($v > 5);
+	    $logString .= $prtStr if ($v > 1);
+            system("$cmdString") == 0
+                or die("ERROR in file " . __FILE__
+                       . " at line ". __LINE__
+                       . "\nFailed to execute $cmdString!\n");
+        }
+        # modify augustus config path to new location                                                                                                                                                        
+        $AUGUSTUS_CONFIG_PATH = $ENV{'HOME'}."/.augustus";
+        $augustus_cfg_path = $AUGUSTUS_CONFIG_PATH;
+	if ( not ( -w "$AUGUSTUS_CONFIG_PATH/species" ) ) {
+	    # in a location where every user has permission, make config path writable
+	    $cmdString = "chmod u+w $AUGUSTUS_CONFIG_PATH/species";
+	    $prtStr = "\# "
+                . (localtime)
+                . ": Making folder $AUGUSTUS_CONFIG_PATH/species writable\n";
+	    $prtStr .= $cmdString."\n" if ($v > 5);
+	    $logString .= $prtStr if ($v > 1);
+            system("$cmdString") == 0
+		or die("ERROR in file " . __FILE__
+                       . " at line ". __LINE__
+                       . "\nFailed to execute $cmdString!\n");
+	}
+	$prtStr = "*** IMPORTANT: Resetting \$AUGUSTUS_CONFIG_PATH="
+	        .$ENV{'HOME'}."/.augustus because GALBA requires a writable location!\n";
+	$logString .= $prtStr;
+    }
+}
+
 ####################### set_AUGUSTUS_CONFIG_PATH ###############################
 # * set path to AUGUSTUS_CONFIG_PATH
 # * this directory contains a folder species and a folder config for running
@@ -919,8 +965,7 @@ sub set_AUGUSTUS_CONFIG_PATH {
             $logString .= $prtStr if ($v > 1);
             $AUGUSTUS_CONFIG_PATH = $ENV{'AUGUSTUS_CONFIG_PATH'};
         }
-    }
-    elsif(not(defined($augustus_cfg_path))) {
+    } elsif(not(defined($augustus_cfg_path))) {
         $prtStr
             = "\# "
             . (localtime)
@@ -946,15 +991,14 @@ sub set_AUGUSTUS_CONFIG_PATH {
                 . "$augustus_cfg_path.\n";
             $logString .= $prtStr if ($v > 1);
             $AUGUSTUS_CONFIG_PATH = $augustus_cfg_path;
-        }
-        else {
+        } else {
             $prtStr
                 = "#*********\n"
                 . ": WARNING: Command line flag --AUGUSTUS_CONFIG_PATH "
                 . "was provided. The given path $augustus_cfg_path is not a "
                 . "directory. Cannot use this as variable "
                 . "\$AUGUSTUS_CONFIG_PATH in galba.pl!\n"
-                . "#*********\n";
+                 . "#*********\n";
             $logString .= $prtStr if ($v > 0);
         }
     }
@@ -965,14 +1009,29 @@ sub set_AUGUSTUS_CONFIG_PATH {
     {
         my $epath = which 'augustus';
         if(defined($epath)){
-            $AUGUSTUS_CONFIG_PATH = dirname( abs_path($epath) ) . "/../config";
+            if( -d  dirname( abs_path($epath) ) . "/../config" ) {
+                # augustus obtained by git clone
+                $AUGUSTUS_CONFIG_PATH = dirname( abs_path($epath) ) . "/../config";
+		$prtStr
+		    = "\# "
+		    . (localtime)
+		    . ": Setting \$AUGUSTUS_CONFIG_PATH to $AUGUSTUS_CONFIG_PATH\n";
+            $logString .= $prtStr;
+            } else {
+                # augustus obtained from debian
+                $AUGUSTUS_CONFIG_PATH = "/usr/share/augustus/config";
+		$prtStr
+                    = "\# "
+                    . (localtime)
+                    . ": Setting \$AUGUSTUS_CONFIG_PATH to $AUGUSTUS_CONFIG_PATH\n";
+            }
             $augustus_cfg_path    = $AUGUSTUS_CONFIG_PATH;
         }else{
             $prtStr
                 = "\# "
                 . (localtime)
                 . ": ERROR: in file " . __FILE__ ." at line ". __LINE__ ."\n"
-                . "Tried to find augustus binary with which but failed.\n";
+                . "Tried to find augustus binary with 'which augustus' but failed.\n";
             $logString .= $prtStr;
         }
         if ( not( -d $AUGUSTUS_CONFIG_PATH ) ) {
@@ -1007,10 +1066,9 @@ sub set_AUGUSTUS_CONFIG_PATH {
         . "      Be aware: the \$AUGUSTUS_CONFIG_PATH must be writable for\n"
         . "                galba.pl because galba.pl is a pipeline that\n"
         . "                optimizes parameters that reside in that\n"
-        . "                directory. This might be problematic in case you\n"
-        . "                are using a system-wide installed augustus \n"
-        . "                installation that resides in a directory that is\n"
-        . "                not writable to you as a user.\n";
+        . "                directory. GALBA will copy an unwritable\n"
+	. "                AUGUSTUS_CONFIG folder into your home directory if\n"
+	. "                necessary.\n";
 
     # Give user installation instructions
     if ( not( defined $AUGUSTUS_CONFIG_PATH )
@@ -1026,20 +1084,6 @@ sub set_AUGUSTUS_CONFIG_PATH {
         print STDERR $logString;
         exit(1);
     }
-    elsif ( not( -w "$AUGUSTUS_CONFIG_PATH/species" ) )
-    {    # check whether config path is writable
-        $prtStr
-            = "\# "
-            . (localtime)
-            . ": ERROR: in file " . __FILE__ ." at line ". __LINE__ ."\n"
-            . "AUGUSTUS_CONFIG_PATH/species (in this case ";
-        $prtStr .= "$AUGUSTUS_CONFIG_PATH/$species) is not writeable.\n";
-        $logString .= $prtStr;
-        $logString .= $aug_conf_err if ($v > 0);
-        print STDERR $logString;
-        exit(1);
-    }
-
 }
 
 ####################### set_AUGUSTUS_BIN_PATH ##################################
@@ -1206,6 +1250,27 @@ sub set_AUGUSTUS_SCRIPTS_PATH {
                 . "$augustus_scripts_path!\n"
                 . "#*********\n";
             $logString .= $prtStr if ($v > 0);
+        }
+    }
+
+    # try to get it from default debian location
+    if ( not( defined($AUGUSTUS_SCRIPTS_PATH) )
+        || length($AUGUSTUS_SCRIPTS_PATH) == 0 )
+    {
+	$prtStr
+            = "\# "
+            . (localtime)
+            . ": Trying to guess \$AUGUSTUS_SCRIPTS_PATH from "
+            . "default location of augustus scripts in debian.\n";
+        $logString .= $prtStr if ($v > 1);
+        if ( -d "/usr/share/augustus/scripts" ) {
+            $prtStr
+                = "\# "
+                . (localtime)
+                . ": Setting \$AUGUSTUS_SCRIPTS_PATH to "
+                . "/usr/share/augustus/scripts\n";
+            $logString .= $prtStr if ($v > 1);
+            $AUGUSTUS_SCRIPTS_PATH = "/usr/share/augustus/scripts";
         }
     }
 
