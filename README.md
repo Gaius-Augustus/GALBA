@@ -46,6 +46,7 @@ Contents
         -   [Bioinformatics software dependencies](#bioinformatics-software-dependencies)
             -   [Mandatory tools](#mandatory-tools)
             -   [Optional tools](#optional-tools)
+-   [Singularity Image](#singularity-image)
 -   [Running GALBA](#running-galba)
     -   [GALBA pipeline modes](#different-galba-pipeline-modes)
     -   [Description of selected GALBA command line options](#description-of-selected-galba-command-line-options)
@@ -393,6 +394,20 @@ If you wish to automaticaly generate a track data hub of your GALBA run, the Mak
 picking a release from <https://github.com/Gaius-Augustus/MakeHub/releases>. Extract the release package if you downloaded a release (e.g. `unzip MakeHub.zip` or `tar -zxvf MakeHub.tar.gz`.
 
 GALBA will try to locate the make_hub.py script by using an environment variable `$MAKEHUB_PATH`. Alternatively, this can be supplied as command line argument (`--MAKEHUB_PATH=/your/path/to/MakeHub/`). GALBA can also try to guess the location of MakeHub on your system.
+
+Singularity Image
+=================
+If you do not want to bother installing all dependencies, we provide a docker container to build a singularity image (tested with singularity version 3.10.0-dirty). Build as follows (requires 1.2 GB disk space):
+
+``` 
+singularity build galba.sif docker://katharinahoff/galba-notebook:devel
+```
+
+Execute GALBA from galba.sif like this:
+
+```
+singularity exec galba.sif galba.pl
+```
 
 Running GALBA
 ===============
