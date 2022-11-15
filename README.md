@@ -9,7 +9,7 @@ Katharina J. Hoff, University of Greifswald, Germany, katharina.hoff@uni-greifsw
 Authors of GALBA
 ================
 
-Katharina J. Hoff<sup name="aff1">[a, ](#aff1)</sup><sup name="aff2">[b](#aff2)</sup>, Heng Li<sup name="aff3">[c, ](#aff3)</sup><sup name="aff4">[d ](#aff4)</sup>, and Mario Stanke<sup name="aff1">[a, ](#aff1)</sup><sup name="aff2">[b](#aff2)</sup>
+Katharina J. Hoff<sup name="aff1">[a, ](#aff1)</sup><sup name="aff2">[b](#aff2)</sup>, Heng Li<sup name="aff3">[c, ](#aff3)</sup><sup name="aff4">[d ](#aff4)</sup>, Lars Gabriel<sup name="aff1">[a, ](#aff1)</sup><sup name="aff2">[b](#aff2)</sup>, and Mario Stanke<sup name="aff1">[a, ](#aff1)</sup><sup name="aff2">[b](#aff2)</sup>
 
 <b id="aff1">[a]</b> University of Greifswald, Institute for Mathematics and Computer Science, Walther-Rathenau-Str. 47, 17489 Greifswald, Germany
 
@@ -49,11 +49,10 @@ Contents
 -   [Running GALBA](#running-galba)
     -   [GALBA pipeline modes](#different-galba-pipeline-modes)
     -   [Description of selected GALBA command line options](#description-of-selected-galba-command-line-options)
-        -   [--ab_initio](#--ab_initio)
+        -   [--AUGUSTUS_ab_initio](#--AUGUSTUS_ab_initio)
         -   [--augustus_args=--some\_arg=bla](#--augustus_args--some_argbla)
         -   [--threads=INT](#--threadsint)
         -   [--softmasking](#--softmasking)
-        -   [--useexisting](#--useexisting)
         -   [--crf](#--crf)
         -   [--lambda=int](#--lambdaint)
 	    -   [--makehub --email=your@mail.de](#--makehub---emailyourmailde)
@@ -63,6 +62,7 @@ Contents
     -   [Testing GALBA with Miniprot](#testing-galba-with-miniprot)
     -   [Testing GALBA with GenomeThreader](#testing-galba-with-genomethreader)
     -   [Testing GALBA with pre-trained parameters](#testing-galba-with-pre-trained-parameters)
+-   [Accuracy](#accuracy)
 -   [Bug reporting](#bug-reporting)
     -   [Reporting bugs on github](#reporting-bugs-on-github)
     -   [Common problems](#common-problems)
@@ -75,7 +75,11 @@ What is GALBA?
 
 The rapidly growing number of sequenced genomes requires fully automated methods for accurate gene structure annotation. Here, we provide a fully automated gene pipeline that trains AUGUSTUS<sup name="a3">[R3, ](#f3)</sup><sup name="a4">[R4](#f4)</sup> for a novel species and subsequently predicts genes with AUGUSTUS in the genome of that species. GALBA uses the protein sequences of **one closely related species** to generate a training gene set for AUGUSTUS with either miniprot<sup name="a1">[R1, ](#f1)</sup> or GenomeThreader<sup name="a2">[R2](#f2)</sup>. After training, GALBA uses the evidence from protein to genome alignment during gene prediction. 
 
-:warning: Please note that the popular BRAKER<sup name="a5">[R5, ](#f5)</sup><sup name="a6">[R6](#f6)</sup> pipeline might produce more accurate results. Instead of using protein sequences of only one closely related species, **BRAKER is capable of using proteins from a large sequence database** where the species in the database must not necessarily be closely related to the target species. BRAKER can also incorporate RNA-Seq data. In contrast to GALBA, BRAKER achieves high gene prediction accuracy even in the absence of the annotation of very closely related species (and in the absence of RNA-Seq data).
+:warning: Please note that the popular BRAKER<sup name="a5">[R5, ](#f5)</sup><sup name="a6">[R6](#f6)</sup> pipeline will very likely produce more accurate results than GALBA. Instead of using protein sequences of only one closely related species, **BRAKER is capable of using proteins from a large sequence database** where the species in the database must not necessarily be closely related to the target species. BRAKER can also incorporate RNA-Seq data. In contrast to GALBA, BRAKER achieves high gene prediction accuracy even in the absence of the annotation of very closely related species (and in the absence of RNA-Seq data). Before deciding to use GALBA, please read the [Accuracy](#accuracy) section.
+
+**If you are not sure which pipeline to use: GALBA or BRAKER? The answer is: use BRAKER, first!**
+
+GALBA is named after Servius Sulpicius Galba, who ruled the Roman Empire only for a short time, before he was murdered. The named seems appropriate, because both BRAKER2 and also the soon published BRAKER3 achieve higher accuracy than GALBA ever will.
 
 Keys to successful gene prediction
 ==================================
@@ -424,11 +428,11 @@ Please run `galba.pl --help` to obtain a full list of options.
 
 Use either `miniprot` (default) or `gth` (for GenomeThreader) to generate training genes and hints.
 
-### --ab\_initio
+### --AUGUSTUS_ab_initio
 
 Compute AUGUSTUS *ab initio* predictions in addition to AUGUSTUS predictions with hints (additional output files: `augustus.ab_initio.*`. This may be useful for estimating the quality of training gene parameters when inspecting predictions in a Browser.
 
-### --augustus\_args="--some\_arg=bla"
+### --augustus_args="--some_arg=bla"
 
 One or several command line arguments to be passed to AUGUSTUS, if several arguments are given, separate them by whitespace, i.e. `"--first_arg=sth --second_arg=sth"`. This may be be useful if you know that gene prediction in your particular species benefits from a particular AUGUSTUS argument during the prediction step.
 
@@ -439,10 +443,6 @@ Specifies the maximum number of threads that can be used during computation. GAL
 ### --softmasking
 
 Softmasking option for soft masked genome files. (Disabled by default.)
-
-### --useexisting
-
-Use the present config and parameter files if they exist for 'species'; will overwrite original parameters if GALBA performs an AUGUSTUS training. :warning: Please use BRAKER and not GALBA if your pre-trained parameter set has UTR parameters. GALBA can not handle UTR parameters, correctly.
 
 ### --crf
 
@@ -556,6 +556,17 @@ galba.pl --genome=genome.fa --prot_seq=proteins.fa \
 ```
 
 This test is implemented in `test3.sh`, expected runtime is 2:30 minutes.
+
+Accuracy
+========
+
+![galba-miniprot-fly\[fig3\]](docs/figs/galba_miniprot_fly.png)
+
+Figure c: accuracy results of GALBA and BRAKER2 in *Drosophila melanogaster*. Shown are results from running GALBA with protein input from *D. simulans* (dsim), *D. erecta* (dere), *D. ananassae* (dana), *D. speudoobscura* (dpse), *D. willistoni* (dwil), *D. virilis* (dvir), and *D. grimshawi* (dgri). In addition, GALBA was run with proteins of the house fly (mdom). For "combo", the input proteins were a concatenation of dana, dpse, dwil, dere, and dgri. BRAKER2 results were computed with the OrthoDB Arthropoda partition, excluding *D. melanogaster* proteins.
+
+:warning: As Figure c demonstrates, BRAKER2 (<https://github.com/Gaius-Augustus/BRAKER>) generates more accurate results than GALBA in fruit fly. We have computed similar results for *Arabidopsis thaliana* and *Caenorhabditis elegans*. Therefore, we generally recommend that you use BRAKER instead of GALBA!
+
+There may be some special cases where GALBA obtains better results than BRAKER. For example, if you observe a "split gene" problem with BRAKER, and if you have proteins of a very close relative at hand, then GALBA may improve over BRAKER. Also, if you miss genes that are known in relatives of your species of interest in a BRAKER output, it might be worth trying GALBA and combining the resulting gene set and hintsfile with TSEBRA with a BRAKER output.
 
 Bug reporting
 =============
