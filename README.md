@@ -414,6 +414,20 @@ singularity exec galba.sif galba.pl
 
 **We only include Miniprot in Docker & Singularity!** GenomeThreader is not included.
 
+### What's included in docker/singuarlity GALBA
+
+Among others, the containers include the following software that is useful in context of working with GALBA:
+
+   * galba.pl
+   * augustus
+   * make_hub.py & UCSC dependencies
+   * miniprot
+   * diamond
+   * cdbfasta
+   * hisat2
+   * seqstats
+   
+
 Running GALBA
 ===============
 
