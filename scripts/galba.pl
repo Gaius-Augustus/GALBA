@@ -5,7 +5,7 @@
 # galba.pl                                                                                         #
 # Pipeline for de novo gene prediction with AUGUSTUS using Miniprot or GenomeThreader              #
 #                                                                                                  #
-# Authors: Katharina Hoff, Natalia Nenasheva, Mario Stanke                                         #
+# Authors: Katharina Hoff, Heng Li, Lars Gabriel, & Mario Stanke                                   #
 #                                                                                                  #
 # Contact: katharina.hoff@uni-greifswald.de                                                        #
 #                                                                                                  #
