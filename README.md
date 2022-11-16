@@ -619,7 +619,7 @@ There are a number of other files that might be of interest, depending on where 
 
 -   `${wd}/errors/optimize_augustus.stderr` - contains errors optimize\_augustus.pl (additional training set for AUGUSTUS)
 
--   `galba/yourSpecies/errors/augustus*.stderr` - contain AUGUSTUS execution errors
+-   `${wd}/errors/augustus*.stderr` - contain AUGUSTUS execution errors
 
 -   `${wd}/startAlign.stderr` - if you provided a protein fasta file and `--prg=gth` option and this file is not empty, something went wrong during protein alignment
 
