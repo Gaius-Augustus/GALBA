@@ -409,6 +409,7 @@ Among others, the containers include the following software that is useful in co
 
    * galba.pl
    * augustus
+   * TSEBRA
    * make_hub.py & UCSC dependencies
    * miniprot
    * diamond
