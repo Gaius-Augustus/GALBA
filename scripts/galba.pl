@@ -2495,10 +2495,6 @@ sub check_upfront {
         "gtf2gff.pl",       $AUGUSTUS_BIN_PATH,
         $AUGUSTUS_SCRIPTS_PATH, $AUGUSTUS_CONFIG_PATH
     );
-    find(
-        "fix_joingenes_gtf.pl",       $AUGUSTUS_BIN_PATH,
-        $AUGUSTUS_SCRIPTS_PATH, $AUGUSTUS_CONFIG_PATH
-    );
     if(not($skip_fixing_broken_genes)){
         find(
             "fix_in_frame_stop_codon_genes.py", $AUGUSTUS_BIN_PATH,
