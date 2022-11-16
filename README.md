@@ -380,17 +380,6 @@ On Ubuntu, cdbfasta and cdbyank will be in your `$PATH` variable after installat
 
 2.  Specify the command line option `--CDBTOOLS_PATH=/path/to/cdbtools/` to `galba.pl`.
 
-
-#### Tools from UCSC
-
-If you switch `--UTR=on`, bamToWig.py will require the following tools that can be downloaded from <http://hgdownload.soe.ucsc.edu/admin/exe>:
-
- * twoBitInfo
-
- * faToTwoBit
-
-It is optional to install these tools into your $PATH. If you don't, and you switch `--UTR=on`, bamToWig.py will automatically download them into the working directory.
-
 #### MakeHub
 
 If you wish to automaticaly generate a track data hub of your GALBA run, the MakeHub software, available at <https://github.com/Gaius-Augustus/MakeHub> is required. Download the software (either by running `git clone https://github.com/Gaius-Augustus/MakeHub.git`, or by
