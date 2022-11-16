@@ -162,7 +162,7 @@ On Ubuntu, for example, install the modules with CPANminus<sup name="g4">[F4](#g
 
 GALBA also uses a Perl module `helpMod.pm` that is not available on CPAN. This module is part of the GALBA release and does not require separate installation.
 
-If you do not have root permissions on the Linux machine, try setting up an **Anaconda** (<https://www.anaconda.com/distribution/>) environment as follows:
+If you do not have root permissions on the Linux machine, try running it from the [Singularity image](#singularity-image), or try setting up an **Anaconda** (<https://www.anaconda.com/distribution/>) environment as follows:
 
 ```
 wget https://repo.anaconda.com/archive/Anaconda3-2018.12-Linux-x86_64.sh
@@ -273,6 +273,7 @@ export AUGUSTUS_CONFIG_PATH=${HOME}/augustus_config
 export AUGUSTUS_BIN_PATH=/usr/bin
 export AUGUSTUS_SCRIPTS_PATH=/usr/bin/augustus_scripts
 ```
+GALBA automatically sets the environment variables if run from the Singuarity image.
 
 ##### Modification of $PATH
 
@@ -304,6 +305,8 @@ GALBA will try to locate the Miniprot executable by using an environment variabl
 This tool is only required, if you would like to run protein to genome alignments with GALBA using GenomeThreader. Download GenomeThreader from <http://genomethreader.org/>. Unpack and install according to `gth/README`.
 
 GALBA will try to locate the GenomeThreader executable by using an environment variable `$GENOMETHREADER_PATH`. Alternatively, this can be supplied as command line argument (`--GENOMETHREADER_PATH=/your/path/to/gth/`).
+
+Please be aware that miniprot achieves higher accuracy than GenomeThreader in GALBA! See section on [Accuracy](#accuracy).
 
 
 #### Python3
@@ -422,8 +425,7 @@ For running GALBA with Miniprot, type:
 
 ```
     galba.pl --species=yourSpecies --genome=genome.fasta \
-       --prot_seq=proteins.fa \
-       --MINIPROT_PATH=/path/to/miniprot/binary/
+       --prot_seq=proteins.fa
 ```
 
 ### GALBA with GenomeThreader
@@ -432,8 +434,7 @@ For running GALBA with GenomeThreader, type:
 
 ```
     galba.pl --species=yourSpecies --genome=genome.fasta \
-       --prot_seq=proteins.fa --prg=gth \
-       --ALIGNMENT_TOOL_PATH=/path/to/gth/binary/
+       --prot_seq=proteins.fa --prg=gth
 ```
 
 Description of selected GALBA command line options
@@ -479,11 +480,11 @@ Output of GALBA
 
 GALBA produces several important output files in the working directory.
 
--   augustus.hints.gtf: Genes predicted by AUGUSTUS with hints from given extrinsic evidence. This file will be missing if GALBA was run with the option `--esmode`.
+-   augustus.hints.gtf: Genes predicted by AUGUSTUS with hints from given extrinsic evidence.
 
 -   augustus.ab_initio.gtf: Genes predicted by AUGUSTUS in *ab initio* mode in GTF-format. The file will always be present if AUGUSTUS has been run with the option `--esmode`. Otherwise, it will only be present if GALBA was run with the option `--AUGUSTUS_ab_initio`.
 
--   hintsfile.gff: The extrinsic evidence data extracted from RNAseq.bam and/or protein data.
+-   hintsfile.gff: The extrinsic evidence data extracted from protein data.
 
 AUGUSTUS output files may be present with the following name endings and formats:
 
@@ -508,7 +509,7 @@ The columns (fields) contain:
     seqname source feature start end score strand frame transcript ID and gene ID
 ```
 
-If the `--makehub` option was used and MakeHub is available on your system, a hub directory beginning with the name `hub_` will be created. Copy this directory to a publicly accessible web server. A file `hub.txt` resides in the directory. Provide the link to that file to the UCSC Genome Browser for visualizing results.
+If the `--makehub` option was used and MakeHub is available on your system, a hub directory beginning with the name `hub_` will be created. Copy this directory to a publicly accessible web server. A file `hub.txt` resides in the directory. Provide the link to that file to the UCSC Genome Browser for visualizing results. MakeHub is included in the Singularity image.
 
 Example data
 ============
@@ -585,6 +586,10 @@ Figure c: accuracy results of GALBA and BRAKER2 in *Drosophila melanogaster*. Sh
 
 There may be some special cases where GALBA obtains better results than BRAKER. For example, if you observe a "split gene" problem with BRAKER, and if you have proteins of a very close relative at hand, then GALBA may improve over BRAKER. Also, if you miss genes that are known in relatives of your species of interest in a BRAKER output, it might be worth trying GALBA and combining the resulting gene set and hintsfile with TSEBRA with a BRAKER output.
 
+Accuracy of GALBA with GenomeThreader is generally lower than with miniprot. In many cases, GenomeThreader generates too few training genes for training AUGUSTUS, therefore we show only a subset of the data from Figure c in Figure d:
+
+![galba-miniprot-gth-fly\[fig4\]](docs/figs/galba_miniprot_gth_fly.png)
+
 Bug reporting
 =============
 
@@ -597,25 +602,25 @@ If you found a bug, please open an issue at <https://github.com/Gaius-Augustus/G
 
 Information worth mentioning in your bug report:
 
-Check in `galba/yourSpecies/galba.log` at which step `galba.pl` crashed.
+Check in `${wd}/galba.log` at which step `galba.pl` crashed.
 
 There are a number of other files that might be of interest, depending on where in the pipeline the problem occurred. Some of the following files will not be present if they did not contain any errors.
 
--   `galba/yourSpecies/hintsfile.gff` - is this file empty? If yes, something went wrong during hints generation - does this file contain hints from source “b2h” and of type “intron”?
+-   `${wd}/hintsfile.gff` - is this file empty? If yes, something went wrong during hints generation - does this file contain hints from source “b2h” and of type “intron”?
 
--   `galba/yourSpecies/genbank.good.gb` - try a “grep -c LOCUS genbank.good.gb” to determine the number of training genes for training AUGUSTUS, should not be low
+-   `${wd}/genbank.good.gb` - try a “grep -c LOCUS genbank.good.gb” to determine the number of training genes for training AUGUSTUS, should not be low
 
--   `galba/yourSpecies/errors/firstetraining.stderr` - contains errors from first iteration of training AUGUSTUS
+-   `${wd}/errors/firstetraining.stderr` - contains errors from first iteration of training AUGUSTUS
 
--   `galba/yourSpecies/errors/secondetraining.stderr` - contains errors from second iteration of training AUGUSTUS
+-   `${wd}/errors/secondetraining.stderr` - contains errors from second iteration of training AUGUSTUS
 
--   `galba/yourSpecies/errors/optimize_augustus.stderr` - contains errors optimize\_augustus.pl (additional training set for AUGUSTUS)
+-   `${wd}/errors/optimize_augustus.stderr` - contains errors optimize\_augustus.pl (additional training set for AUGUSTUS)
 
 -   `galba/yourSpecies/errors/augustus*.stderr` - contain AUGUSTUS execution errors
 
--   `galba/yourSpecies/startAlign.stderr` - if you provided a protein fasta file and `--prg=gth` option and this file is not empty, something went wrong during protein alignment
+-   `${wd}/startAlign.stderr` - if you provided a protein fasta file and `--prg=gth` option and this file is not empty, something went wrong during protein alignment
 
--   `galba/yourSpecies/startAlign.stdout` - may give clues on at which point protein alignment went wrong
+-   `${wd}/startAlign.stdout` - may give clues on at which point protein alignment went wrong
 
 Common problems
 ---------------
