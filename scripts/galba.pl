@@ -186,8 +186,6 @@ EXPERT OPTIONS
                                     runs AUGUSTUS with pre-trained and already
                                     existing parameters.
                                     Hints from input are still generated.
-                                    This option automatically sets
-                                    --useexisting to true.
 --skipOptimize                      Skip optimize parameter step (not
                                     recommended).
 --skipGetAnnoFromFasta              Skip calling the python3 script
@@ -444,7 +442,6 @@ GetOptions(
     'skipGetAnnoFromFasta!'        => \$skipGetAnnoFromFasta,
     'species=s'                    => \$species,
     'softmasking!'                 => \$soft_mask,
-    'useexisting!'                 => \$useexisting,
     'workingdir=s'                 => \$workDir,
     'crf!'                         => \$crf,
     'keepCrf!'                     => \$keepCrf,
