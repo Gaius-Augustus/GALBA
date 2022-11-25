@@ -38,6 +38,7 @@ Contents
 -   [Acknowledgements](#acknowledgements)
 -   [What is GALBA?](#what-is-galba)
 -   [Keys to successful gene prediction](#keys-to-successful-gene-prediction)
+-   [Singularity Image](#singularity-image)
 -   [Installation](#installation)
     -   [Supported software versions](#supported-software-versions)
     -   [GALBA](#galba)
@@ -46,7 +47,6 @@ Contents
         -   [Bioinformatics software dependencies](#bioinformatics-software-dependencies)
             -   [Mandatory tools](#mandatory-tools)
             -   [Optional tools](#optional-tools)
--   [Singularity Image](#singularity-image)
 -   [Running GALBA](#running-galba)
     -   [GALBA pipeline modes](#different-galba-pipeline-modes)
     -   [Description of selected GALBA command line options](#description-of-selected-galba-command-line-options)
@@ -106,9 +106,59 @@ Figure a: training AUGUSTUS on the basis of spliced alignment information from p
 
 Figure b:training AUGUSTUS on the basis of spliced alignment information from proteins of a very closely related species against the target genome with GenomeThreader.
 
+Singularity Image
+=================
+
+The easiest way to run GALBA is using singuarlity. We provide a docker container to build a singularity image (tested with singularity version 3.10.0-dirty). **We only include Miniprot in Docker & Singularity!** GenomeThreader is not included.
+
+Build as follows (requires 1.2 GB disk space):
+
+```
+singularity build galba.sif docker://katharinahoff/galba-notebook:devel
+```
+
+Execute GALBA from galba.sif like this (i.e. it automatically mounts the user's home directory on the host system):
+
+```
+singularity exec galba.sif galba.pl
+```
+
+Running GALBA in Singularity outside of $HOME
+---------------------------------------------
+
+If you want to execute galba.sif while mounting a different directory, e.g. mounting $PWD, then you need to be aware of the following: GALBA needs a writable `$AUGUSTUS_CONFIG_PATH` environment variable. By default, the `AUGUSTUS_CONFIG_PATH` is `/usr/share/augustus/config` in the sif container, which is not writable. Therefore, GALBA attempts to automatically copy the contents of `/usr/share/augustus/config` into $HOME/.augustus on the host system. When you now mount a different directory than $HOME, and if the container is unable to write in your $HOME, then you have to take the following preparatory step before executing GALBA:
+
+```
+singularity exec -B $PWD:$PWD ../galba.sif cp -r /usr/share/augustus/config $PWD/.augustus
+```
+
+Afterwards run with that exact $AUGUSTUS_CONFIG_PATH:
+
+```
+singularity exec -B $PWD:$PWD galba.sif galba.pl --AUGUSTUS_CONFIG_PATH=$PWD/.augustus [OPTIONS]
+```
+
+If you want to re-use AUGUSTUS parameters trained by GALBA in a later run with --skipAllTraining, you must either mount the same $PWD as during training, or you must manually copy the $PWD/.augustus to the location that you will mount for the second run.
+
+What's included in docker/singuarlity GALBA
+--------------------------------------------
+
+Among others, the containers include the following software that is useful in context of working with GALBA:
+
+   * galba.pl
+   * augustus
+   * TSEBRA
+   * make_hub.py & UCSC dependencies
+   * miniprot
+   * diamond
+   * cdbfasta
+   * hisat2
+   * seqstats
 
 Installation
 ============
+
+The long way around is to manually install all dependencies of GALBA.
 
 Supported software versions
 ---------------------------
@@ -387,36 +437,6 @@ picking a release from <https://github.com/Gaius-Augustus/MakeHub/releases>. Ext
 
 GALBA will try to locate the make_hub.py script by using an environment variable `$MAKEHUB_PATH`. Alternatively, this can be supplied as command line argument (`--MAKEHUB_PATH=/your/path/to/MakeHub/`). GALBA can also try to guess the location of MakeHub on your system.
 
-Singularity Image
-=================
-If you do not want to bother installing all dependencies, we provide a docker container to build a singularity image (tested with singularity version 3.10.0-dirty). Build as follows (requires 1.2 GB disk space):
-
-``` 
-singularity build galba.sif docker://katharinahoff/galba-notebook:devel
-```
-
-Execute GALBA from galba.sif like this:
-
-```
-singularity exec galba.sif galba.pl
-```
-
-**We only include Miniprot in Docker & Singularity!** GenomeThreader is not included.
-
-### What's included in docker/singuarlity GALBA
-
-Among others, the containers include the following software that is useful in context of working with GALBA:
-
-   * galba.pl
-   * augustus
-   * TSEBRA
-   * make_hub.py & UCSC dependencies
-   * miniprot
-   * diamond
-   * cdbfasta
-   * hisat2
-   * seqstats
-   
 
 Running GALBA
 ===============
