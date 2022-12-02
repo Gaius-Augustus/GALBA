@@ -247,7 +247,7 @@ $logString .= "\#***************************************************************
 $logString .= "\# GALBA CALL: ". $0 . " ". (join " ", @ARGV) . "\n";
 $logString .= "\# ". (localtime) . ": galba.pl version $version\n";
 my $prtStr;
-my $alternatives_from_evidence = "true";
+my $alternatives_from_evidence = "True";
                  # output alternative transcripts based on explicit evidence
                  # from hints
 my $augpath;     # path to augustus
@@ -1812,7 +1812,7 @@ sub check_biopython{
         $missingPython3Module = 1;
     }
     $errorfile = $errorfilesDir."/find_python3_pygustus.err";
-    $cmdString = "$PYTHON3_PATH/python3 -c \'from pygustus import augustus\' 1> /dev/null "
+    $cmdString = "$PYTHON3_PATH/python3 -c \'import os\nos.environ[\"AUGUSTUS_CONFIG_PATH\"] = \"$AUGUSTUS_CONFIG_PATH\"\nfrom pygustus import augustus\' 1> /dev/null "
                . "2> $errorfile";
     if (system($cmdString) != 0) {
         $prtStr = "#*********\n"
@@ -2233,14 +2233,13 @@ sub check_upfront {
     my $pmodule;
     my @module_list = (
         "YAML",           "Hash::Merge",
-        "MCE::Mutex", "Parallel::ForkManager",
+        "Parallel::ForkManager",
         "Scalar::Util::Numeric", "Getopt::Long",
         "File::Compare", "File::Path", "Module::Load::Conditional",
         "Scalar::Util::Numeric", "POSIX", "List::Util",
         "FindBin", "File::Which", "Cwd", "File::Spec::Functions",
         "File::Basename", "File::Copy", "Term::ANSIColor",
-        "strict", "warnings",
-        "Math::Utils"
+        "strict", "warnings"
     );
 
     foreach my $module (@module_list) {
@@ -2580,16 +2579,16 @@ sub check_options {
         $skipoptimize = 1;
     }
 
-    if (   $alternatives_from_evidence ne "true"
-        && $alternatives_from_evidence ne "false" )
+    if (   $alternatives_from_evidence ne "True"
+        && $alternatives_from_evidence ne "False" )
     {
         $prtStr
             = "\# "
             . (localtime)
             . ": ERROR: in file " . __FILE__ ." at line ". __LINE__ ."\n"
             . "\"$alternatives_from_evidence\" is not a valid option for "
-            . "--alternatives-from-evidence. Please use either 'true' or "
-            . "'false'.\n";
+            . "--alternatives-from-evidence. Please use either 'True' or "
+            . "'False'.\n";
         print STDERR $prtStr;
         $logString .= $prtStr;
         exit(1);
@@ -4829,10 +4828,12 @@ sub augustus {
         open(ABINITIO, ">", $otherfilesDir."/pygustus_ab_initio.py") or die("ERROR in file " . __FILE__ ." at line ". __LINE__
                 . "\nFailed to open file: $otherfilesDir/pygustus_ab_initio.py!\n");
         # build the main augustus command
-        print ABINITIO "from pygustus import augustus\n\n"
-                      ."augustus.config_set_bin($AUGUSTUS_BIN_PATH/augustus)\n\n"
+        print ABINITIO "import os\n"
+                      ."os.environ['AUGUSTUS_CONFIG_PATH'] = '$AUGUSTUS_CONFIG_PATH'\n"
+                      ."from pygustus import augustus\n\n"
+                      ."augustus.config_set_bin('$AUGUSTUS_BIN_PATH/augustus')\n\n"
                       ."augustus.predict('$otherfilesDir/genome.fa', species='$species', "
-                      ."exonnames=True, codingseq=True, AUGUSTUS_CONFIG_PATH='$AUGUSTUS_CONFIG_PATH', "
+                      ."exonnames=True, codingseq=True, "
                       ."outfile='$otherfilesDir/augustus.abinitio.gff', ";
         if($soft_mask){
             print ABINITIO "softmasking=True, ";
@@ -4880,10 +4881,12 @@ sub augustus {
     open(AUGH, ">", $otherfilesDir."/pygustus_hints.py") or die("ERROR in file " . __FILE__ ." at line ". __LINE__
                 . "\nFailed to open file: $otherfilesDir/pygustus_hints.py!\n");
     # build the main augustus command
-    print AUGH "from pygustus import augustus\n\n"
-              ."augustus.config_set_bin($AUGUSTUS_BIN_PATH/augustus)\n\n"
+    print AUGH "import os\n"
+              ."os.environ['AUGUSTUS_CONFIG_PATH'] = '$AUGUSTUS_CONFIG_PATH'\n"
+              ."from pygustus import augustus\n\n"
+              ."augustus.config_set_bin('$AUGUSTUS_BIN_PATH/augustus')\n\n"
               ."augustus.predict('$otherfilesDir/genome.fa', species='$species', "
-              ."exonnames=True, codingseq=True, AUGUSTUS_CONFIG_PATH='$AUGUSTUS_CONFIG_PATH', "
+              ."exonnames=True, codingseq=True, "
               ."alternatives-from-evidence=$alternatives_from_evidence, "
               ."allow_hinted_splicesites='gcag,atac', "
               ."hintsfile='$otherfilesDir/hintsfile.gff', "
