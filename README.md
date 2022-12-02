@@ -19,10 +19,10 @@ Katharina J. Hoff<sup name="aff1">[a, ](#aff1)</sup><sup name="aff2">[b](#aff2)<
 
 <b id="aff4">[d]</b> Harvard Medical School, 10 Shattuck St, Boston, MA 02215, USA
 
-Acknowldgements
+Acknowledgements
 ===============
 
-GALBA code was derived from the BRAKER code, where a similar pipeline for using GenomeThreader with BRAKER was once published in <sup name="a9">[R9](#f9)</sup>. We hereby acknowledge the contributions of all BRAKER authors to the code that GALBA was derived from, and we are grateful for funding for BRAKER development by the National Institutes of Health (NIH) grant GM128145, which indirectly also supported development of GALBA.
+GALBA code was derived from the BRAKER code, where a similar pipeline for using GenomeThreader with BRAKER was once published in <sup name="a9">[R9](#f9)</sup>. We hereby acknowledge the contributions of all BRAKER authors (Tomas Bruna, Simone Lange, Alexandre Lomsadze, Mark Borodovsky, and others) to the code that GALBA was derived from, and we are grateful for funding for BRAKER development by the National Institutes of Health (NIH) grant GM128145, which indirectly also supported development of GALBA.
 
 
 Related Software
@@ -166,6 +166,8 @@ Supported software versions
 At the time of release, this GALBA version was tested with:
 
 -   AUGUSTUS 3.4.0 <sup name="g3">[R3, ](#g3)</sup><sup name="g4">[R4](#g4)</sup>
+
+-   Pygustus v0.7.0-alpha
 
 -   Miniprot 0.5-r181<sup name="a1">[R1](#f1)</sup>
 
@@ -337,6 +339,14 @@ export PATH
 ```
 
 For all your BASH sessions, add the above lines to a startup script (e.g.`~/.bashrc`).
+
+#### Pygustus
+
+This tool is required for parallelization of Augustus. Install Pygustus (<https://github.com/Gaius-Augustus/pygustus>) with pip (or pip3):
+
+```
+pip install pygustus
+```
 
 #### Miniprot
 
