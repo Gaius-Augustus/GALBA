@@ -591,6 +591,8 @@ if($checkOnly){
     exit(0);
 }
 
+my $perl = which 'perl';
+
 # check for known issues that may cause problems with galba.pl ################
 check_upfront();
 
@@ -3178,7 +3180,7 @@ sub make_prot_hints {
                     $perlCmdString .= "nice ";
                 }
                 $perlCmdString
-                    .= "perl $string --genome=$genome --prot=$prot_seq_files[$i] --ALIGNMENT_TOOL_PATH=$GENOMETHREADER_PATH ";
+                    .= "$perl $string --genome=$genome --prot=$prot_seq_files[$i] --ALIGNMENT_TOOL_PATH=$GENOMETHREADER_PATH ";
                     $perlCmdString .= "--prg=gth ";
                 print LOG "\# "
                     . (localtime)
@@ -3413,7 +3415,7 @@ sub aln2hints {
             . (localtime)
             . ": Converting protein alignment file $aln_file to hints for "
             . "AUGUSTUS\n" if ($v > 3);
-        $perlCmdString = "perl ";
+        $perlCmdString = "$perl ";
         if ($nice) {
             $perlCmdString .= "nice ";
         }
@@ -3560,7 +3562,7 @@ sub add_other_hints {
             if ($nice) {
                 $perlCmdString .= "nice ";
             }
-            $perlCmdString .= "perl $string $genome $replacedHintsFile --score 1> $filteredHintsFile 2>$errorfile";
+            $perlCmdString .= "$perl $string $genome $replacedHintsFile --score 1> $filteredHintsFile 2>$errorfile";
             print LOG "\# "
                 . (localtime)
                 . ": filter introns, find strand and change score to \'mult\' "
@@ -3671,7 +3673,7 @@ sub join_mult_hints {
         if ($nice) {
             $perlCmdString .= "nice ";
         }
-        $perlCmdString .= "perl $string <$hintsfile_temp_sort >$to_be_merged 2>$errorfile";
+        $perlCmdString .= "$perl $string <$hintsfile_temp_sort >$to_be_merged 2>$errorfile";
         print LOG "\# " . (localtime) . ": join multiple hints\n" if ($v > 3);
         print LOG "$perlCmdString\n" if ($v > 3);
         system("$perlCmdString") == 0
@@ -3750,7 +3752,7 @@ sub new_species {
                 if ($nice) {
                     $perlCmdString .= "nice ";
                 }
-                $perlCmdString .= "perl $string --species=$species "
+                $perlCmdString .= "$perl $string --species=$species "
                                .  "--AUGUSTUS_CONFIG_PATH=$AUGUSTUS_CONFIG_PATH "
                                .  "1> /dev/null 2>$errorfile";
                 print LOG "\# "
@@ -3926,7 +3928,7 @@ sub training_augustus {
             $perlCmdString .= "nice ";
         }
         $perlCmdString
-            .= "perl $string $otherfilesDir/etrain.bad.lst $trainGb1 1> $trainGb3 2>$errorfile";
+            .= "$perl $string $otherfilesDir/etrain.bad.lst $trainGb1 1> $trainGb3 2>$errorfile";
         print LOG "\# "
             . (localtime)
             . ": Filtering $trainGb1 file to remove inconsistent gene structures...\n" if ($v > 3);
@@ -3973,7 +3975,7 @@ sub training_augustus {
             if ($nice) {
                 $perlCmdString .= "nice ";
             }
-            $perlCmdString .= "perl $string $trainGb3 8000 2>$errorfile";
+            $perlCmdString .= "$perl $string $trainGb3 8000 2>$errorfile";
             print LOG "$perlCmdString\n" if ($v > 3);
             system("$perlCmdString") == 0
                 or clean_abort("$AUGUSTUS_CONFIG_PATH/species/$species",
@@ -4052,7 +4054,7 @@ sub training_augustus {
             $perlCmdString .= "nice ";
         }
         if(defined($DIAMOND_PATH)){
-            $perlCmdString .= "perl $string $otherfilesDir/traingenes.good.fa "
+            $perlCmdString .= "$perl $string $otherfilesDir/traingenes.good.fa "
                            .  "$otherfilesDir/traingenes.good.nr.fa "
                            .  "--DIAMOND_PATH=$DIAMOND_PATH --cores=$CPU "
                            .  "--diamond 1> $stdoutfile 2>$errorfile";
@@ -4109,7 +4111,7 @@ sub training_augustus {
             $perlCmdString .= "nice ";
         }
         $perlCmdString
-            .= "perl $string $otherfilesDir/nonred.loci.lst $trainGb3 1> $trainGb4 2>$errorfile";
+            .= "$perl $string $otherfilesDir/nonred.loci.lst $trainGb3 1> $trainGb4 2>$errorfile";
         print LOG "\# "
             . (localtime)
             . ": Filtering nonredundant loci into $trainGb4:\n" if ($v > 3);
@@ -4199,7 +4201,7 @@ sub training_augustus {
                 $perlCmdString .= "nice ";
             }
             $perlCmdString
-                .= "perl $string $trainGb1 $testsize1 2>$errorfile";
+                .= "$perl $string $trainGb1 $testsize1 2>$errorfile";
             print LOG "$perlCmdString\n" if ($v > 3);
             system("$perlCmdString") == 0
                 or clean_abort("$AUGUSTUS_CONFIG_PATH/species/$species",
@@ -4217,7 +4219,7 @@ sub training_augustus {
             if ($nice) {
                 $perlCmdString .= "nice ";
             }
-            $perlCmdString .= "perl $string $otherfilesDir/train.gb.train $testsize2 2>$errorfile";
+            $perlCmdString .= "$perl $string $otherfilesDir/train.gb.train $testsize2 2>$errorfile";
             print LOG "$perlCmdString\n" if ($v > 3);
             system("$perlCmdString") == 0
                 or clean_abort("$AUGUSTUS_CONFIG_PATH/species/$species",
@@ -4455,7 +4457,7 @@ sub training_augustus {
                 if ($nice) {
                     $perlCmdString .= "nice ";
                 }
-                $perlCmdString .= "perl $string ";
+                $perlCmdString .= "$perl $string ";
                 if ($nice) {
                     $perlCmdString .= "--nice=1 "
                 }
@@ -4901,7 +4903,7 @@ sub gtf2gb {
             $perlCmdString .= "nice ";
         }
         $perlCmdString
-            .= "perl $string $gtf $genome $flanking_DNA $gb 2>$errorfile";
+            .= "$perl $string $gtf $genome $flanking_DNA $gb 2>$errorfile";
         print LOG "\# " . (localtime) . ": create genbank file $gb\n"
             if ($v > 3);
         print LOG "$perlCmdString\n" if ($v > 3);
@@ -5080,7 +5082,7 @@ sub prepare_genome {
             $perlCmdString .= "nice ";
         }
         $perlCmdString
-            .= "perl $string $genome --outputpath=$augustus_dir 2>$errorfile";
+            .= "$perl $string $genome --outputpath=$augustus_dir 2>$errorfile";
         print LOG "$perlCmdString\n" if ($v > 3);
         system("$perlCmdString") == 0
             or die("ERROR in file " . __FILE__ ." at line ". __LINE__
@@ -5163,7 +5165,7 @@ sub make_hints_jobs{
         if ($nice) {
             $perlCmdString .= "nice ";
         }
-        $perlCmdString .= "perl $string --sequences=$otherfilesDir/aug_$hintId.lst --wrap=\"#!/bin/bash\" --overlap=500000 --chunksize=$chunksize --outputdir=$augustus_dir "
+        $perlCmdString .= "$perl $string --sequences=$otherfilesDir/aug_$hintId.lst --wrap=\"#!/bin/bash\" --overlap=500000 --chunksize=$chunksize --outputdir=$augustus_dir "
                        .  "--joblist=$otherfilesDir/$hintId.job.lst --jobprefix=aug_".$hintId."_ --partitionHints --command \"$augpath --species=$species --AUGUSTUS_CONFIG_PATH=$AUGUSTUS_CONFIG_PATH "
                        .  "--extrinsicCfgFile=$cfgFile --alternatives-from-evidence=$alternatives_from_evidence --exonnames=on --codingseq=on "
                        .  "--allow_hinted_splicesites=gcag,atac ";
@@ -5247,7 +5249,7 @@ sub make_ab_initio_jobs{
         if ($nice) {
             $perlCmdString .= "nice ";
         }
-        $perlCmdString .= "perl $string "
+        $perlCmdString .= "$perl $string "
                        .  "--sequences=$otherfilesDir/aug_ab_initio.lst "
                        .  "--wrap=\"#!/bin/bash\" --overlap=5000 "
                        .  "--chunksize=$chunksize "
@@ -5394,7 +5396,7 @@ sub join_aug_pred {
     if ($nice) {
         $perlCmdString .= "nice ";
     }
-    $perlCmdString .= "perl $string < $cat_file > $target_file";
+    $perlCmdString .= "$perl $string < $cat_file > $target_file";
     print LOG "$perlCmdString\n" if ($v > 3);
     system("$perlCmdString") == 0
         or die("ERROR in file " . __FILE__ ." at line ". __LINE__
@@ -5612,7 +5614,7 @@ sub make_gtf {
         if ($nice) {
             $cmdString .= "nice ";
         }
-        my $cmdString .= "cat $AUG_pred | perl -ne 'if(m/\\tAUGUSTUS\\t/) {print \$_;}' | perl $perlstring --printExon --out=$gtf_file_tmp 2>$errorfile";
+        my $cmdString .= "cat $AUG_pred | $perl -ne 'if(m/\\tAUGUSTUS\\t/) {print \$_;}' | $perl $perlstring --printExon --out=$gtf_file_tmp 2>$errorfile";
         print LOG "$cmdString\n" if ($v > 3);
         system("$cmdString") == 0 or die("ERROR in file " . __FILE__
             . " at line ". __LINE__ ."\nFailed to execute: $cmdString\n");
@@ -5880,8 +5882,8 @@ sub gtf2gff3 {
         if($nice){
             $perlCmdString .= "nice ";
         }
-        $perlCmdString .= "cat $gtf | perl -ne 'if(m/\\tAUGUSTUS\\t/) {"
-                       .  "print \$_;}' | perl $string --gff3 --out=$gff3 "
+        $perlCmdString .= "cat $gtf | $perl -ne 'if(m/\\tAUGUSTUS\\t/) {"
+                       .  "print \$_;}' | $perl $string --gff3 --out=$gff3 "
                        .  ">> $otherfilesDir/gtf2gff3.log "
                        .  "2>> $errorfilesDir/gtf2gff3.err";
         print LOG "$perlCmdString\n" if ($v > 3);
@@ -6066,7 +6068,7 @@ sub clean_up {
         if($nice){
             $perlCmdString .= "nice ";
         }
-        $perlCmdString .= "perl $string --wdir=$otherfilesDir";
+        $perlCmdString .= "$perl $string --wdir=$otherfilesDir";
         print LOG "$perlCmdString\n" if ($v > 3);
         my $loginfo = `$perlCmdString`;
         print LOG $loginfo;

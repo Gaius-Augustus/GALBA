@@ -437,6 +437,13 @@ picking a release from <https://github.com/Gaius-Augustus/MakeHub/releases>. Ext
 
 GALBA will try to locate the make_hub.py script by using an environment variable `$MAKEHUB_PATH`. Alternatively, this can be supplied as command line argument (`--MAKEHUB_PATH=/your/path/to/MakeHub/`). GALBA can also try to guess the location of MakeHub on your system.
 
+System dependencies
+-------------------
+galba.pl uses getconf to see how many threads can be run on your system. On Ubuntu, you can install it with:
+
+```
+sudo apt-get install libc-bin
+```
 
 Running GALBA
 ===============
