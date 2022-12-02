@@ -897,48 +897,74 @@ sub make_paths_absolute {
 
 }
 
-####################### fix_AUGUSTUS_CONFIG_PATH ###############################                                                                                                                            # * if AUGUSTUS_CONFIG_PATH is not writable, make a copy of config directory to                                                                                                                             #   ~/.augustus                                                                                                                                                                                             ################################################################################                                                                                                                             
+####################### fix_AUGUSTUS_CONFIG_PATH ############################### 
+# If Augustus was installed via debian package manager, the species
+# directory is usually not writable. Therefore create a copy of the config
+# folder that is writable if necessary.
+# Preferred solution is to create ${HOME}/.augustus but in some cases,
+# this is not possible (containers that can't write onto host home).
+# If it failes, copy the current directory. ${PWD}/.augustus
+################################################################################                                                                                                                           # * if AUGUSTUS_CONFIG_PATH is not writable, make a copy of config directory to                                                                                                                             #   ~/.augustus                                                                                                                                                                                             ################################################################################                                                                                                                             
 sub fix_AUGUSTUS_CONFIG_PATH {
-    if ( not( -w "$AUGUSTUS_CONFIG_PATH/species" ) )
-    {    # check whether config path is writable                                                                                                                                                             
+    if ( not( -w "$AUGUSTUS_CONFIG_PATH/species" ) ) {    
+    # check whether config path is writable                                                                                                                                                             
         $prtStr
             = "\# "
             . (localtime)
             . ": WARNING: \$AUGUSTUS_CONFIG_PATH/species (in this case "
             . "$AUGUSTUS_CONFIG_PATH/species ) is not writeable.\n";
-	$logString .= $prtStr if ($v > 1);
-        if(not(-d $ENV{'HOME'}."/.augustus/species")) {
-            # copy augustus config path into ${HOME}/.augustus                                                                                                                                              
-            $cmdString = "cp -r $AUGUSTUS_CONFIG_PATH ".$ENV{'HOME'}."/.augustus";
-            $prtStr = "\# "
-                . (localtime)
-                . ": copying unwritable augustus config path to writable location\n";
-	    $prtStr .= $cmdString."\n" if ($v > 5);
-	    $logString .= $prtStr if ($v > 1);
-            system("$cmdString") == 0
-                or die("ERROR in file " . __FILE__
-                       . " at line ". __LINE__
-                       . "\nFailed to execute $cmdString!\n");
+        $logString .= $prtStr if ($v > 1);
+        if(-w $ENV{'HOME'}){
+            if(not(-d $ENV{'HOME'}."/.augustus/species")) {
+                # copy augustus config path into ${HOME}/.augustus                                                                                                                                              
+                $cmdString = "cp -r $AUGUSTUS_CONFIG_PATH ".$ENV{'HOME'}."/.augustus";
+                $prtStr = "\# "
+                    . (localtime)
+                    . ": copying unwritable augustus config path to writable location\n";
+                $prtStr .= $cmdString."\n" if ($v > 5);
+                $logString .= $prtStr if ($v > 1);
+                system("$cmdString") == 0
+                    or die("ERROR in file " . __FILE__
+                           . " at line ". __LINE__
+                           . "\nFailed to execute $cmdString!\n");
+            }
+            # modify augustus config path to new location                                                                                                                                                        
+            $AUGUSTUS_CONFIG_PATH = $ENV{'HOME'}."/.augustus";
+            $augustus_cfg_path = $AUGUSTUS_CONFIG_PATH;
+        }elsif(-w $ENV{'PWD'}){
+            if(not(-d $ENV{'PWD'}."/.augustus/species")) {
+                # copy augustus config path into ${HOME}/.augustus                                                                                                                                              
+                $cmdString = "cp -r $AUGUSTUS_CONFIG_PATH ".$ENV{'PWD'}."/.augustus";
+                $prtStr = "\# "
+                    . (localtime)
+                    . ": copying unwritable augustus config path to writable location\n";
+                $prtStr .= $cmdString."\n" if ($v > 5);
+                $logString .= $prtStr if ($v > 1);
+                system("$cmdString") == 0
+                    or die("ERROR in file " . __FILE__
+                           . " at line ". __LINE__
+                           . "\nFailed to execute $cmdString!\n");
+            }
+            # modify augustus config path to new location                                                                                                                                                        
+            $AUGUSTUS_CONFIG_PATH = $ENV{'PWD'}."/.augustus";
+            $augustus_cfg_path = $AUGUSTUS_CONFIG_PATH;
         }
-        # modify augustus config path to new location                                                                                                                                                        
-        $AUGUSTUS_CONFIG_PATH = $ENV{'HOME'}."/.augustus";
-        $augustus_cfg_path = $AUGUSTUS_CONFIG_PATH;
-	if ( not ( -w "$AUGUSTUS_CONFIG_PATH/species" ) ) {
-	    # in a location where every user has permission, make config path writable
-	    $cmdString = "chmod u+w $AUGUSTUS_CONFIG_PATH/species";
-	    $prtStr = "\# "
+    if ( not ( -w "$AUGUSTUS_CONFIG_PATH/species" ) ) {
+        # in a location where every user has permission, make config path writable
+        $cmdString = "chmod u+w $AUGUSTUS_CONFIG_PATH/species";
+        $prtStr = "\# "
                 . (localtime)
                 . ": Making folder $AUGUSTUS_CONFIG_PATH/species writable\n";
-	    $prtStr .= $cmdString."\n" if ($v > 5);
-	    $logString .= $prtStr if ($v > 1);
+        $prtStr .= $cmdString."\n" if ($v > 5);
+        $logString .= $prtStr if ($v > 1);
             system("$cmdString") == 0
-		or die("ERROR in file " . __FILE__
+        or die("ERROR in file " . __FILE__
                        . " at line ". __LINE__
                        . "\nFailed to execute $cmdString!\n");
-	}
-	$prtStr = "*** IMPORTANT: Resetting \$AUGUSTUS_CONFIG_PATH="
-	        .$ENV{'HOME'}."/.augustus because GALBA requires a writable location!\n";
-	$logString .= $prtStr;
+    }
+    $prtStr = "*** IMPORTANT: Resetting \$AUGUSTUS_CONFIG_PATH="
+            .$ENV{'HOME'}."/.augustus because GALBA requires a writable location!\n";
+    $logString .= $prtStr;
     }
 }
 
@@ -1011,15 +1037,15 @@ sub set_AUGUSTUS_CONFIG_PATH {
             if( -d  dirname( abs_path($epath) ) . "/../config" ) {
                 # augustus obtained by git clone
                 $AUGUSTUS_CONFIG_PATH = dirname( abs_path($epath) ) . "/../config";
-		$prtStr
-		    = "\# "
-		    . (localtime)
-		    . ": Setting \$AUGUSTUS_CONFIG_PATH to $AUGUSTUS_CONFIG_PATH\n";
+        $prtStr
+            = "\# "
+            . (localtime)
+            . ": Setting \$AUGUSTUS_CONFIG_PATH to $AUGUSTUS_CONFIG_PATH\n";
             $logString .= $prtStr;
             } else {
                 # augustus obtained from debian
                 $AUGUSTUS_CONFIG_PATH = "/usr/share/augustus/config";
-		$prtStr
+        $prtStr
                     = "\# "
                     . (localtime)
                     . ": Setting \$AUGUSTUS_CONFIG_PATH to $AUGUSTUS_CONFIG_PATH\n";
@@ -1066,8 +1092,8 @@ sub set_AUGUSTUS_CONFIG_PATH {
         . "                galba.pl because galba.pl is a pipeline that\n"
         . "                optimizes parameters that reside in that\n"
         . "                directory. GALBA will copy an unwritable\n"
-	. "                AUGUSTUS_CONFIG folder into your home directory if\n"
-	. "                necessary.\n";
+    . "                AUGUSTUS_CONFIG folder into your home directory if\n"
+    . "                necessary.\n";
 
     # Give user installation instructions
     if ( not( defined $AUGUSTUS_CONFIG_PATH )
@@ -1256,7 +1282,7 @@ sub set_AUGUSTUS_SCRIPTS_PATH {
     if ( not( defined($AUGUSTUS_SCRIPTS_PATH) )
         || length($AUGUSTUS_SCRIPTS_PATH) == 0 )
     {
-	$prtStr
+    $prtStr
             = "\# "
             . (localtime)
             . ": Trying to guess \$AUGUSTUS_SCRIPTS_PATH from "
