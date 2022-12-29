@@ -349,6 +349,8 @@ This tool is required for parallelization of Augustus. Install Pygustus (<https:
 pip install pygustus
 ```
 
+Important: this version of GALBA relies on pygustus 0.7.0-alpha. It will not be compatible with newer versions before code adaptation.
+
 #### Miniprot
 
 This tool is only required, if you would like to run protein to genome alignments with GALBA using Miniprot. Download Miniprot from <https://github.com/lh3/miniprot>:
