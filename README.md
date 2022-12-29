@@ -127,17 +127,7 @@ singularity exec galba.sif galba.pl
 Running GALBA in Singularity outside of $HOME
 ---------------------------------------------
 
-If you want to execute galba.sif while mounting a different directory, e.g. mounting $PWD, then you need to be aware of the following: GALBA needs a writable `$AUGUSTUS_CONFIG_PATH` environment variable. By default, the `AUGUSTUS_CONFIG_PATH` is `/usr/share/augustus/config` in the sif container, which is not writable. Therefore, GALBA attempts to automatically copy the contents of `/usr/share/augustus/config` into $HOME/.augustus on the host system. When you now mount a different directory than $HOME, and if the container is unable to write in your $HOME, then you have to take the following preparatory step before executing GALBA:
-
-```
-singularity exec -B $PWD:$PWD ../galba.sif cp -r /usr/share/augustus/config $PWD/.augustus
-```
-
-Afterwards run with that exact $AUGUSTUS_CONFIG_PATH:
-
-```
-singularity exec -B $PWD:$PWD galba.sif galba.pl --AUGUSTUS_CONFIG_PATH=$PWD/.augustus [OPTIONS]
-```
+If you want to execute galba.sif while mounting a different directory, e.g. mounting $PWD, then you need to be aware of the following: GALBA needs a writable `$AUGUSTUS_CONFIG_PATH` environment variable. By default, the `AUGUSTUS_CONFIG_PATH` is `/usr/share/augustus/config` in the sif container, which is not writable. Therefore, GALBA attempts to automatically copy the contents of `/usr/share/augustus/config` into $HOME/.augustus on the host system. If this fails, it copies to $PWD. 
 
 If you want to re-use AUGUSTUS parameters trained by GALBA in a later run with --skipAllTraining, you must either mount the same $PWD as during training, or you must manually copy the $PWD/.augustus to the location that you will mount for the second run.
 
