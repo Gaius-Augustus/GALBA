@@ -21,10 +21,10 @@ Katharina J. Hoff<sup name="aff1">[a, ](#aff1)</sup><sup name="aff2">[b](#aff2)<
 
 <b id="aff4">[d]</b> Harvard Medical School, 10 Shattuck St, Boston, MA 02215, USA
 
-Acknowldgements
+Acknowledgements
 ===============
 
-GALBA code was derived from the BRAKER code, where a similar pipeline for using GenomeThreader with BRAKER was once published in <sup name="a9">[R9](#f9)</sup>. We hereby acknowledge the contributions of all BRAKER authors to the code that GALBA was derived from, and we are grateful for funding for BRAKER development by the National Institutes of Health (NIH) grant GM128145, which indirectly also supported development of GALBA.
+GALBA code was derived from the BRAKER code, where a similar pipeline for using GenomeThreader with BRAKER was once published in <sup name="a9">[R9](#f9)</sup>. We hereby acknowledge the contributions of all BRAKER authors (Tomas Bruna, Simone Lange, Alexandre Lomsadze, Mark Borodovsky, and others) to the code that GALBA was derived from, and we are grateful for funding for BRAKER development by the National Institutes of Health (NIH) grant GM128145, which indirectly also supported development of GALBA.
 
 
 Related Software
@@ -55,7 +55,6 @@ Contents
         -   [--AUGUSTUS_ab_initio](#--AUGUSTUS_ab_initio)
         -   [--augustus_args=--some\_arg=bla](#--augustus_args--some_argbla)
         -   [--threads=INT](#--threadsint)
-        -   [--softmasking](#--softmasking)
         -   [--crf](#--crf)
         -   [--lambda=int](#--lambdaint)
 	    -   [--makehub --email=your@mail.de](#--makehub---emailyourmailde)
@@ -91,7 +90,7 @@ Keys to successful gene prediction
 
 -   Use simple scaffold names in the genome file (e.g. ```>contig1``` will work better than ```>contig1my custom species namesome putative function /more/information/  and lots of special characters %&!*(){}```). Make the scaffold names in all your fasta files simple before running any alignment program.
 
--   In order to predict genes accurately in a novel genome, the genome should be masked for repeats. This will avoid the prediction of false positive gene structures in repetitive and low complexitiy regions. In the case of AUGUSTUS, softmasking (i.e., putting repeat regions into lower case letters and all other regions into upper case letters) leads to better results than hardmasking (i.e., replacing letters in repetitive regions by the letter `N` for unknown nucleotide). If the genome is softmasked, use the `--softmasking` flag of `galba.pl`.
+-   In order to predict genes accurately in a novel genome, the genome should be masked for repeats. This will avoid the prediction of false positive gene structures in repetitive and low complexitiy regions. In the case of AUGUSTUS, softmasking (i.e., putting repeat regions into lower case letters and all other regions into upper case letters) leads to better results than hardmasking (i.e., replacing letters in repetitive regions by the letter `N` for unknown nucleotide). GALBA always treats genomes as softmasked for repeats!
 
 -   Always check gene prediction results before further usage! You can, e.g. use a genome browser for visual inspection of gene models in context with extrinsic evidence data. GALBA supports the generation of track data hubs for the UCSC Genome Browser with MakeHub for this purpose.
 
@@ -168,6 +167,8 @@ Supported software versions
 At the time of release, this GALBA version was tested with:
 
 -   AUGUSTUS 3.4.0 <sup name="g3">[R3, ](#g3)</sup><sup name="g4">[R4](#g4)</sup>
+
+-   Pygustus v0.7.0-alpha
 
 -   Miniprot 0.5-r181<sup name="a1">[R1](#f1)</sup>
 
@@ -340,6 +341,16 @@ export PATH
 
 For all your BASH sessions, add the above lines to a startup script (e.g.`~/.bashrc`).
 
+#### Pygustus
+
+This tool is required for parallelization of Augustus. Install Pygustus (<https://github.com/Gaius-Augustus/pygustus>) with pip (or pip3):
+
+```
+pip install pygustus
+```
+
+Important: this version of GALBA relies on pygustus 0.7.0-alpha. It will not be compatible with newer versions before code adaptation.
+
 #### Miniprot
 
 This tool is only required, if you would like to run protein to genome alignments with GALBA using Miniprot. Download Miniprot from <https://github.com/lh3/miniprot>:
@@ -450,7 +461,7 @@ sudo apt-get install libc-bin
 Running GALBA
 ===============
 
-In the following, we describe the GALBA calls for Miniprot and GenomeThreader. In general, we recommend that you run GALBA on genomic sequences that have been softmasked for Repeats. If your genome has been softmasked, include the `--softmasking` flag in your GALBA call!
+In the following, we describe the GALBA calls for Miniprot and GenomeThreader. In general, we recommend that you run GALBA on genomic sequences that have been softmasked for Repeats.
 
 ### GALBA with Miniprot
 
@@ -490,10 +501,6 @@ One or several command line arguments to be passed to AUGUSTUS, if several argum
 ### --threads=INT
 
 Specifies the maximum number of threads that can be used during computation. GALBA has to run some steps on a single thread, others can take advantage of multiple threads. If you use more than 8 threads, this will not speed up all parallelized steps, in particular, the time consuming `optimize_augustus.pl` will not use more than 8 threads.
-
-### --softmasking
-
-Softmasking option for soft masked genome files. (Disabled by default.)
 
 ### --crf
 
@@ -579,7 +586,7 @@ Testing GALBA with Miniprot
 
 ```
 galba.pl --genome=genome.fa --prot_seq=proteins.fa \
-    --skipOptimize --softmasking --threads 8
+    --skipOptimize --threads 8
 ```
 
 This test is implemented in `test1.sh`, expected runtime is ~2 minutes. The fast runtime of this test is mostly caused by generating a low number of training genes, and by skipping an optimization step for AUGUSTUS training.
@@ -589,7 +596,7 @@ Testing GALBA with GenomeThreader
 
 ```
 galba.pl --genome=genome.fa --prot_seq=proteins.fa \
-    --skipOptimize --softmasking --prg=gth --workingdir=$wd \
+    --skipOptimize --prg=gth --workingdir=$wd \
     --threads 8
 ```
 
@@ -602,7 +609,7 @@ The training step of all pipelines can be skipped with the option `--skipAllTrai
 
 ```
 galba.pl --genome=genome.fa --prot_seq=proteins.fa \
-    --skipAllTraining --softmasking \
+    --skipAllTraining \
     --threads 8 --species=arabidopsis
 ```
 
