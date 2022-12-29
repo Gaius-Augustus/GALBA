@@ -81,8 +81,6 @@ FREQUENTLY USED OPTIONS
 --AUGUSTUS_ab_initio                output ab initio predictions by AUGUSTUS
                                     in addition to predictions with hints by
                                     AUGUSTUS
---softmasking                       Softmasking option for soft masked genome
-                                    files. (Disabled by default.)
 --gff3                              Output in GFF3 format (default is gtf
                                     format)
 --threads                           Specifies the maximum number of threads that
@@ -422,7 +420,6 @@ GetOptions(
     'skipAllTraining!'             => \$skipAllTraining,
     'skipGetAnnoFromFasta!'        => \$skipGetAnnoFromFasta,
     'species=s'                    => \$species,
-    'softmasking!'                 => \$soft_mask,
     'workingdir=s'                 => \$workDir,
     'crf!'                         => \$crf,
     'keepCrf!'                     => \$keepCrf,
@@ -4832,27 +4829,26 @@ sub augustus {
                       ."os.environ['AUGUSTUS_CONFIG_PATH'] = '$AUGUSTUS_CONFIG_PATH'\n"
                       ."from pygustus import augustus\n\n"
                       ."augustus.config_set_bin('$AUGUSTUS_BIN_PATH/augustus')\n\n"
-                      ."augustus.predict('$otherfilesDir/genome.fa', species='$species', "
-                      ."exonnames=True, codingseq=True, "
-                      ."outfile='$otherfilesDir/augustus.abinitio.gff', ";
-        if($soft_mask){
-            print ABINITIO "softmasking=True, ";
-        }
+                      ."augargs = {'exonnames' : 1, 'codingseq': 1, "
+                      ."'outfile': '$otherfilesDir/augustus.abinitio.gff', "
+                      ."'softmasking':True";
         if ($augustus_args) {
             my @aug_args = split(/ /, $augustus_args);
             foreach(@aug_args){
                 $_ =~ m/--(\S+)=(\S+)/;
-                print ABINITIO "$1='$2', ";
+                print ABINITIO " , '$1':'$2'";
             }
         }
+        print ABINITIO "}\n\n";
         # build the parallelization options of pygustus
-        print ABINITIO "partitionLargeSequences=True, "
+        print ABINITIO "augustus.predict('$otherfilesDir/genome.fa', species='$species',";
+        print ABINITIO "**augargs, partitionLargeSeqeunces=True, "
                       ."minSplitSize=1000000, chunksize=$chunksize, jobs=$CPU)\n";
         close(ABINITIO) or die("ERROR in file " . __FILE__ ." at line ". __LINE__
                 . "\nFailed to close file: $otherfilesDir/pygustus_ab_initio.py!\n");
         # execute the python script
         my $outfile = "$otherfilesDir/pygustus_ab_initio.out";
-        my $errfile = "$errorfilesDir/pygustus_ab_initio.err";
+        $errorfile = "$errorfilesDir/pygustus_ab_initio.err";
         my $pythonCmdString = "";
         if ($nice) {
             $pythonCmdString .= "nice ";
@@ -4885,34 +4881,33 @@ sub augustus {
               ."os.environ['AUGUSTUS_CONFIG_PATH'] = '$AUGUSTUS_CONFIG_PATH'\n"
               ."from pygustus import augustus\n\n"
               ."augustus.config_set_bin('$AUGUSTUS_BIN_PATH/augustus')\n\n"
-              ."augustus.predict('$otherfilesDir/genome.fa', species='$species', "
-              ."exonnames=True, codingseq=True, "
-              ."alternatives-from-evidence=$alternatives_from_evidence, "
-              ."allow_hinted_splicesites='gcag,atac', "
-              ."hintsfile='$otherfilesDir/hintsfile.gff', "
-              ."extrinsicCfgFile='$extrinsicCfgFile', "
-              ."outfile='$otherfilesDir/augustus.hints.gff', ";
-    if($soft_mask){
-        print AUGH "softmasking=True, ";
-    }
+              ."augargs = {'exonnames' : 1, 'codingseq' : 1, "
+              ."'alternatives-from-evidence' : True, "
+              ."'allow_hinted_splicesites': ['gcag','atac'], 'softmasking' : True, "
+              ."'hintsfile' : '$otherfilesDir/hintsfile.gff', "
+              ."'alternatives-from-evidence' : $alternatives_from_evidence, "
+              ."'extrinsicCfgFile' : '$extrinsicCfgFile', "
+              ."'outfile' : '$otherfilesDir/augustus.hints.gff'";
     if ( defined($optCfgFile) ) {
-        print AUGH "optCfgFile='$optCfgFile', ";
+        print AUGH ", 'optCfgFile' : '$optCfgFile'";
     }
     if ($augustus_args) {
         my @aug_args = split(/ /, $augustus_args);
         foreach(@aug_args){
             $_ =~ m/--(\S+)=(\S+)/;
-            print ABINITIO "$1='$2', ";
+            print AUGH ", '$1' : '$2'";
         }
     }
+    print AUGH "}\n\n";
+    print AUGH "augustus.predict('$otherfilesDir/genome.fa', species='$species', ";
     # build the parallelization options of pygustus
-    print AUGH "partitionLargeSequences=True, partitionHints=True, "
+    print AUGH "partitionLargeSeqeunces=True, partitionHints=True, "
                 ."minSplitSize=1000000, chunksize=$chunksize, jobs=$CPU)\n";
     close(AUGH) or die("ERROR in file " . __FILE__ ." at line ". __LINE__
                 . "\nFailed to close file: $otherfilesDir/pygustus_hints.py!\n");
     # execute the python script
     my $outfile = "$otherfilesDir/pygustus_hints.out";
-    my $errfile = "$errorfilesDir/pygustus_hints.err";
+    $errorfile = "$errorfilesDir/pygustus_hints.err";
     my $pythonCmdString = "";
     if ($nice) {
         $pythonCmdString .= "nice ";
@@ -4923,6 +4918,16 @@ sub augustus {
     system("$pythonCmdString") == 0
         or die("ERROR in file " . __FILE__ ." at line ". __LINE__
         . "\nFailed to execute: $pythonCmdString\n");
+    # BUG IN PYGUSTUS! NEED TO UPDATE CODE IF IT WILL BE FIXED!
+    print LOG "\# "
+                . (localtime)
+                . ": moving augustus.gff to augustus.hints.gff\n" if ($v > 3);
+    $cmdString = "mv $otherfilesDir/augustus.gff $otherfilesDir/augustus.hints.gff";
+    print LOG "$cmdString\n" if ($v > 3);
+    system("$cmdString") == 0
+        or clean_abort("$AUGUSTUS_CONFIG_PATH/species/$species",
+        $useexisting, "ERROR in file " . __FILE__ ." at line "
+        . __LINE__ ."\nFailed to execute: $cmdString!\n");
     # continue processing output gff file
     make_gtf("$otherfilesDir/augustus.hints.gff");
     get_anno_fasta("$otherfilesDir/augustus.hints.gtf", "tmp");
