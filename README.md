@@ -1,6 +1,6 @@
 # GALBA User Guide
 
-![Docker Pulls](https://img.shields.io/docker/pulls/katharinahoff/galba-notebook)
+![Docker Pulls](https://img.shields.io/docker/pulls/katharinahoff/galba-notebook) ![GitHub all releases](https://img.shields.io/github/downloads/gaius-augustus/galba/total)
 
 <u>Contact for Github Repository of GALBA at
 https://github.com/Gaius-Augustus/GALBA:</u>
