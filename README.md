@@ -1,5 +1,7 @@
 # GALBA User Guide
 
+![Docker Pulls](https://img.shields.io/docker/pulls/katharinahoff/galba-notebook) ![GitHub all releases](https://img.shields.io/github/downloads/gaius-augustus/galba/total)
+
 <u>Contact for Github Repository of GALBA at
 https://github.com/Gaius-Augustus/GALBA:</u>
 
@@ -114,7 +116,7 @@ The easiest way to run GALBA is using singuarlity. We provide a docker container
 Build as follows (requires 1.2 GB disk space):
 
 ```
-singularity build galba.sif docker://katharinahoff/galba-notebook:devel
+singularity build galba.sif docker://katharinahoff/galba-notebook:latest
 ```
 
 Execute GALBA from galba.sif like this (i.e. it automatically mounts the user's home directory on the host system):
