@@ -13,4 +13,4 @@ fi
 # this flag for annotating a real genome!
 
 
-( time galba.pl --genome=../genome.fa --prot_seq=../proteins.fa --skipOptimize --softmasking --prg=gth --workingdir=$wd --threads 8) &> test2.log
+( time galba.pl --genome=../genome.fa --prot_seq=../proteins.fa --skipOptimize --prg=gth --workingdir=$wd --threads 8) &> test2.log
