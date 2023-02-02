@@ -21,7 +21,7 @@ Katharina J. Hoff<sup name="aff1">[a, ](#aff1)</sup><sup name="aff2">[b](#aff2)<
 
 <b id="aff4">[d]</b> Harvard Medical School, 10 Shattuck St, Boston, MA 02215, USA
 
-Acknowldgements
+Acknowledgements
 ===============
 
 GALBA code was derived from the BRAKER code, where a similar pipeline for using GenomeThreader with BRAKER was once published in <sup name="a9">[R9](#f9)</sup>. We hereby acknowledge the contributions of all BRAKER authors to the code that GALBA was derived from, and we are grateful for funding for BRAKER development by the National Institutes of Health (NIH) grant GM128145, which indirectly also supported development of GALBA.
