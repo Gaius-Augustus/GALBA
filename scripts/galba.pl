@@ -81,8 +81,6 @@ FREQUENTLY USED OPTIONS
 --AUGUSTUS_ab_initio                output ab initio predictions by AUGUSTUS
                                     in addition to predictions with hints by
                                     AUGUSTUS
---softmasking                       Softmasking option for soft masked genome
-                                    files. (Disabled by default.)
 --gff3                              Output in GFF3 format (default is gtf
                                     format)
 --threads                           Specifies the maximum number of threads that
@@ -168,10 +166,7 @@ CONFIGURATION OPTIONS (TOOLS CALLED BY GALBA)
 --MAKEHUB_PATH=/path/to             Set path to make_hub.py (if option --makehub
                                     is used).
 --CDBTOOLS_PATH=/path/to            cdbfasta/cdbyank are required for running
-                                    fix_in_frame_stop_codon_genes.py. Usage of
-                                    that script can be skipped with option 
-                                    '--skip_fixing_broken_genes'.
-
+                                    fix_in_frame_stop_codon_genes.py.
 
 EXPERT OPTIONS
 
@@ -200,9 +195,6 @@ EXPERT OPTIONS
                                     will not be produced and python3 and 
                                     the required modules will not be necessary
                                     for running galba.pl.
---skip_fixing_broken_genes          If you do not have python3, you can choose
-                                    to skip the fixing of stop codon including
-                                    genes (not recommended).
 --eval=reference.gtf                Reference set to evaluate predictions
                                     against (using evaluation scripts from GaTech)
 --eval_pseudo=pseudo.gff3           File with pseudogenes that will be excluded 
@@ -212,19 +204,6 @@ EXPERT OPTIONS
                                     2 -> also log configuration
                                     3 -> log all major steps
                                     4 -> very verbose, log also small steps
---downsampling_lambda=d             The distribution of introns in training
-                                    gene structures 
-                                    has a huge weight on single-exon and
-                                    few-exon genes. Specifying the lambda
-                                    parameter of a poisson distribution will
-                                    make GALBA call a script for downsampling
-                                    of training gene structures according to
-                                    their number of introns distribution, i.e.
-                                    genes with none or few exons will be
-                                    downsampled, genes with many exons will be
-                                    kept. Default value is 2. 
-                                    If you want to avoid downsampling, you have 
-                                    to specify 0. 
 --checkSoftware                     Only check whether all required software
                                     is installed, no execution of GALBA
 --nocleanup                         Skip deletion of all files that are typically not 
@@ -265,7 +244,7 @@ $logString .= "\#***************************************************************
 $logString .= "\# GALBA CALL: ". $0 . " ". (join " ", @ARGV) . "\n";
 $logString .= "\# ". (localtime) . ": galba.pl version $version\n";
 my $prtStr;
-my $alternatives_from_evidence = "true";
+my $alternatives_from_evidence = "True";
                  # output alternative transcripts based on explicit evidence
                  # from hints
 my $augpath;     # path to augustus
@@ -393,7 +372,6 @@ my $nocleanup;
 my $ttable = 1; # translation table to be used
 my $gc_prob = 0.001;
 my $gm_max_intergenic;
-my $skip_fixing_broken_genes; # skip execution of fix_in_frame_stop_codon_genes.py
 my $traingtf;
 my $flanking_DNA;        # length of flanking DNA, default value is
                          # min{ave. gene length/2, 10000}
@@ -441,7 +419,6 @@ GetOptions(
     'skipAllTraining!'             => \$skipAllTraining,
     'skipGetAnnoFromFasta!'        => \$skipGetAnnoFromFasta,
     'species=s'                    => \$species,
-    'softmasking!'                 => \$soft_mask,
     'workingdir=s'                 => \$workDir,
     'crf!'                         => \$crf,
     'keepCrf!'                     => \$keepCrf,
@@ -464,7 +441,6 @@ GetOptions(
     'email=s'                      => \$email,
     'version!'                     => \$printVersion,
     'translation_table=s'          => \$ttable,
-    'skip_fixing_broken_genes!'    => \$skip_fixing_broken_genes,
     'gc_probability=s'             => \$gc_prob,
     'gm_max_intergenic=s'          => \$gm_max_intergenic,
     'traingenes=s'                 => \$traingtf
@@ -577,9 +553,8 @@ if(@prot_seq_files && $prg eq "miniprot"){
 if ( $makehub ) {
     set_MAKEHUB_PATH();
 }
-if( not($skip_fixing_broken_genes)){
-    set_CDBTOOLS_PATH();
-}
+
+set_CDBTOOLS_PATH();
 
 if($checkOnly){
     $prtStr = "\# " . (localtime)
@@ -743,64 +718,6 @@ if (@prot_seq_files) {
     @prot_seq_files = @tmp_prot_seq;
 }
 
-# count scaffold sizes and check whether the assembly is not too fragmented for
-#  parallel execution of AUGUSTUS
-open (GENOME, "<", "$otherfilesDir/genome.fa") or clean_abort(
-    "$AUGUSTUS_CONFIG_PATH/species/$species", $useexisting, "ERROR in file "
-    . __FILE__ ." at line ". __LINE__
-    ."\nCould not open file $otherfilesDir/genome.fa");
-my $gLocus;
-while( <GENOME> ){
-    chomp;
-    if(m/^>(.*)/){
-        $gLocus = $1;
-    }else{
-        if(not(defined($scaffSizes{$gLocus}))){
-            $scaffSizes{$gLocus} = length ($_);
-        }else{
-            $scaffSizes{$gLocus} += length ($_);
-        }
-    }
-}
-close (GENOME) or clean_abort(
-    "$AUGUSTUS_CONFIG_PATH/species/$species", $useexisting, "ERROR in file "
-    . __FILE__ ." at line ". __LINE__
-    . "\nCould not close file $otherfilesDir/genome.fa");
-my @nScaffs = keys %scaffSizes;
-my $totalScaffSize = 0;
-foreach( values %scaffSizes) {
-    $totalScaffSize += $_;
-}
-# unsure what is an appropriate limit, because it depends on the kernel and
-# on the stack size. Use 30000 just to be sure. This will result in ~90000 files in the
-# augustus_tmp folder.
-if ( (scalar(@nScaffs) > 30000) && ($CPU > 1) ) {
-    $prtStr = "#*********\n"
-            . "# WARNING: in file " . __FILE__ ." at line ". __LINE__ ."\n"
-            . "file $genome contains a highly fragmented assembly ("
-            . scalar(@nScaffs)." scaffolds). This may lead "
-            . "to problems when running AUGUSTUS via GALBA in parallelized "
-            . "mode. You set --cores=$CPU. You should run galba.pl in linear "
-            . "mode on such genomes, though (--cores=1).\n"
-            . "#*********\n";
-    print STDOUT $prtStr;
-    print LOG $prtStr;
-}elsif( (($totalScaffSize / $chunksize) > 30000) && ($CPU > 1) ){
-    $prtStr = "#*********\n"
-            . "# WARNING: in file " . __FILE__ ." at line ". __LINE__ ."\n"
-            . "file $genome contains contains $totalScaffSize bases. "
-            . "This may lead "
-            . "to problems when running AUGUSTUS via GALBA in parallelized "
-            . "mode. You set --cores=$CPU. There is a variable \$chunksize in "
-            . "galba.pl. Default value is currently $chunksize. You can adapt "
-            . "this to a higher number. The total base content / chunksize * 3 "
-            . "should not exceed the number of possible arguments for commands "
-            . "like ls *, cp *, etc. on your system.\n"
-            . "#*********\n";
-    print STDOUT $prtStr;
-    print LOG $prtStr;
-}
-
 print LOG "\#**********************************************************************************\n"
         . "\#            PROCESSING HINTS AND GENERATING TRAINING GENES                        \n"
         . "\#**********************************************************************************\n";
@@ -897,48 +814,74 @@ sub make_paths_absolute {
 
 }
 
-####################### fix_AUGUSTUS_CONFIG_PATH ###############################                                                                                                                            # * if AUGUSTUS_CONFIG_PATH is not writable, make a copy of config directory to                                                                                                                             #   ~/.augustus                                                                                                                                                                                             ################################################################################                                                                                                                             
+####################### fix_AUGUSTUS_CONFIG_PATH ############################### 
+# If Augustus was installed via debian package manager, the species
+# directory is usually not writable. Therefore create a copy of the config
+# folder that is writable if necessary.
+# Preferred solution is to create ${HOME}/.augustus but in some cases,
+# this is not possible (containers that can't write onto host home).
+# If it failes, copy the current directory. ${PWD}/.augustus
+################################################################################                                                                                                                           # * if AUGUSTUS_CONFIG_PATH is not writable, make a copy of config directory to                                                                                                                             #   ~/.augustus                                                                                                                                                                                             ################################################################################                                                                                                                             
 sub fix_AUGUSTUS_CONFIG_PATH {
-    if ( not( -w "$AUGUSTUS_CONFIG_PATH/species" ) )
-    {    # check whether config path is writable                                                                                                                                                             
+    if ( not( -w "$AUGUSTUS_CONFIG_PATH/species" ) ) {    
+    # check whether config path is writable                                                                                                                                                             
         $prtStr
             = "\# "
             . (localtime)
             . ": WARNING: \$AUGUSTUS_CONFIG_PATH/species (in this case "
             . "$AUGUSTUS_CONFIG_PATH/species ) is not writeable.\n";
-	$logString .= $prtStr if ($v > 1);
-        if(not(-d $ENV{'HOME'}."/.augustus/species")) {
-            # copy augustus config path into ${HOME}/.augustus                                                                                                                                              
-            $cmdString = "cp -r $AUGUSTUS_CONFIG_PATH ".$ENV{'HOME'}."/.augustus";
-            $prtStr = "\# "
-                . (localtime)
-                . ": copying unwritable augustus config path to writable location\n";
-	    $prtStr .= $cmdString."\n" if ($v > 5);
-	    $logString .= $prtStr if ($v > 1);
-            system("$cmdString") == 0
-                or die("ERROR in file " . __FILE__
-                       . " at line ". __LINE__
-                       . "\nFailed to execute $cmdString!\n");
+        $logString .= $prtStr if ($v > 1);
+        if(-w $ENV{'HOME'}){
+            if(not(-d $ENV{'HOME'}."/.augustus/species")) {
+                # copy augustus config path into ${HOME}/.augustus                                                                                                                                              
+                $cmdString = "cp -r $AUGUSTUS_CONFIG_PATH ".$ENV{'HOME'}."/.augustus";
+                $prtStr = "\# "
+                    . (localtime)
+                    . ": copying unwritable augustus config path to writable location\n";
+                $prtStr .= $cmdString."\n" if ($v > 5);
+                $logString .= $prtStr if ($v > 1);
+                system("$cmdString") == 0
+                    or die("ERROR in file " . __FILE__
+                           . " at line ". __LINE__
+                           . "\nFailed to execute $cmdString!\n");
+            }
+            # modify augustus config path to new location                                                                                                                                                        
+            $AUGUSTUS_CONFIG_PATH = $ENV{'HOME'}."/.augustus";
+            $augustus_cfg_path = $AUGUSTUS_CONFIG_PATH;
+        }elsif(-w $ENV{'PWD'}){
+            if(not(-d $ENV{'PWD'}."/.augustus/species")) {
+                # copy augustus config path into ${HOME}/.augustus                                                                                                                                              
+                $cmdString = "cp -r $AUGUSTUS_CONFIG_PATH ".$ENV{'PWD'}."/.augustus";
+                $prtStr = "\# "
+                    . (localtime)
+                    . ": copying unwritable augustus config path to writable location\n";
+                $prtStr .= $cmdString."\n" if ($v > 5);
+                $logString .= $prtStr if ($v > 1);
+                system("$cmdString") == 0
+                    or die("ERROR in file " . __FILE__
+                           . " at line ". __LINE__
+                           . "\nFailed to execute $cmdString!\n");
+            }
+            # modify augustus config path to new location                                                                                                                                                        
+            $AUGUSTUS_CONFIG_PATH = $ENV{'PWD'}."/.augustus";
+            $augustus_cfg_path = $AUGUSTUS_CONFIG_PATH;
         }
-        # modify augustus config path to new location                                                                                                                                                        
-        $AUGUSTUS_CONFIG_PATH = $ENV{'HOME'}."/.augustus";
-        $augustus_cfg_path = $AUGUSTUS_CONFIG_PATH;
-	if ( not ( -w "$AUGUSTUS_CONFIG_PATH/species" ) ) {
-	    # in a location where every user has permission, make config path writable
-	    $cmdString = "chmod u+w $AUGUSTUS_CONFIG_PATH/species";
-	    $prtStr = "\# "
+    if ( not ( -w "$AUGUSTUS_CONFIG_PATH/species" ) ) {
+        # in a location where every user has permission, make config path writable
+        $cmdString = "chmod u+w $AUGUSTUS_CONFIG_PATH/species";
+        $prtStr = "\# "
                 . (localtime)
                 . ": Making folder $AUGUSTUS_CONFIG_PATH/species writable\n";
-	    $prtStr .= $cmdString."\n" if ($v > 5);
-	    $logString .= $prtStr if ($v > 1);
+        $prtStr .= $cmdString."\n" if ($v > 5);
+        $logString .= $prtStr if ($v > 1);
             system("$cmdString") == 0
-		or die("ERROR in file " . __FILE__
+        or die("ERROR in file " . __FILE__
                        . " at line ". __LINE__
                        . "\nFailed to execute $cmdString!\n");
-	}
-	$prtStr = "*** IMPORTANT: Resetting \$AUGUSTUS_CONFIG_PATH="
-	        .$ENV{'HOME'}."/.augustus because GALBA requires a writable location!\n";
-	$logString .= $prtStr;
+    }
+    $prtStr = "*** IMPORTANT: Resetting \$AUGUSTUS_CONFIG_PATH="
+            .$ENV{'HOME'}."/.augustus because GALBA requires a writable location!\n";
+    $logString .= $prtStr;
     }
 }
 
@@ -1011,15 +954,15 @@ sub set_AUGUSTUS_CONFIG_PATH {
             if( -d  dirname( abs_path($epath) ) . "/../config" ) {
                 # augustus obtained by git clone
                 $AUGUSTUS_CONFIG_PATH = dirname( abs_path($epath) ) . "/../config";
-		$prtStr
-		    = "\# "
-		    . (localtime)
-		    . ": Setting \$AUGUSTUS_CONFIG_PATH to $AUGUSTUS_CONFIG_PATH\n";
+        $prtStr
+            = "\# "
+            . (localtime)
+            . ": Setting \$AUGUSTUS_CONFIG_PATH to $AUGUSTUS_CONFIG_PATH\n";
             $logString .= $prtStr;
             } else {
                 # augustus obtained from debian
                 $AUGUSTUS_CONFIG_PATH = "/usr/share/augustus/config";
-		$prtStr
+        $prtStr
                     = "\# "
                     . (localtime)
                     . ": Setting \$AUGUSTUS_CONFIG_PATH to $AUGUSTUS_CONFIG_PATH\n";
@@ -1066,8 +1009,8 @@ sub set_AUGUSTUS_CONFIG_PATH {
         . "                galba.pl because galba.pl is a pipeline that\n"
         . "                optimizes parameters that reside in that\n"
         . "                directory. GALBA will copy an unwritable\n"
-	. "                AUGUSTUS_CONFIG folder into your home directory if\n"
-	. "                necessary.\n";
+    . "                AUGUSTUS_CONFIG folder into your home directory if\n"
+    . "                necessary.\n";
 
     # Give user installation instructions
     if ( not( defined $AUGUSTUS_CONFIG_PATH )
@@ -1256,7 +1199,7 @@ sub set_AUGUSTUS_SCRIPTS_PATH {
     if ( not( defined($AUGUSTUS_SCRIPTS_PATH) )
         || length($AUGUSTUS_SCRIPTS_PATH) == 0 )
     {
-	$prtStr
+    $prtStr
             = "\# "
             . (localtime)
             . ": Trying to guess \$AUGUSTUS_SCRIPTS_PATH from "
@@ -1813,8 +1756,7 @@ sub set_DIAMOND_PATH {
 }
 
 ####################### check_biopython ########################################
-# check whether biopython and python module re are available
-# (for getAnnoFastaFromJoingenes.py)
+# check whether biopython, pygustus and python module re are available
 ################################################################################
 
 sub check_biopython{
@@ -1865,26 +1807,36 @@ sub check_biopython{
         print STDERR $prtStr;
         $missingPython3Module = 1;
     }
+    $errorfile = $errorfilesDir."/find_python3_pygustus.err";
+    $cmdString = "$PYTHON3_PATH/python3 -c \'import os\nos.environ[\"AUGUSTUS_CONFIG_PATH\"] = \"$AUGUSTUS_CONFIG_PATH\"\nfrom pygustus import augustus\' 1> /dev/null "
+               . "2> $errorfile";
+    if (system($cmdString) != 0) {
+        $prtStr = "#*********\n"
+                . "# WARNING: in file " . __FILE__ ." at line ". __LINE__ ."\n"
+                . "Could not find python3 module pygustus:\n";
+        open(PYERR, "<", $errorfile) or die ("\# " . (localtime) 
+            . " ERROR: in file " . __FILE__
+            ." at line ". __LINE__ ."\n"
+            . "Could not open file $errorfile!\n");
+        while(<PYERR>){
+            $prtStr .= $_;
+        }
+        close(PYERR) or die ("\# " . (localtime) . " ERROR: in file " 
+            . __FILE__
+            ." at line ". __LINE__ ."\n"
+            . "Could not close file $errorfile!\n");
+        $prtStr .= "#*********\n";
+        print LOG $prtStr;
+        print STDERR $prtStr;
+        $missingPython3Module = 1;
+    }
     if($missingPython3Module == 1) {
         $prtStr = "";
-        if (!$skipGetAnnoFromFasta) {
-            $prtStr = "\# "
+        $prtStr = "\# "
                 . (localtime)
-                . ": ERROR: GALBA requires the python modules re and "
+                . ": ERROR: GALBA requires the python modules re, pygustus and "
                 . "biopython, at least one of these modules was not found. "
-                . "Please install re and biopython or run GALBA with the "
-                . "--skipGetAnnoFromFasta option to skip parts of GALBA "
-                . "which depend on these modules. See the option's description "
-                . "for more details.\n";
-        }
-        if($makehub) {
-            $prtStr .= "\# "
-                . (localtime)
-                . ": ERROR: MakeHub requires the python modules re and "
-                . "biopython, at least one of these modules was not found. "
-                . "Please install re and biopython or run GALBA without "
-                . "the --makehub option.\n";
-        }
+                . "Please install all required modules.\n";
         print LOG $prtStr;
         print STDERR $prtStr;
         exit(1);
@@ -2097,10 +2049,7 @@ sub set_CDBTOOLS_PATH {
         $cdbtools_err .= "cdbfasta and cdbyank are required for fixing AUGUSTUS "
                     .  "genes with in frame stop codons using the script "
                     .  "fix_in_frame_stop_codon_genes.py.\n"
-                    .  "You can skip execution of fix_in_frame_stop_codon_genes.py\n"
-                    .  "with the galba.pl by providing the command line flag\n"
-                    .  "--skip_fixing_broken_genes.\n"
-                    .  "If you don't want to skip it, you have 3 different "
+                    .  "You have 3 different "
                     .  "options to provide a path to cdbfasta/cdbyank to galba.pl:\n"
                     .  "   a) provide command-line argument\n"
                     .  "      --CDBTOOLS_PATH=/your/path\n"
@@ -2280,14 +2229,13 @@ sub check_upfront {
     my $pmodule;
     my @module_list = (
         "YAML",           "Hash::Merge",
-        "MCE::Mutex", "Parallel::ForkManager",
+        "Parallel::ForkManager",
         "Scalar::Util::Numeric", "Getopt::Long",
         "File::Compare", "File::Path", "Module::Load::Conditional",
         "Scalar::Util::Numeric", "POSIX", "List::Util",
         "FindBin", "File::Which", "Cwd", "File::Spec::Functions",
         "File::Basename", "File::Copy", "Term::ANSIColor",
-        "strict", "warnings",
-        "Math::Utils"
+        "strict", "warnings"
     );
 
     foreach my $module (@module_list) {
@@ -2321,31 +2269,6 @@ sub check_upfront {
                 . (localtime)
                 . ": ERROR: in file " . __FILE__ ." at line ". __LINE__ ."\n"
                 . "$augpath not executable on this machine.\n";
-            $logString .= $prtStr;
-        }
-        print STDERR $logString;
-        exit(1);
-    }
-
-    # check for joingenes executable
-    $augpath = "$AUGUSTUS_BIN_PATH/joingenes";
-    if ( not (-x $augpath ) or not (-e $augpath ) ) {
-        if ( !-f $augpath ) {
-            $prtStr
-                = "\# "
-                . (localtime)
-                . ": ERROR: in file " . __FILE__ ." at line ". __LINE__ ."\n"
-                . "joingenes executable not found at $augpath. Please compile "
-                . "joingenes (augustus/auxprogs/joingenes)!\n";
-            $logString .= $prtStr;
-        }
-        elsif(! -x $augpath){
-            $prtStr
-                = "\# "
-                . (localtime)
-                . ": ERROR: in file " . __FILE__ ." at line ". __LINE__ ."\n"
-                . "$augpath not executable on this machine.  Please compile "
-                . "joingenes (augustus/auxprogs/joingenes)!n";
             $logString .= $prtStr;
         }
         print STDERR $logString;
@@ -2428,19 +2351,9 @@ sub check_upfront {
         "gff2gbSmallDNA.pl",    $AUGUSTUS_BIN_PATH,
         $AUGUSTUS_SCRIPTS_PATH, $AUGUSTUS_CONFIG_PATH
     );
-    if($lambda){
-        find(
-        "downsample_traingenes.pl",    $AUGUSTUS_BIN_PATH,
-        $AUGUSTUS_SCRIPTS_PATH, $AUGUSTUS_CONFIG_PATH
-    );
-    }
     find(
         "new_species.pl",       $AUGUSTUS_BIN_PATH,
         $AUGUSTUS_SCRIPTS_PATH, $AUGUSTUS_CONFIG_PATH
-    );
-    find(
-        "filterGenesIn_mRNAname.pl", $AUGUSTUS_BIN_PATH,
-        $AUGUSTUS_SCRIPTS_PATH,      $AUGUSTUS_CONFIG_PATH
     );
     find(
         "filterGenes.pl", $AUGUSTUS_BIN_PATH,
@@ -2483,23 +2396,13 @@ sub check_upfront {
         $AUGUSTUS_SCRIPTS_PATH, $AUGUSTUS_CONFIG_PATH
     );
     find(
-        "splitMfasta.pl",       $AUGUSTUS_BIN_PATH,
-        $AUGUSTUS_SCRIPTS_PATH, $AUGUSTUS_CONFIG_PATH
-    );
-    find(
-        "createAugustusJoblist.pl",       $AUGUSTUS_BIN_PATH,
-        $AUGUSTUS_SCRIPTS_PATH, $AUGUSTUS_CONFIG_PATH
-    );
-    find(
         "gtf2gff.pl",       $AUGUSTUS_BIN_PATH,
         $AUGUSTUS_SCRIPTS_PATH, $AUGUSTUS_CONFIG_PATH
     );
-    if(not($skip_fixing_broken_genes)){
-        find(
-            "fix_in_frame_stop_codon_genes.py", $AUGUSTUS_BIN_PATH,
-            $AUGUSTUS_SCRIPTS_PATH, $AUGUSTUS_CONFIG_PATH
-        );
-    }
+    find(
+        "fix_in_frame_stop_codon_genes.py", $AUGUSTUS_BIN_PATH,
+        $AUGUSTUS_SCRIPTS_PATH, $AUGUSTUS_CONFIG_PATH
+    );
     if(defined($annot)){
         find(
             "compare_intervals_exact.pl", $AUGUSTUS_BIN_PATH,
@@ -2672,16 +2575,16 @@ sub check_options {
         $skipoptimize = 1;
     }
 
-    if (   $alternatives_from_evidence ne "true"
-        && $alternatives_from_evidence ne "false" )
+    if (   $alternatives_from_evidence ne "True"
+        && $alternatives_from_evidence ne "False" )
     {
         $prtStr
             = "\# "
             . (localtime)
             . ": ERROR: in file " . __FILE__ ." at line ". __LINE__ ."\n"
             . "\"$alternatives_from_evidence\" is not a valid option for "
-            . "--alternatives-from-evidence. Please use either 'true' or "
-            . "'false'.\n";
+            . "--alternatives-from-evidence. Please use either 'True' or "
+            . "'False'.\n";
         print STDERR $prtStr;
         $logString .= $prtStr;
         exit(1);
@@ -2931,21 +2834,6 @@ sub check_options {
             . (localtime)
             . ": ERROR: in file " . __FILE__ ." at line ". __LINE__ ."\n"
             . "Genome file $genome does not exist.\n";
-        $logString .= $prtStr;
-        print STDERR $logString;
-        exit(1);
-    }
-
-    if (!$skip_fixing_broken_genes && $skipGetAnnoFromFasta) {
-        $prtStr
-            = "\# "
-            . (localtime)
-            . ": ERROR: in file " . __FILE__ ." at line ". __LINE__ ."\n"
-            . "# GALBA needs to run the getAnnoFastaFromJoingenes.py script "
-            . "to fix genes with in-frame stop codons. If you wish to use the "
-            . "--skipGetAnnoFromFasta option, turn off the fixing of stop "
-            . "codon including genes with the --skip_fixing_broken_genes "
-            . "option.\n";
         $logString .= $prtStr;
         print STDERR $logString;
         exit(1);
@@ -4920,7 +4808,8 @@ sub gtf2gb {
 ####################### augustus ###############################################
 # * predict genes with AUGUSTUS
 # * ab initio, if enabled
-# * with protein hints (and others if provided with --hints)
+# * with protein hints
+# * use pygustus for parallelization
 ################################################################################
 
 sub augustus {
@@ -4929,75 +4818,128 @@ sub augustus {
     print CITE $pubs{'aug-hmm'}; $pubs{'aug-hmm'} = "";
     print CITE $pubs{'augustus-prot'}; $pubs{'augustus-prot'} = "";
 
-    $augpath = "$AUGUSTUS_BIN_PATH/augustus";
-    my @genome_files;
-    my $genome_dir = "$otherfilesDir/genome_split";
-    my $augustus_dir           = "$otherfilesDir/augustus_tmp";
-    my $augustus_dir_ab_initio = "$otherfilesDir/augustus_ab_initio_tmp";
-
-    if( $CPU > 1 ) {
-        prepare_genome( $genome_dir );
-    }
-
-    if (!uptodate( [ $extrinsicCfgFile, $hintsfile, $genome ],
-        ["$otherfilesDir/augustus.hints.gtf"] ) || $overwrite)
-    {
-        if ( $CPU > 1 ) {
-            if(defined($extrinsicCfgFile1)){
-                $extrinsicCfgFile = $extrinsicCfgFile1;
-            }else{
-                 assign_ex_cfg ("galba.cfg");
-            }
-            copy_ex_cfg($extrinsicCfgFile, "ex1.cfg");
-            my $hintId = "hints";
-            make_hints_jobs( $augustus_dir, $genome_dir, $hintsfile,
-                $extrinsicCfgFile, $hintId );
-            run_augustus_jobs( "$otherfilesDir/$hintId.job.lst" );
-            join_aug_pred( $augustus_dir, "$otherfilesDir/augustus.$hintId.gff" );
-            make_gtf("$otherfilesDir/augustus.$hintId.gff");
-            if(not($skip_fixing_broken_genes)){
-                get_anno_fasta("$otherfilesDir/augustus.$hintId.gtf", "tmp");
-                if(-e "$otherfilesDir/bad_genes.lst"){
-                    fix_ifs_genes("augustus.$hintId", 
-                          "$otherfilesDir/augustus.$hintId.gtf", 
-                           $otherfilesDir."/bad_genes.lst", $species, 
-                           $AUGUSTUS_CONFIG_PATH, $AUGUSTUS_BIN_PATH, 
-                           $AUGUSTUS_SCRIPTS_PATH, $hintsfile, $extrinsicCfgFile);
-                }
-            }
-            if (!$skipGetAnnoFromFasta) {
-                get_anno_fasta("$otherfilesDir/augustus.$hintId.gtf", $hintId);
-            }
-            clean_aug_jobs($hintId);
-
-        } else {
-            push( @genome_files, $genome );
-            if(defined($extrinsicCfgFile1)){
-                $extrinsicCfgFile = $extrinsicCfgFile1;
-            }else{
-                assign_ex_cfg ("galba.cfg");
-            }
-            my $hintId = "hints";
-            copy_ex_cfg($extrinsicCfgFile, "ex1.cfg");
-            run_augustus_single_core_hints( $hintsfile, $extrinsicCfgFile, $hintId);
-            make_gtf("$otherfilesDir/augustus.$hintId.gff");
-            if(not($skip_fixing_broken_genes)){
-                get_anno_fasta("$otherfilesDir/augustus.$hintId.gtf", "tmp");
-                if(-e "$otherfilesDir/bad_genes.lst"){
-                    fix_ifs_genes("augustus.$hintId", 
-                          "$otherfilesDir/augustus.$hintId.gtf", 
-                           $otherfilesDir."/bad_genes.lst", $species, 
-                           $AUGUSTUS_CONFIG_PATH, $AUGUSTUS_BIN_PATH, 
-                           $AUGUSTUS_SCRIPTS_PATH, $hintsfile, $extrinsicCfgFile);
-                }
-            }
-            if (!$skipGetAnnoFromFasta) {
-                get_anno_fasta("$otherfilesDir/augustus.$hintId.gtf", $hintId);
+    if($ab_initio){
+        print LOG "\# " . (localtime) . ": AUGUSTUS ab initio\n" if ($v > 2);
+        # write python script for pygustus
+        open(ABINITIO, ">", $otherfilesDir."/pygustus_ab_initio.py") or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+                . "\nFailed to open file: $otherfilesDir/pygustus_ab_initio.py!\n");
+        # build the main augustus command
+        print ABINITIO "import os\n"
+                      ."os.environ['AUGUSTUS_CONFIG_PATH'] = '$AUGUSTUS_CONFIG_PATH'\n"
+                      ."from pygustus import augustus\n\n"
+                      ."augustus.config_set_bin('$AUGUSTUS_BIN_PATH/augustus')\n\n"
+                      ."augargs = {'exonnames' : 1, 'codingseq': 1, "
+                      ."'outfile': '$otherfilesDir/augustus.abinitio.gff', "
+                      ."'softmasking':True";
+        if ($augustus_args) {
+            my @aug_args = split(/ /, $augustus_args);
+            foreach(@aug_args){
+                $_ =~ m/--(\S+)=(\S+)/;
+                print ABINITIO " , '$1':'$2'";
             }
         }
-        print LOG "\# " . (localtime) . ": AUGUSTUS prediction complete\n"
-            if ($v > 3);
+        print ABINITIO "}\n\n";
+        # build the parallelization options of pygustus
+        print ABINITIO "augustus.predict('$otherfilesDir/genome.fa', species='$species',";
+        print ABINITIO "**augargs, partitionLargeSeqeunces=True, "
+                      ."minSplitSize=1000000, chunksize=$chunksize, jobs=$CPU)\n";
+        close(ABINITIO) or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+                . "\nFailed to close file: $otherfilesDir/pygustus_ab_initio.py!\n");
+        # execute the python script
+        my $outfile = "$otherfilesDir/pygustus_ab_initio.out";
+        $errorfile = "$errorfilesDir/pygustus_ab_initio.err";
+        my $pythonCmdString = "";
+        if ($nice) {
+            $pythonCmdString .= "nice ";
+        }
+        $pythonCmdString .= "$PYTHON3_PATH/python3 $otherfilesDir/pygustus_ab_initio.py 1> "
+                         .  "$outfile 2>$errorfile";
+        print LOG "$pythonCmdString\n" if ($v > 3);
+        system("$pythonCmdString") == 0
+            or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+            . "\nFailed to execute: $pythonCmdString\n");
+        # continue processing output gff file
+        make_gtf("$otherfilesDir/augustus.abinitio.gff");
+        get_anno_fasta("$otherfilesDir/augustus.abinitio.gtf", "tmp");
+        # skip fixing genes with in frame stop codon for ab initio mode, too expensive, gene set won't be used
+        # this is different in BRAKER where in --esmode that gene set might actually be used!
     }
+    print LOG "\# " . (localtime) . ": AUGUSTUS with hints\n" if ($v > 2);
+    # prepare for hints prediction
+    if(defined($extrinsicCfgFile1)){
+        $extrinsicCfgFile = $extrinsicCfgFile1;
+    }else{
+        assign_ex_cfg ("galba.cfg");
+    }
+    copy_ex_cfg($extrinsicCfgFile, "ex1.cfg");
+    # write python script for pygustus
+    open(AUGH, ">", $otherfilesDir."/pygustus_hints.py") or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+                . "\nFailed to open file: $otherfilesDir/pygustus_hints.py!\n");
+    # build the main augustus command
+    print AUGH "import os\n"
+              ."os.environ['AUGUSTUS_CONFIG_PATH'] = '$AUGUSTUS_CONFIG_PATH'\n"
+              ."from pygustus import augustus\n\n"
+              ."augustus.config_set_bin('$AUGUSTUS_BIN_PATH/augustus')\n\n"
+              ."augargs = {'exonnames' : 1, 'codingseq' : 1, "
+              ."'alternatives-from-evidence' : True, "
+              ."'allow_hinted_splicesites': ['gcag','atac'], 'softmasking' : True, "
+              ."'hintsfile' : '$otherfilesDir/hintsfile.gff', "
+              ."'alternatives-from-evidence' : $alternatives_from_evidence, "
+              ."'extrinsicCfgFile' : '$extrinsicCfgFile', "
+              ."'outfile' : '$otherfilesDir/augustus.hints.gff'";
+    if ( defined($optCfgFile) ) {
+        print AUGH ", 'optCfgFile' : '$optCfgFile'";
+    }
+    if ($augustus_args) {
+        my @aug_args = split(/ /, $augustus_args);
+        foreach(@aug_args){
+            $_ =~ m/--(\S+)=(\S+)/;
+            print AUGH ", '$1' : '$2'";
+        }
+    }
+    print AUGH "}\n\n";
+    print AUGH "augustus.predict('$otherfilesDir/genome.fa', species='$species', ";
+    # build the parallelization options of pygustus
+    print AUGH "partitionLargeSeqeunces=True, partitionHints=True, "
+                ."minSplitSize=1000000, chunksize=$chunksize, jobs=$CPU)\n";
+    close(AUGH) or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+                . "\nFailed to close file: $otherfilesDir/pygustus_hints.py!\n");
+    # execute the python script
+    my $outfile = "$otherfilesDir/pygustus_hints.out";
+    $errorfile = "$errorfilesDir/pygustus_hints.err";
+    my $pythonCmdString = "";
+    if ($nice) {
+        $pythonCmdString .= "nice ";
+    }
+    $pythonCmdString .= "$PYTHON3_PATH/python3 $otherfilesDir/pygustus_hints.py 1> "
+                     .  "$outfile 2>$errorfile";
+    print LOG "$pythonCmdString\n" if ($v > 3);
+    system("$pythonCmdString") == 0
+        or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+        . "\nFailed to execute: $pythonCmdString\n");
+    # BUG IN PYGUSTUS! NEED TO UPDATE CODE IF IT WILL BE FIXED!
+    print LOG "\# "
+                . (localtime)
+                . ": moving augustus.gff to augustus.hints.gff\n" if ($v > 3);
+    $cmdString = "mv $otherfilesDir/augustus.gff $otherfilesDir/augustus.hints.gff";
+    print LOG "$cmdString\n" if ($v > 3);
+    system("$cmdString") == 0
+        or clean_abort("$AUGUSTUS_CONFIG_PATH/species/$species",
+        $useexisting, "ERROR in file " . __FILE__ ." at line "
+        . __LINE__ ."\nFailed to execute: $cmdString!\n");
+    # continue processing output gff file
+    make_gtf("$otherfilesDir/augustus.hints.gff");
+    get_anno_fasta("$otherfilesDir/augustus.hints.gtf", "tmp");
+    if(-e "$otherfilesDir/bad_genes.lst"){
+        fix_ifs_genes("augustus.hints", 
+                      "$otherfilesDir/augustus.hints.gtf", 
+                      $otherfilesDir."/bad_genes.lst", $species, 
+                      $AUGUSTUS_CONFIG_PATH, $AUGUSTUS_BIN_PATH, 
+                      $AUGUSTUS_SCRIPTS_PATH, $hintsfile, $extrinsicCfgFile);
+    }
+    get_anno_fasta("$otherfilesDir/augustus.hints.gtf", "hints");
+    print LOG "\# " . (localtime) . ": AUGUSTUS prediction complete\n"
+        if ($v > 3);
 }
 
 ####################### assign_ex_cfg ##########################################
@@ -5025,291 +4967,6 @@ sub assign_ex_cfg {
         $logString .= $prtStr if ($v > 0);
         $extrinsicCfgFile = undef;
     }
-}
-
-####################### prepare_genome #########################################
-# * split genome for parallel AUGUSTUS execution
-################################################################################
-
-sub prepare_genome {
-    my $augustus_dir = shift;
-    # check whether genome has been split, already, cannot use uptodate because
-    # name of resulting files is unknown before splitting genome file
-    my $foundFastaFile;
-    if( -d $augustus_dir ) {
-        opendir(DIR, $augustus_dir) or die ("ERROR in file " . __FILE__
-            . " at line ". __LINE__
-            . "\nFailed to open directory $augustus_dir!\n");
-        while(my $f = readdir(DIR)) {
-            if($f =~ m/\.fa$/) {
-                $foundFastaFile = 1;
-            }
-        }
-        closedir(DIR)
-    }
-
-    if( not( $foundFastaFile ) || $overwrite ) {
-        # if augustus_dir already has contents, this leads to problems with
-        # renaming fasta files, therefore delete the entire directory in case
-        # of $overwrite
-        if( $overwrite && -d $augustus_dir ) {
-            rmtree( $augustus_dir ) or die ("ERROR in file " . __FILE__
-            . " at line ". __LINE__
-            . "\nFailed recursively delete directory $augustus_dir!\n");
-        }
-
-        print LOG "\# " . (localtime) . ": Preparing genome for running "
-            . "AUGUSTUS in parallel\n" if ($v > 2);
-
-        if ( not( -d $augustus_dir ) ) {
-            print LOG "\# "
-                . (localtime)
-                . ": Creating directory for storing AUGUSTUS files (hints, "
-                . "temporarily) $augustus_dir.\n" if ($v > 3);
-            mkdir $augustus_dir or die ("ERROR in file " . __FILE__ ." at line "
-                . __LINE__ ."\nFailed to create directory $augustus_dir!\n");
-        }
-        print LOG "\# "
-            . (localtime)
-            . ": splitting genome file in smaller parts for parallel execution of "
-            . "AUGUSTUS prediction\n" if ($v > 3);
-        $string = find(
-            "splitMfasta.pl",       $AUGUSTUS_BIN_PATH,
-            $AUGUSTUS_SCRIPTS_PATH, $AUGUSTUS_CONFIG_PATH);
-        $errorfile = "$errorfilesDir/splitMfasta.stderr";
-        $perlCmdString = "";
-        if ($nice) {
-            $perlCmdString .= "nice ";
-        }
-        $perlCmdString
-            .= "$perl $string $genome --outputpath=$augustus_dir 2>$errorfile";
-        print LOG "$perlCmdString\n" if ($v > 3);
-        system("$perlCmdString") == 0
-            or die("ERROR in file " . __FILE__ ." at line ". __LINE__
-            . "\nFailed to execute: $perlCmdString\n");
-
-        # rename files according to scaffold name
-        $cmdString = "cd $augustus_dir; for f in genome.split.*; "
-                   . "do NAME=`grep \">\" \$f`; mv \$f \${NAME#>}.fa; "
-                   . "done; cd ..\n";
-        print LOG $cmdString if ($v > 3);
-        system("$cmdString") == 0
-            or die("ERROR in file " . __FILE__ ." at line ". __LINE__
-            . "\nFailed to execute: $cmdString\n");
-        my @genome_files = `ls $augustus_dir`;
-        print LOG "\# " . (localtime) . ": Split genome file in "
-        . scalar(@genome_files) . " parts, finished.\n" if ($v > 3);
-    }else{
-        print LOG "\# " . (localtime) . ": Skipping splitMfasta.pl because "
-            . "genome file has already been split.\n" if ($v > 3);
-    }
-}
-
-####################### make_hints_jobs ########################################
-# * make AUGUSTUS hints jobs (parallelization)
-################################################################################
-
-sub make_hints_jobs{
-    my $augustus_dir = shift;
-    my $genome_dir = shift;
-    my $thisHintsfile = shift;
-    my $cfgFile = shift;
-    my $hintId = shift;
-    if( !uptodate([$genome, $thisHintsfile], ["$otherfilesDir/aug_$hintId.lst"] 
-        ) || $overwrite ) {
-        print LOG "\# " . (localtime) . ": Making AUGUSTUS jobs with hintsfile "
-            . "$thisHintsfile, cfgFile $cfgFile, and hintId "
-            . "$hintId\n" if ($v > 2);
-        my @genome_files = `ls $genome_dir`;
-        my %scaffFileNames;
-        foreach (@genome_files) {
-            chomp;
-            $_ =~ m/(.*)\.\w+$/;
-            $scaffFileNames{$1} = "$genome_dir/$_";
-        }  
-        if ( not( -d $augustus_dir ) && $CPU > 1) {
-            print LOG "\# " . (localtime)
-                . ": Creating directory for storing AUGUSTUS files (hints, "
-                . "temporarily) $augustus_dir.\n" if ($v > 3);
-            mkdir $augustus_dir or die ("ERROR in file " . __FILE__ ." at line "
-                . __LINE__ ."\nFailed to create directory $augustus_dir!\n");
-        }
-        print LOG "\# "
-            . (localtime)
-            . ": creating $otherfilesDir/aug_$hintId.lst for AUGUSTUS jobs\n" 
-            if ($v > 3);
-        open( ALIST, ">", "$otherfilesDir/aug_$hintId.lst" )
-            or die("ERROR in file " . __FILE__ ." at line ". __LINE__
-            . "\nCould not open file $otherfilesDir/aug_$hintId.lst!\n");
-        # make list for creating augustus jobs
-        while ( my ( $locus, $size ) = each %scaffSizes ) {
-            print ALIST "$scaffFileNames{$locus}\t$thisHintsfile\t1\t$size\n";
-        }
-        close(ALIST) or die("ERROR in file " . __FILE__ ." at line ". __LINE__
-            . "\nCould not close file $otherfilesDir/aug_$hintId.lst!\n");
-    }else{
-        print LOG "\# " . (localtime) . ": Skip making AUGUSTUS job list file "
-            . " with hintsfile $thisHintsfile and hintId $hintId because "
-            . "$otherfilesDir/aug_$hintId.lst is up to date.\n" if ($v > 3);
-    }
-    if( !uptodate(["$otherfilesDir/aug_$hintId.lst"], 
-        ["$otherfilesDir/$hintId.job.lst"]) || $overwrite ) {
-        print LOG "\# " . (localtime)
-            . ": creating AUGUSTUS jobs (with $hintId)\n" if ($v > 3);
-        $string = find(
-            "createAugustusJoblist.pl", $AUGUSTUS_BIN_PATH,
-            $AUGUSTUS_SCRIPTS_PATH,     $AUGUSTUS_CONFIG_PATH );
-        $errorfile = "$errorfilesDir/createAugustusJoblist_$hintId.stderr";
-        $perlCmdString = "";
-        $perlCmdString .= "cd $otherfilesDir\n";
-        if ($nice) {
-            $perlCmdString .= "nice ";
-        }
-        $perlCmdString .= "$perl $string --sequences=$otherfilesDir/aug_$hintId.lst --wrap=\"#!/bin/bash\" --overlap=500000 --chunksize=$chunksize --outputdir=$augustus_dir "
-                       .  "--joblist=$otherfilesDir/$hintId.job.lst --jobprefix=aug_".$hintId."_ --partitionHints --command \"$augpath --species=$species --AUGUSTUS_CONFIG_PATH=$AUGUSTUS_CONFIG_PATH "
-                       .  "--extrinsicCfgFile=$cfgFile --alternatives-from-evidence=$alternatives_from_evidence --exonnames=on --codingseq=on "
-                       .  "--allow_hinted_splicesites=gcag,atac ";
-        if ( defined($optCfgFile) ) {
-            $perlCmdString .= " --optCfgFile=$optCfgFile";
-        }
-        if ($soft_mask) {
-            $perlCmdString .= " --softmasking=1";
-        }
-        if ($augustus_args) {
-            $perlCmdString .= " $augustus_args";
-        }
-        $perlCmdString .= "\" 2>$errorfile\n";
-        $perlCmdString .= "cd ..\n";
-        print LOG "$perlCmdString" if ($v > 3);
-        system("$perlCmdString") == 0
-            or die("ERROR in file " . __FILE__ ." at line "
-            . __LINE__ ."\nFailed to execute: $perlCmdString\n");
-    }else{
-        print LOG "\# " . (localtime) . ": Skip making AUGUSTUS jobs with "
-            . "hintsfile $thisHintsfile and hintId $hintId because "
-            . "$otherfilesDir/$hintId.job.lst is up to date.\n" if ($v > 3);
-    }
-}
-
-####################### make_ab_initio_jobs ####################################
-# * make AUGUSTUS ab initio jobs (parallelization)
-################################################################################
-
-sub make_ab_initio_jobs{
-    my $augustus_dir_ab_initio = shift;
-    my $augustus_dir = shift;
-    if( !uptodate( [$genome], ["$otherfilesDir/augustus_ab_initio.lst"])
-        || $overwrite ) {
-        print LOG "\# " . (localtime) . ": Creating AUGUSTUS ab initio jobs\n"
-            if ($v > 2);
-        my @genome_files = `ls $augustus_dir`;
-        my %scaffFileNames;
-        foreach (@genome_files) {
-            chomp;
-            $_ =~ m/(.*)\.\w+$/;
-            $scaffFileNames{$1} = "$augustus_dir/$_";
-        }
-        if ( not( -d $augustus_dir_ab_initio ) && $CPU > 1) {
-            print LOG "\# " . (localtime)
-                . ": Creating directory for storing AUGUSTUS files (ab initio, "
-                . "temporarily) $augustus_dir_ab_initio.\n" if ($v > 3);
-            mkdir $augustus_dir_ab_initio or die ("ERROR in file " . __FILE__
-                . " at line ". __LINE__
-                ."\nFailed to create directory $augustus_dir_ab_initio!\n");
-        }
-        print LOG "\# " . (localtime)
-            . ": creating $otherfilesDir/aug_ab_initio.lst for AUGUSTUS jobs\n"
-            if ($v > 3);
-        open( ILIST, ">", "$otherfilesDir/aug_ab_initio.lst" )
-            or die(
-            "ERROR in file " . __FILE__ ." at line ". __LINE__
-            . "\nCould not open file $otherfilesDir/aug_ab_initio.lst!\n" );
-        while ( my ( $locus, $size ) = each %scaffSizes ) {
-            print ILIST "$scaffFileNames{$locus}\t1\t$size\n";
-        }
-        close(ILIST) or die(
-            "ERROR in file " . __FILE__ ." at line ". __LINE__
-            ."\nCould not close file $otherfilesDir/aug_ab_initio.lst!\n" );
-    } else {
-        print LOG "\# " . (localtime)
-            . ": Using existing file  $otherfilesDir/aug_ab_initio.lst\n"
-            if ($v > 3);
-    }
-
-    if( !uptodate(["$otherfilesDir/aug_ab_initio.lst"], 
-        ["$otherfilesDir/ab_initio.job.lst"]) || $overwrite ) {
-        $string = find(
-            "createAugustusJoblist.pl", $AUGUSTUS_BIN_PATH,
-            $AUGUSTUS_SCRIPTS_PATH,     $AUGUSTUS_CONFIG_PATH);
-        $errorfile
-        = "$errorfilesDir/createAugustusJoblist_ab_initio.stderr";
-
-        $perlCmdString = "";
-        $perlCmdString = "cd $otherfilesDir\n";
-        if ($nice) {
-            $perlCmdString .= "nice ";
-        }
-        $perlCmdString .= "$perl $string "
-                       .  "--sequences=$otherfilesDir/aug_ab_initio.lst "
-                       .  "--wrap=\"#!/bin/bash\" --overlap=5000 "
-                       .  "--chunksize=$chunksize "
-                       .  "--outputdir=$augustus_dir_ab_initio "
-                       .  "--joblist=$otherfilesDir/ab_initio.job.lst "
-                       .  "--jobprefix=aug_ab_initio_ "
-                       .  "--command \"$augpath --species=$species "
-                       .  "--AUGUSTUS_CONFIG_PATH=$AUGUSTUS_CONFIG_PATH "
-                       .  "--exonnames=on --codingseq=on ";
-        if ($soft_mask) {
-            $perlCmdString .= " --softmasking=1";
-        }
-        $perlCmdString .= "\" 2>$errorfile\n";
-        $perlCmdString .= "cd ..\n";
-        print LOG "$perlCmdString" if ($v > 3);
-        system("$perlCmdString") == 0
-            or die("ERROR in file " . __FILE__ ." at line ". __LINE__
-            . "\nFailed to execute: $perlCmdString\n");
-    }else{
-        print LOG "\# " . (localtime)
-            . ": Skipping creation of AUGUSTUS ab inito jobs because they "
-            . "already exist ($otherfilesDir/ab_initio.job.lst).\n"
-            if ($v > 3);
-    }
-}
-
-####################### run_augustus_jobs ######################################
-# * run parallel AUGUSTUS jobs (ForkManager)
-################################################################################
-
-sub run_augustus_jobs {
-    my $jobLst = shift;
-    print LOG "\# " . (localtime) . ": Running AUGUSTUS jobs from $jobLst\n" 
-        if ($v > 2);
-    my $pm = new Parallel::ForkManager($CPU);
-    my $cJobs = 0;
-    open( AIJOBS, "<", $jobLst )
-        or die("ERROR in file " . __FILE__ ." at line ". __LINE__
-        . "\nCould not open file $jobLst!\n");
-    my @aiJobs;
-    while (<AIJOBS>) {
-        chomp;
-        push @aiJobs, "$otherfilesDir/$_";
-    }
-    close(AIJOBS)
-        or die("ERROR in file " . __FILE__ ." at line ". __LINE__
-        . "\nCould not close file $jobLst!\n");
-    foreach(@aiJobs){
-        $cJobs++;
-        print LOG "\# " . (localtime) . ": Running AUGUSTUS job $cJobs\n" 
-            if ($v > 3);
-        $cmdString = "$_";
-        print LOG "$cmdString\n" if ($v > 3);
-        my $pid = $pm->start and next;
-        system("$cmdString") == 0
-            or die("ERROR in file " . __FILE__ ." at line ". __LINE__
-            . "\nFailed to execute: $cmdString!\n");
-        $pm->finish;
-    }
-    $pm->wait_all_children;
 }
 
 ####################### join_aug_pred ##########################################
@@ -5410,68 +5067,6 @@ sub join_aug_pred {
     }
 }
 
-####################### run_augustus_single_core_ab_initio #####################
-# * run AUGUSTUS ab initio on a single core
-################################################################################
-
-sub run_augustus_single_core_ab_initio {
-    my $aug_ab_initio_err = "$errorfilesDir/augustus.ab_initio.err";
-    my $aug_ab_initio_out = "$otherfilesDir/augustus.ab_initio.gff";
-    $cmdString         = "";
-    if ($nice) {
-        $cmdString .= "nice ";
-    }
-    $cmdString .= "$augpath --species=$species "
-               .  "--AUGUSTUS_CONFIG_PATH=$AUGUSTUS_CONFIG_PATH "
-               .  "--exonnames=on --codingseq=on";
-    if ($soft_mask) {
-        $cmdString .= " --softmasking=1";
-    }
-    $cmdString .= " $genome 1>$aug_ab_initio_out 2>$aug_ab_initio_err";
-    print LOG "\# "
-        . (localtime)
-        . ": Running AUGUSTUS in ab initio mode for file $genome.\n" if ($v > 2);
-    print LOG "$cmdString\n" if ($v > 3);
-    system("$cmdString") == 0
-        or die("ERROR in file " . __FILE__ ." at line ". __LINE__
-            . "\nFailed to execute: $cmdString!\n");
-}
-
-####################### run_augustus_single_core_hints #########################
-# * run AUGUSTUS with hints on a single core (hints from a single source)
-################################################################################
-
-sub run_augustus_single_core_hints {
-    my $thisHintsfile = shift;
-    my $cfgFile = shift;
-    my $hintId = shift;
-    my $aug_hints_err = "$errorfilesDir/augustus.$hintId.stderr";
-    my $aug_hints_out = "$otherfilesDir/augustus.$hintId.gff";
-    $cmdString     = "";
-    if ($nice) {
-        $cmdString .= "nice ";
-    }
-    $cmdString .= "$augpath --species=$species --AUGUSTUS_CONFIG_PATH=$AUGUSTUS_CONFIG_PATH --extrinsicCfgFile=$cfgFile --alternatives-from-evidence=$alternatives_from_evidence "
-               .  "--hintsfile=$thisHintsfile --exonnames=on --codingseq=on --allow_hinted_splicesites=gcag,atac";
-    if ( defined($optCfgFile) ) {
-        $cmdString .= " --optCfgFile=$optCfgFile";
-    }
-    if ($soft_mask) {
-        $cmdString .= " --softmasking=1";
-    }
-    if ( defined($augustus_args) ) {
-        $cmdString .= " $augustus_args";
-    }
-    $cmdString .= " $genome 1>$aug_hints_out 2>$aug_hints_err";
-    print LOG "\# "
-        . (localtime)
-        . ": Running AUGUSTUS with $hintId for file $genome\n" if ($v > 2);
-    print LOG "$cmdString\n" if ($v > 3);
-    system("$cmdString") == 0
-        or die("ERROR in file " . __FILE__ ." at line ". __LINE__
-            . "\nFailed to execute: $cmdString!\n");
-}
-
 ####################### copy_ex_cfg ############################################
 # * copy the extrinsic config file to GALBA working directory
 ################################################################################
@@ -5490,69 +5085,6 @@ sub copy_ex_cfg {
     system("$cmdString") == 0
         or die("ERROR in file " . __FILE__ ." at line "
             . __LINE__ ."\nFailed to execute: $cmdString!\n");
-}
-
-####################### clean_aug_jobs #########################################
-# * clean up AUGUSTUS job files from parallelization
-# * if not --cleanup: move job files to a separate folder
-# * if --cleanup: delete job files
-################################################################################
-
-sub clean_aug_jobs {
-    my $hintId = shift;
-    opendir( DIR, $otherfilesDir ) or die("ERROR in file " . __FILE__
-        . " at line ". __LINE__
-        . "\nFailed to open directory $otherfilesDir!\n");
-    if( $cleanup ) {
-        # deleting files from AUGUSTUS parallelization
-        print LOG "\# " . (localtime) . ": deleting files from AUGUSTUS "
-            . "parallelization\n" if ($v > 3);
-
-        while ( my $file = readdir(DIR) ) {
-            my $searchStr = "aug_".$hintId."_";
-            if( $file =~ m/$searchStr/){
-                print LOG "rm $otherfilesDir/$file\n" if ($v > 3);
-                unlink( "$otherfilesDir/$file" ) or die ("ERROR in file "
-                    . __FILE__ ." at line ". __LINE__
-                    . "\nFailed to delete file $otherfilesDir/$file!\n");
-            }
-        }
-
-    } else {
-        # moving files for AUGUSTUS prallelization to a separate folder
-        print LOG "\# " . (localtime) . ": moving files from AUGUSTUS "
-            . "parallelization to directory "
-            . "$otherfilesDir/augustus_files_$hintId\n" if ($v > 3);
-        if ( !-d "$otherfilesDir/augustus_files_$hintId" ) {
-            $prtStr = "\# "
-                    . (localtime)
-                    . ": creating directory "
-                    . "$otherfilesDir/augustus_files_$hintId.\n"
-                    . "mkdir $otherfilesDir/augustus_files_$hintId\n";
-            $logString .= $prtStr if ( $v > 2 );
-            make_path("$otherfilesDir/augustus_files_$hintId") or 
-                die("ERROR in file " . __FILE__ ." at line "
-                . __LINE__ ."\nFailed to create directory "
-                . "$otherfilesDir/augustus_files_$hintId!\n");
-        }
-        while ( my $file = readdir(DIR) ) {
-            my $searchStr1 = "aug_".$hintId."_";
-            my $searchStr2 = "aug_".$hintId.".";
-            my $searchStr3 = "hintsfile.gff.".$hintId;
-            my $searchStr4 = $hintId.".job.lst";
-            if( $file =~ m/($searchStr1|$searchStr2|$searchStr3|$searchStr4)/){
-                print LOG "mv $otherfilesDir/$file "
-                     . "$otherfilesDir/augustus_files_$hintId/$file\n" if ($v > 3);
-                move("$otherfilesDir/$file", "$otherfilesDir/augustus_files_$hintId/$file") or
-                    die ("ERROR in file "
-                    . __FILE__ ." at line ". __LINE__
-                    . "\nFailed to move $otherfilesDir/$file "
-                    . "to $otherfilesDir/augustus_files_$hintId/$file!\n");
-            }
-        }
-    }
-    closedir(DIR) or die("ERROR in file " . __FILE__ ." at line "
-        . __LINE__ . "\nFailed to close directory $otherfilesDir!\n");
 }
 
 ####################### get_anno_fasta #########################################
@@ -5647,6 +5179,7 @@ sub evaluate {
     print LOG "\# "
         . (localtime)
         . ": Trying to evaluate galba.pl gene prediction files...\n" if ($v > 2);
+
     if ( -e "$otherfilesDir/augustus.ab_initio.gtf" ) {
         print LOG "\# "
             . (localtime)
@@ -5660,19 +5193,6 @@ sub evaluate {
             if ($v > 3);
     }
 
-    if ( -e "$otherfilesDir/augustus.ab_initio_utr.gtf" ) {
-        print LOG "\# "
-            . (localtime)
-            . ": evaluating $otherfilesDir/augustus.ab_initio_utr.gtf!\n"
-            if ($v > 3);
-        eval_gene_pred("$otherfilesDir/augustus.ab_initio_utr.gtf");
-    }else{
-         print LOG "\# "
-            . (localtime)
-            . ": did not find $otherfilesDir/augustus.ab_initio_utr.gtf!\n"
-            if ($v > 3);
-    }
-
     if ( -e "$otherfilesDir/augustus.hints.gtf" ) {
         print LOG "\# "
             . (localtime)
@@ -5683,32 +5203,6 @@ sub evaluate {
         print LOG "\# "
             . (localtime)
             . ": did not find $otherfilesDir/augustus_hints.gtf!\n"
-            if ($v > 3);
-    }
-
-        if ( -e "$otherfilesDir/augustus.hints_iter1.gtf" ) {
-        print LOG "\# "
-            . (localtime)
-            . ": evaluating $otherfilesDir/augustus.hints_iter1.gtf!\n"
-            if ($v > 3);
-        eval_gene_pred("$otherfilesDir/augustus.hints_iter1.gtf");
-    }else{
-        print LOG "\# "
-            . (localtime)
-            . ": did not find $otherfilesDir/augustus_hints_iter1.gtf!\n"
-            if ($v > 3);
-    }
-
-    if ( -e "$otherfilesDir/augustus.hints_utr.gtf" ) {
-        print LOG "\# "
-            . (localtime)
-            . ": evaluating $otherfilesDir/augustus.hints_utr.gtf!\n"
-            if ($v > 3);
-        eval_gene_pred("$otherfilesDir/augustus.hints_utr.gtf");
-    }else{
-        print LOG "\# "
-            . (localtime)
-            . ": did not find $otherfilesDir/augustus_hints_utr.gtf!\n"
             if ($v > 3);
     }
 
@@ -5958,8 +5452,7 @@ sub clean_up {
         @files = `find $otherfilesDir -empty`;
     }
     for ( my $i = 0; $i <= $#files; $i++ ) {
-        chomp( $files[$i] )
-            ; # to prevent error: Unsuccessful stat on filename containing newline
+        chomp( $files[$i] ); # to prevent error: Unsuccessful stat on filename containing newline
         if ( -f $files[$i] ) {
             print LOG "rm $files[$i]\n" if ($v > 3);
             unlink( rel2abs( $files[$i] ) );
@@ -5982,13 +5475,9 @@ sub clean_up {
                 $file =~ m/aa2nonred\.stdout/ || $file =~ m/singlecds\.hints/ ||
                 $file =~ m/augustus\.hints\.tmp\.gtf/ || $file =~ m/train\.gb\./ ||
                 $file =~ m/traingenes\.good\.fa/ || $file =~ m/augustus\.ab_initio\.tmp\.gtf/
-                || $file =~ m/augustus\.ab_initio_utr\.tmp\.gtf/ || $file =~ m/augustus\.hints_utr\.tmp\.gtf/
                 || $file =~ m/genes\.gtf/ || $file =~ m/genes_in_gb\.gtf/ ||
-                $file =~ m/merged\.s\.bam/ || $file =~ m/utr_genes_in_gb\.fa/ ||
-                $file =~ m/utr_genes_in_gb\.nr\.fa/ || $file =~ m/utr\.gb\.test/ ||
-                $file =~ m/utr\.gb\.train/ || $file =~ m/utr\.gb\.train\.test/ ||
-                $file =~ m/utr\.gb\.train\.train/ || $file =~ m/ep\.hints/ || 
-                $file =~ m/rnaseq\.utr\.hints/ || $file =~ m/stops\.and\.starts.gff/ ||
+                $file =~ m/merged\.s\.bam/ || $file =~ m/ep\.hints/ || 
+                $file =~ m/stops\.and\.starts.gff/ ||
                 $file =~ m/trainGb3\.train/ || $file =~ m/traingenes\.good\.nr.\fa/ ||
                 $file =~ m/nonred\.loci\.lst/ || $file =~ m/traingenes\.good\.gtf/ ||
                 $file =~ m/etrain\.bad\.lst/ || $file =~ m/etrain\.bad\.lst/ ||
@@ -6012,47 +5501,6 @@ sub clean_up {
             rmtree( ["$otherfilesDir/tmp_opt_$species"] ) or die ("ERROR in file "
                 . __FILE__ ." at line ". __LINE__
                 . "\nFailed to delete $otherfilesDir/tmp_opt_$species!\n");
-        }
-        if(-d "$otherfilesDir/augustus_files_E"){
-            rmtree ( ["$otherfilesDir/augustus_files_E"] ) or die ("ERROR in file "
-                . __FILE__ ." at line ". __LINE__
-                . "\nFailed to delete $otherfilesDir/augustus_files_E!\n");
-        }
-        if(-d "$otherfilesDir/augustus_files_Ppri5"){
-            rmtree ( ["$otherfilesDir/augustus_files_Ppri5"] ) or die ("ERROR in file "
-                . __FILE__ ." at line ". __LINE__
-                . "\nFailed to delete $otherfilesDir/augustus_files_Ppri5!\n");
-        }
-        # clean up ProtHint output files
-        if(-e "$otherfilesDir/evidence_augustus.gff"){
-            print LOG "rm $otherfilesDir/evidence_augustus.gff\n" if ($v > 3);
-            unlink("$otherfilesDir/evidence_augustus.gff");
-        }
-        if(-e "$otherfilesDir/gene_stat.yaml"){
-            print LOG "rm $otherfilesDir/gene_stat.yaml\n" if ($v > 3);
-            unlink("$otherfilesDir/gene_stat.yaml");
-        }
-        if(-e "$otherfilesDir/nuc.fasta"){
-            print LOG "rm $otherfilesDir/nuc.fasta\n" if ($v > 3);
-            unlink("$otherfilesDir/nuc.fasta");
-        }
-        if(-e "$otherfilesDir/prothint_augustus.gff"){
-            print LOG "rm $otherfilesDir/prothint_augustus.gff\n" if ($v > 3);
-            unlink("$otherfilesDir/prothint_augustus.gff");
-        }
-        if(-e "$otherfilesDir/prothint_reg.out"){
-            print LOG "rm $otherfilesDir/prothint_reg.out\n" if ($v > 3);
-            unlink("$otherfilesDir/prothint_reg.out");
-        }
-        if(-e "$otherfilesDir/top_chains.gff"){
-            print LOG "rm $otherfilesDir/top_chains.gff\n" if ($v > 3);
-            unlink("$otherfilesDir/top_chains.gff");
-        }
-        if(-d "$otherfilesDir/diamond"){
-            print LOG "rm -r $otherfilesDir/diamond\n" if ($v > 3);
-            rmtree ( ["$otherfilesDir/diamond"] ) or die ("ERROR in file "
-                . __FILE__ ." at line ". __LINE__
-                . "\nFailed to delete $otherfilesDir/diamond!\n");
         }
         if(-d "$otherfilesDir/miniprot"){
             print LOG "rm -r $otherfilesDir/miniprot\n" if ($v > 3);
