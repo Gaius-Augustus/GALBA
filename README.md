@@ -143,7 +143,6 @@ Among others, the containers include the following software that is useful in co
    * miniprot
    * diamond
    * cdbfasta
-   * hisat2
    * seqstats
 
 Installation
