@@ -5215,6 +5215,28 @@ sub evaluate {
             . (localtime)
             . ": did not find $otherfilesDir/gthTrainGenes.gtf!\n" if ($v > 3);
     }
+
+    if ( -e "$otherfilesDir/traingenes.gtf" ) {
+        print LOG "\# "
+            . (localtime)
+            . ": evaluating $otherfilesDir/traingenes.gtf!\n" if ($v > 3);
+        eval_gene_pred("$otherfilesDir/traingenes.gtf");
+    }else{
+        print LOG "\# "
+            . (localtime)
+            . ": did not find $otherfilesDir/traingenes.gtf!\n" if ($v > 3);
+    }
+
+    if ( -e "$otherfilesDir/protein_alignment_miniprot.gff" ) {
+        print LOG "\# "
+            . (localtime)
+            . ": evaluating $otherfilesDir/protein_alignment_miniprot.gff!\n" if ($v > 3);
+        eval_gene_pred("$otherfilesDir/protein_alignment_miniprot.gff");
+    }else{
+        print LOG "\# "
+            . (localtime)
+            . ": did not find $otherfilesDir/protein_alignment_miniprot.gff!\n" if ($v > 3);
+    }
     my @accKeys = keys %accuracy;
     if(scalar(@accKeys) > 0){
         print LOG "\# "
