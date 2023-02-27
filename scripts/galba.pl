@@ -4840,7 +4840,7 @@ sub augustus {
         print ABINITIO "}\n\n";
         # build the parallelization options of pygustus
         print ABINITIO "augustus.predict('$otherfilesDir/genome.fa', species='$species',";
-        print ABINITIO "**augargs, partitionLargeSeqeunces=True, "
+        print ABINITIO "**augargs, partitionLargeSequences=True, "
                       ."minSplitSize=1000000, chunksize=$chunksize, jobs=$CPU)\n";
         close(ABINITIO) or die("ERROR in file " . __FILE__ ." at line ". __LINE__
                 . "\nFailed to close file: $otherfilesDir/pygustus_ab_initio.py!\n");
@@ -4899,7 +4899,7 @@ sub augustus {
     print AUGH "}\n\n";
     print AUGH "augustus.predict('$otherfilesDir/genome.fa', species='$species', ";
     # build the parallelization options of pygustus
-    print AUGH "partitionLargeSeqeunces=True, partitionHints=True, "
+    print AUGH "partitionLargeSequences=True, partitionHints=True, "
                 ."minSplitSize=1000000, chunksize=$chunksize, jobs=$CPU)\n";
     close(AUGH) or die("ERROR in file " . __FILE__ ." at line ". __LINE__
                 . "\nFailed to close file: $otherfilesDir/pygustus_hints.py!\n");
