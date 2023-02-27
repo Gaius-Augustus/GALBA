@@ -3278,12 +3278,12 @@ sub make_prot_hints {
     } elsif ( $prg eq "miniprot" ) {
         print LOG "\#  "
         . (localtime)
-        . ": creating softlink of $alignment_outfile to "
+        . ": selecting training genes from miniprot output "
         . "$trainGenesGtf.\n" if ($v > 2);
-    $cmdString =  "ln -s $alignment_outfile $trainGenesGtf";
-    print LOG "$cmdString\n" if ($v > 2);
-    system($cmdString) == 0 or die("ERROR in file " . __FILE__ ." at line "
-        . __LINE__ ."\nFailed to execute: $cmdString!\n");
+        $cmdString = "find_train_candidates.py -m $alignment_outfile -o $trainGenesGtf";
+        print LOG "$cmdString\n" if ($v > 2);
+        system($cmdString) == 0 or die("ERROR in file " . __FILE__ ." at line "
+            . __LINE__ ."\nFailed to execute: $cmdString!\n");
     }
 }
 
@@ -3727,7 +3727,6 @@ sub training_augustus {
         my $goodLstFile = "$otherfilesDir/good_genes.lst";
         my $t_b_t = 0; # to be tested gene set size, used to determine
                        # stop codon setting and to compute k for cores>8
-
         # convert gtf to gb
         gtf2gb ($trainGenesGtf, $trainGb1);
 
@@ -5215,6 +5214,28 @@ sub evaluate {
         print LOG "\# "
             . (localtime)
             . ": did not find $otherfilesDir/gthTrainGenes.gtf!\n" if ($v > 3);
+    }
+
+    if ( -e "$otherfilesDir/traingenes.gtf" ) {
+        print LOG "\# "
+            . (localtime)
+            . ": evaluating $otherfilesDir/traingenes.gtf!\n" if ($v > 3);
+        eval_gene_pred("$otherfilesDir/traingenes.gtf");
+    }else{
+        print LOG "\# "
+            . (localtime)
+            . ": did not find $otherfilesDir/traingenes.gtf!\n" if ($v > 3);
+    }
+
+    if ( -e "$otherfilesDir/protein_alignment_miniprot.gff" ) {
+        print LOG "\# "
+            . (localtime)
+            . ": evaluating $otherfilesDir/protein_alignment_miniprot.gff!\n" if ($v > 3);
+        eval_gene_pred("$otherfilesDir/protein_alignment_miniprot.gff");
+    }else{
+        print LOG "\# "
+            . (localtime)
+            . ": did not find $otherfilesDir/protein_alignment_miniprot.gff!\n" if ($v > 3);
     }
     my @accKeys = keys %accuracy;
     if(scalar(@accKeys) > 0){
