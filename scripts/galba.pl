@@ -4276,36 +4276,15 @@ sub training_augustus {
             }
         }
 
-        # first test
-        if (!uptodate(
-                [   "$otherfilesDir/train.gb.test"],
-                ["$otherfilesDir/firsttest.stdout"]
-            )
-            || $overwrite
-            )
-        {
-            $augpath    = "$AUGUSTUS_BIN_PATH/augustus";
-            $errorfile  = "$errorfilesDir/firsttest.stderr";
-            $stdoutfile = "$otherfilesDir/firsttest.stdout";
-            $cmdString = "";
-            if ($nice) {
-                $cmdString .= "nice ";
-            }
-            $cmdString .= "$augpath --species=$species --AUGUSTUS_CONFIG_PATH=$AUGUSTUS_CONFIG_PATH $otherfilesDir/train.gb.test 1>$stdoutfile 2>$errorfile";
-            print LOG "\# "
-                . (localtime)
-                . ": First AUGUSTUS accuracy test\n" if ($v > 3);
-            print LOG "$cmdString\n" if ($v > 3);
-            system("$cmdString") == 0
-                or die("ERROR in file " . __FILE__ ." at line ". __LINE__
-                    . "\nFailed to execute: $cmdString!\n");
-            $target_1 = accuracy_calculator($stdoutfile);
-            print LOG "\# "
-                . (localtime)
-                . ": The accuracy after initial training "
-                . "(no optimize_augustus.pl, no CRF) is $target_1\n"
-                if ($v > 3);
-        }
+        test_training_accuracy("first");
+        # clean up flanking region with first round predictions predictions
+        augustus();
+        
+
+
+
+
+
 
         # optimize parameters
         if ( !$skipoptimize ) {
@@ -4397,36 +4376,7 @@ sub training_augustus {
         }
 
         # second test
-        if (!uptodate(
-                [   "$otherfilesDir/train.gb.test"],
-                ["$otherfilesDir/secondtest.out"]
-            )
-            || $overwrite
-            )
-        {
-            $augpath    = "$AUGUSTUS_BIN_PATH/augustus";
-            $errorfile  = "$errorfilesDir/secondtest.stderr";
-            $stdoutfile = "$otherfilesDir/secondtest.stdout";
-            $cmdString = "";
-            if ($nice) {
-                $cmdString .= "nice ";
-            }
-            $cmdString
-                .= "$augpath --species=$species "
-                .  "--AUGUSTUS_CONFIG_PATH=$AUGUSTUS_CONFIG_PATH "
-                .  "$otherfilesDir/train.gb.test >$stdoutfile 2>$errorfile";
-            print LOG "\# "
-                . (localtime)
-                . ": Second AUGUSTUS accuracy test\n" if ($v > 3);
-            print LOG "$cmdString\n";
-            system("$cmdString") == 0
-                or die("ERROR in file " . __FILE__ ." at line ". __LINE__
-                    . "\nFailed to execute: $cmdString\n");
-            $target_2 = accuracy_calculator($stdoutfile);
-            print LOG "\# " . (localtime) . ": The accuracy after training "
-                . "(after optimize_augustus.pl, no CRF) is $target_2\n"
-                if ($v > 3);
-        }
+        test_training_accuracy("second");
 
         # optional CRF training
         if ($crf) {
@@ -4461,35 +4411,7 @@ sub training_augustus {
                 . ": etraining with CRF finished.\n" if ($v > 3);
 
             # third test
-            if (!uptodate(
-                    ["$otherfilesDir/train.gb.test"],
-                    ["$otherfilesDir/thirdtest.out"]
-                )
-                || $overwrite
-                )
-            {
-                $augpath    = "$AUGUSTUS_BIN_PATH/augustus";
-                $errorfile  = "$errorfilesDir/thirdtest.stderr";
-                $stdoutfile = "$otherfilesDir/thirdtest.stdout";
-                $cmdString = "";
-                if ($nice) {
-                    $cmdString .= "nice ";
-                }
-                $cmdString .= "$augpath --species=$species "
-                           .  "--AUGUSTUS_CONFIG_PATH=$AUGUSTUS_CONFIG_PATH "
-                           .  "$otherfilesDir/train.gb.test >$stdoutfile "
-                           .  "2>$errorfile";
-                print LOG "\# "
-                    . (localtime)
-                    . ": Third AUGUSTUS accuracy test\n" if ($v > 3);
-                print LOG "$cmdString\n" if ($v > 3);
-                system("$cmdString") == 0
-                    or die("ERROR in file " . __FILE__ ." at line ". __LINE__
-                        . "\nFailed to execute: $cmdString\n");
-                $target_3 = accuracy_calculator($stdoutfile);
-                print LOG "\# ". (localtime) . ": The accuracy after CRF "
-                    . "training is $target_3\n" if ($v > 3);
-            }
+            test_training_accuracy("third");
 
             # decide on whether to keep CRF parameters
             if ( $target_2 > $target_3 && !$keepCrf ) {
@@ -4572,6 +4494,36 @@ sub training_augustus {
         system("$cmdString") == 0 or die("ERROR in file " . __FILE__
             ." at line ". __LINE__ ."\nFailed to execute: $cmdString!\n");
     }
+}
+
+###################### test_training_accuracy ##################################
+# test how well each training set worked
+# round is a string, e.g. first, second, third...
+################################################################################
+sub test_training_accuracy{
+    my $round = shift;
+    $augpath    = "$AUGUSTUS_BIN_PATH/augustus";
+            $errorfile  = "$errorfilesDir/".$round."test.stderr";
+            $stdoutfile = "$otherfilesDir/".$round."test.stdout";
+            $cmdString = "";
+            if ($nice) {
+                $cmdString .= "nice ";
+            }
+            $cmdString
+                .= "$augpath --species=$species "
+                .  "--AUGUSTUS_CONFIG_PATH=$AUGUSTUS_CONFIG_PATH "
+                .  "$otherfilesDir/train.gb.test >$stdoutfile 2>$errorfile";
+            print LOG "\# "
+                . (localtime)
+                . ": $round AUGUSTUS accuracy test\n" if ($v > 3);
+            print LOG "$cmdString\n";
+            system("$cmdString") == 0
+                or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+                    . "\nFailed to execute: $cmdString\n");
+            $target_2 = accuracy_calculator($stdoutfile);
+            print LOG "\# " . (localtime) . ": The accuracy in round $round"
+                ." is $target_2\n"if ($v > 3);
+        }
 }
 
 ####################### fix_ifs_genes ##########################################
