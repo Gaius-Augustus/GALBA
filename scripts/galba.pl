@@ -3280,7 +3280,7 @@ sub make_prot_hints {
         . (localtime)
         . ": selecting training genes from miniprot output "
         . "$trainGenesGtf.\n" if ($v > 2);
-        $cmdString = "find_train_candidates.py -m $alignment_outfile -o $trainGenesGtf"
+        $cmdString = "find_train_candidates.py -m $alignment_outfile -o $trainGenesGtf";
         print LOG "$cmdString\n" if ($v > 2);
         system($cmdString) == 0 or die("ERROR in file " . __FILE__ ." at line "
             . __LINE__ ."\nFailed to execute: $cmdString!\n");
