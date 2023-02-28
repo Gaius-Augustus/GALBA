@@ -746,7 +746,7 @@ print LOG "\#*******************************************************************
         . "\#                               PREDICTING GENES WITH AUGUSTUS (NO UTRS)           \n"
         . "\#**********************************************************************************\n";
 augustus();
-
+post_process_augustus("$otherfilesDir/augustus.hints.gff");
 
 if ( $gff3 != 0) {
     all_preds_gtf2gff3();
@@ -4278,11 +4278,35 @@ sub training_augustus {
 
         test_training_accuracy("first");
         # clean up flanking region with first round predictions predictions
-        augustus();
-        
+        # skip ab initio predictions
+        #my $remember = 0;
+        #if($ab_initio){
+        #    $remember = 1;
+        #    $ab_initio = 0;
+        #}
+        #augustus();
+        #if($remember){
+        #    $ab_initio = 1;
+        #}
+        ## find the "good training genes" with evidence support
+        #my @good_preds;
+        #open( GFF, "<$otherfilesDir/augustus.hints.gff" )
+        #    or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+        #    . "\nCan not open file $otherfilesDir/augustus.hints.gff!\n");
+        #while(<GFF>){
+        #    if(m/\ttranscript\t.*\t(g\d+\.t\d+)/){
+        #        my $tx_id = $1;
+        #    }
+        #    if(m/transcript supported.*100/){
+        #        push(@good_preds, $1);
+        #    }
+        #}
+        #close( GFF )
+        #    or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+        #    . "\nCan not close file $otherfilesDir/augustus.hints.gff!\n");
 
 
-
+#THIS IS WHERE I AM
 
 
 
@@ -4503,27 +4527,24 @@ sub training_augustus {
 sub test_training_accuracy{
     my $round = shift;
     $augpath    = "$AUGUSTUS_BIN_PATH/augustus";
-            $errorfile  = "$errorfilesDir/".$round."test.stderr";
-            $stdoutfile = "$otherfilesDir/".$round."test.stdout";
-            $cmdString = "";
-            if ($nice) {
-                $cmdString .= "nice ";
-            }
-            $cmdString
-                .= "$augpath --species=$species "
-                .  "--AUGUSTUS_CONFIG_PATH=$AUGUSTUS_CONFIG_PATH "
-                .  "$otherfilesDir/train.gb.test >$stdoutfile 2>$errorfile";
-            print LOG "\# "
-                . (localtime)
-                . ": $round AUGUSTUS accuracy test\n" if ($v > 3);
-            print LOG "$cmdString\n";
-            system("$cmdString") == 0
-                or die("ERROR in file " . __FILE__ ." at line ". __LINE__
-                    . "\nFailed to execute: $cmdString\n");
-            $target_2 = accuracy_calculator($stdoutfile);
-            print LOG "\# " . (localtime) . ": The accuracy in round $round"
-                ." is $target_2\n"if ($v > 3);
-        }
+    $errorfile  = "$errorfilesDir/".$round."test.stderr";
+    $stdoutfile = "$otherfilesDir/".$round."test.stdout";
+    $cmdString = "";
+    if ($nice) {
+        $cmdString .= "nice ";
+    }
+    $cmdString .= "$augpath --species=$species "
+               .  "--AUGUSTUS_CONFIG_PATH=$AUGUSTUS_CONFIG_PATH "
+               .  "$otherfilesDir/train.gb.test >$stdoutfile 2>$errorfile";
+    print LOG "\# " . (localtime)
+                    . ": $round AUGUSTUS accuracy test\n" if ($v > 3);
+    print LOG "$cmdString\n";
+    system("$cmdString") == 0
+        or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+            . "\nFailed to execute: $cmdString\n");
+    $target_2 = accuracy_calculator($stdoutfile);
+    print LOG "\# " . (localtime) . ": The accuracy in round $round"
+                    ." is $target_2\n"if ($v > 3);
 }
 
 ####################### fix_ifs_genes ##########################################
@@ -4598,12 +4619,12 @@ sub fix_ifs_genes{
 ################################################################################
 
 sub count_genes_in_gb_file {
-    my $gb_file = shift;
-    open (GBFILE, "<", $gb_file) or
+    my $current_gb_file = shift;
+    open (GBFILE, "<", $current_gb_file) or
         clean_abort("$AUGUSTUS_CONFIG_PATH/species/$species", $useexisting,
         "\# " . (localtime)
         . ": ERROR: in file " . __FILE__ ." at line ". __LINE__ ."\n"
-        . "Could not open file $gb_file!\n");
+        . "Could not open file $current_gb_file!\n");
     my $nLociGb = 0;
     while ( <GBFILE> ) {
         if($_ =~ m/LOCUS/) {
@@ -4614,9 +4635,9 @@ sub count_genes_in_gb_file {
         clean_abort("$AUGUSTUS_CONFIG_PATH/species/$species", $useexisting,
         "\# " . (localtime)
         . ": ERROR: in file " . __FILE__ ." at line ". __LINE__ ."\n"
-        . "Could not close file $gb_file!\n");
+        . "Could not close file $current_gb_file!\n");
     print LOG "\# " . (localtime)
-        . ": Genbank format file $gb_file contains $nLociGb genes.\n";
+        . ": Genbank format file $current_gb_file contains $nLociGb genes.\n";
     return $nLociGb;
 }
 
@@ -4792,8 +4813,8 @@ sub augustus {
         print ABINITIO "}\n\n";
         # build the parallelization options of pygustus
         print ABINITIO "augustus.predict('$otherfilesDir/genome.fa', species='$species',";
-        print ABINITIO "**augargs, partitionLargeSeqeunces=True, "
-                      ."minSplitSize=1000000, chunksize=$chunksize, jobs=$CPU)\n";
+        print ABINITIO "**augargs, partitionLargeSequences=True, "
+                      ."minSplitSize=1000000, chunksize=$chunksize, jobs=$CPU, **augargs)\n";
         close(ABINITIO) or die("ERROR in file " . __FILE__ ." at line ". __LINE__
                 . "\nFailed to close file: $otherfilesDir/pygustus_ab_initio.py!\n");
         # execute the python script
@@ -4810,8 +4831,7 @@ sub augustus {
             or die("ERROR in file " . __FILE__ ." at line ". __LINE__
             . "\nFailed to execute: $pythonCmdString\n");
         # continue processing output gff file
-        make_gtf("$otherfilesDir/augustus.abinitio.gff");
-        get_anno_fasta("$otherfilesDir/augustus.abinitio.gtf", "tmp");
+        post_process_augustus("$otherfilesDir/augustus.abinitio.gff");
         # skip fixing genes with in frame stop codon for ab initio mode, too expensive, gene set won't be used
         # this is different in BRAKER where in --esmode that gene set might actually be used!
     }
@@ -4832,7 +4852,6 @@ sub augustus {
               ."from pygustus import augustus\n\n"
               ."augustus.config_set_bin('$AUGUSTUS_BIN_PATH/augustus')\n\n"
               ."augargs = {'exonnames' : 1, 'codingseq' : 1, "
-              ."'alternatives-from-evidence' : True, "
               ."'allow_hinted_splicesites': ['gcag','atac'], 'softmasking' : True, "
               ."'hintsfile' : '$otherfilesDir/hintsfile.gff', "
               ."'alternatives-from-evidence' : $alternatives_from_evidence, "
@@ -4851,8 +4870,8 @@ sub augustus {
     print AUGH "}\n\n";
     print AUGH "augustus.predict('$otherfilesDir/genome.fa', species='$species', ";
     # build the parallelization options of pygustus
-    print AUGH "partitionLargeSeqeunces=True, partitionHints=True, "
-                ."minSplitSize=1000000, chunksize=$chunksize, jobs=$CPU)\n";
+    print AUGH "partitionLargeSequences=True, partitionHints=True, "
+                ."minSplitSize=1000000, chunksize=$chunksize, jobs=$CPU, **augargs)\n";
     close(AUGH) or die("ERROR in file " . __FILE__ ." at line ". __LINE__
                 . "\nFailed to close file: $otherfilesDir/pygustus_hints.py!\n");
     # execute the python script
@@ -4868,31 +4887,38 @@ sub augustus {
     system("$pythonCmdString") == 0
         or die("ERROR in file " . __FILE__ ." at line ". __LINE__
         . "\nFailed to execute: $pythonCmdString\n");
-    # BUG IN PYGUSTUS! NEED TO UPDATE CODE IF IT WILL BE FIXED!
-    print LOG "\# "
-                . (localtime)
-                . ": moving augustus.gff to augustus.hints.gff\n" if ($v > 3);
-    $cmdString = "mv $otherfilesDir/augustus.gff $otherfilesDir/augustus.hints.gff";
-    print LOG "$cmdString\n" if ($v > 3);
     system("$cmdString") == 0
         or clean_abort("$AUGUSTUS_CONFIG_PATH/species/$species",
         $useexisting, "ERROR in file " . __FILE__ ." at line "
         . __LINE__ ."\nFailed to execute: $cmdString!\n");
-    # continue processing output gff file
-    make_gtf("$otherfilesDir/augustus.hints.gff");
-    get_anno_fasta("$otherfilesDir/augustus.hints.gtf", "tmp");
-    if(-e "$otherfilesDir/bad_genes.lst"){
-        fix_ifs_genes("augustus.hints", 
-                      "$otherfilesDir/augustus.hints.gtf", 
-                      $otherfilesDir."/bad_genes.lst", $species, 
-                      $AUGUSTUS_CONFIG_PATH, $AUGUSTUS_BIN_PATH, 
-                      $AUGUSTUS_SCRIPTS_PATH, $hintsfile, $extrinsicCfgFile);
-    }
-    get_anno_fasta("$otherfilesDir/augustus.hints.gtf", "hints");
     print LOG "\# " . (localtime) . ": AUGUSTUS prediction complete\n"
         if ($v > 3);
 }
 
+####################### post_process_augustus ##################################
+# * gtf, protein, codingseq file
+# * fixAnnoFastaFromJoingenes.py
+################################################################################
+sub post_process_augustus {
+    my $aug_gff_file = shift;
+    # continue processing output gff file
+    make_gtf($aug_gff_file);
+    # create gtf file name
+    $aug_gff_file =~ s/gff/gtf/;
+    my @prefix = split("/", $aug_gff_file);
+    $prefix[$#prefix] =~ s/\.gtf//;
+    get_anno_fasta($aug_gff_file, "tmp");
+    if($aug_gff_file =~ m/\.hints\./){
+        if(-e "$otherfilesDir/bad_genes.lst"){
+            fix_ifs_genes($prefix[$#prefix], 
+                      $aug_gff_file, 
+                      $otherfilesDir."/bad_genes.lst", $species, 
+                      $AUGUSTUS_CONFIG_PATH, $AUGUSTUS_BIN_PATH, 
+                      $AUGUSTUS_SCRIPTS_PATH, $hintsfile, $extrinsicCfgFile);
+        }
+        get_anno_fasta("$otherfilesDir/augustus.hints.gtf", "hints");
+    }
+}
 ####################### assign_ex_cfg ##########################################
 # * predict genes with AUGUSTUS
 # * ab initio, if enabled
@@ -5452,7 +5478,7 @@ sub clean_up {
                 $file =~ m/merged\.s\.bam/ || $file =~ m/ep\.hints/ || 
                 $file =~ m/stops\.and\.starts.gff/ ||
                 $file =~ m/trainGb3\.train/ || $file =~ m/traingenes\.good\.nr.\fa/ ||
-                $file =~ m/nonred\.loci\.lst/ || $file =~ m/traingenes\.good\.gtf/ ||
+                $file =~ m/nonred\.loci\.lst/ ||
                 $file =~ m/etrain\.bad\.lst/ || $file =~ m/etrain\.bad\.lst/ ||
                 $file =~ m/train\.f*\.gb/ || $file =~ m/good_genes\.lst/ || 
                 $file =~ m/traingenes\.good\.nr\.fa/ || $file =~ m/fix_IFS_log_/ || 
