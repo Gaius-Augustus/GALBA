@@ -4810,6 +4810,9 @@ sub augustus {
                 print ABINITIO " , '$1':'$2'";
             }
         }
+	if ($annot) {
+	    print ABINITIO " , 'stopCodonExcludedFromCDS':'false'";
+	}
         print ABINITIO "}\n\n";
         # build the parallelization options of pygustus
         print ABINITIO "augustus.predict('$otherfilesDir/genome.fa', species='$species',";
@@ -4867,6 +4870,10 @@ sub augustus {
             print AUGH ", '$1' : '$2'";
         }
     }
+    if ($annot) {
+        print AUGH " , 'stopCodonExcludedFromCDS':'false'";
+    }
+
     print AUGH "}\n\n";
     print AUGH "augustus.predict('$otherfilesDir/genome.fa', species='$species', ";
     # build the parallelization options of pygustus
