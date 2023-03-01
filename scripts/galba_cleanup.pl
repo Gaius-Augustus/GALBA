@@ -83,37 +83,25 @@ if(not(-d $wdir)){
 }
 
 my @files = ("firsttest.stdout", "genome.fa", "getAnnoFasta.augustus.ab_initio.stdout", 
-	"getAnnoFasta.augustus.hints.stdout", "optimize_augustus.stdout", "secondtest.stdout",
+	"getAnnoFasta.augustus.hints.stdout", "secondtest.stdout",
 	"train.gb", 
-	"aug_hints.lst", "aa2nonred.stdout", "augustus.hints.tmp.gtf", "bothutr.lst", "fourthtest.stdout", "gbFilterEtraining.stdout",
-	"genes.gtf", "genes_in_gb.gtf", "gff2gbSmallDNA.utr.stdout", "hints.job.lst", "merged.bam", "merged.s.bam", "merged.wig", 
-	"randomSplit_utr1.log", "randomSplit_utr2.log", "rnaseq2utr.stdout", "rnaseq.utr.hints", "samtools_sort_before_wig.stdout",
+	"aug_hints.lst", "aa2nonred.stdout", "augustus.hints.tmp.gtf", "fourthtest.stdout", "gbFilterEtraining.stdout",
+	"genes.gtf", "genes_in_gb.gtf",
 	"singlecds.hints", "stops.and.starts.gff", "train.gb.test", "train.gb.train", "train.gb.train.test",
-	"train.gb.train.train", "traingenes.good.fa", "utr.aa2nonred.stdout",
-	"utr.gb", "utr.gb.test", "utr.gb.train", "utr.gb.train.test", "utr.gb.train.train", "utr_genes_in_gb.fa",
-	"utr_genes_in_gb.nr.fa", "utr.nonred.loci.lst", "utrs.gff", "downsample_traingenes.log", "firstetraining.stdout", 
+	"train.gb.train.train", "traingenes.good.fa", "downsample_traingenes.log", "firstetraining.stdout", 
 	"secondetraining.stdout", "startAlign_gth.log", "protein_alignment_gth.gff3", "ex1.cfg", "getAnnoFastaFromJoingenes.augustus.hints.stdout", 
 	"genome.fa.cidx", "getAnnoFastaFromJoingenes.augustus.hints_tmp.stdout", "getAnnoFastaFromJoingenes.augustus.ab_initio_tmp.stdout",
-	"augustus.ab_initio.tmp.gtf", "augustus.ab_initio.gff", "augustus.hints.gff", "augustus.hints.tmp.gtf",
+	"augustus.ab_initio.tmp.gtf", "augustus.ab_initio.gff", "augustus.hints.tmp.gtf",
 	"getAnnoFastaFromJoingenes.augustus.hints_hints.stdout", "getAnnoFastaFromJoingenes.augustus.ab_initio_.stdout",
-	"getAnnoFastaFromJoingenes.augustus.hints_.stdout", "startAlign.stdout", "augustus.hints_iter1.aa", "augustus.hints_iter1.codingseq",
-	"augustus.hints_iter1.gff", "augustus.tmp1.gff", "augustus.tmp2.gff", "cmd.log", "etrain.bad.lst", "gene_stat.yaml",
-	"good_genes.lst", "hintsfile_iter1.gff", "nonred.loci.lst", "nuc.fasta", "prevHints.gff", "proteins.fa", "seed_proteins.faa",
-        "train.f.gb", "traingenes.good.gtf", "traingenes.good.nr.fa", "uniqueSeeds.gtf", "genome.mpi");
+	"getAnnoFastaFromJoingenes.augustus.hints_.stdout", "startAlign.stdout", "cmd.log", "etrain.bad.lst", "gene_stat.yaml",
+	"good_genes.lst", "nonred.loci.lst", "nuc.fasta", "proteins.fa", 
+    "train.f.gb", "traingenes.good.gtf", "traingenes.good.nr.fa", "uniqueSeeds.gtf", "genome.mpi");
 
-my @dirs = ("genome_split", "Spaln", "augustus_tmp", "augustus_files_hints", "diamond");
 
 foreach(@files){
 	if(-e $wdir."/".$_){
 		print "Deleting file ".$wdir."/".$_."\n";
 		unlink($wdir."/".$_);
-	}
-}
-
-foreach(@dirs){
-	if(-d $wdir."/".$_){
-		print "Deleting directory ".$wdir."/".$_."\n";
-		rmtree($wdir."/".$_);
 	}
 }
 
