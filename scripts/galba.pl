@@ -151,7 +151,17 @@ CONFIGURATION OPTIONS (TOOLS CALLED BY GALBA)
                                     if not specified as environment
                                     MINIPROT_PATH variable. Has higher
                                     priority than environment variable. Only 
-                                    required if --prg="gth"
+                                    required if --prg="gth" is not set.
+--SCORER_PATH=/path/to/tool         Set path to Miniprot miniprot_boundary_scorer
+                                    if not specified as environment
+                                    SCORER_PATH variable. Has higher
+                                    priority than environment variable. Only 
+                                    required if --prg="gth" is not set.
+--MINIPROTHINT_PATH=/path/to/tool   Set path to miniprothint.py
+                                    if not specified as environment
+                                    MINIPROTHINT_PATH variable. Has higher
+                                    priority than environment variable. Only 
+                                    required if --prg="gth" is not set.
 --GENOMETHREADER_PATH=/path/to/tool Set path to GenomeThreader binary
                                     if not specified as environment
                                     GENOMETHREADER_PATH variable. Has higher
@@ -265,8 +275,8 @@ my @bam;                      # bam file names
 my @stranded;                 # contains +,-,+,-... corresponding to 
                               # bam files
 my $checkOnly = 0;
-my $bamtools_path;
-my $BAMTOOLS_BIN_PATH;
+my $scorer_path;
+my $SCORER_PATH;
 my $bool_species = "true";     # false, if $species contains forbidden words
 my $cmdString;    # to store shell commands
 my $CPU        = 1;      # number of CPUs that can be used
@@ -283,9 +293,6 @@ my @files;               # contains all files in $rootDir
 my @forbidden_words;     # words/commands that are not allowed in species name
 my $gb_good_size;        # number of LOCUS entries in 'train.gb'
 my $genbank;             # genbank file name
-my $PROTHINT_PATH;
-my $prothint_path;
-my $PROTHINT_REQUIRED = "prothint.py 2.6.0";   # Version of ProtHint required for this GALBA version
 my $genome;              # name of sequence file
 my %scaffSizes;          # length of scaffolds
 my $gff3 = 0;            # create output file in GFF3 format
@@ -303,8 +310,6 @@ my $overwrite = 0; # overwrite existing files (except for species parameter file
 my $parameterDir;     # directory of parameter files for species
 my $perlCmdString;    # stores perl commands
 my $printVersion = 0; # print version number, if set
-my $SAMTOOLS_PATH;
-my $SAMTOOLS_PATH_OP;    # path to samtools executable
 my $scriptPath = dirname($0); # path of directory where this script is located
 my $skipoptimize   = 0; # skip optimize parameter step
 my $skipIterativePrediction;
@@ -355,8 +360,8 @@ my $diamond_path; # command line argument value for $DIAMOND_PATH
 my $python3_path; # command line argument value for $PYTHON3_PATH
 my $java_path;
 my $JAVA_PATH;
-my $gushr_path;
-my $GUSHR_PATH;
+my $miniprothint_path;
+my $MINIPROTHINT_PATH;
 my %hintTypes;    # stores hint types occuring over all generated and supplied
                   # hints for comparison
 my $rounds = 5;   # rounds used by optimize_augustus.pl
@@ -400,20 +405,19 @@ GetOptions(
     'DIAMOND_PATH=s'               => \$diamond_path,
     'PYTHON3_PATH=s'               => \$python3_path,
     'JAVA_PATH=s'                  => \$java_path,
-    'GUSHR_PATH=s'                 => \$gushr_path,
+    'MINIPROTHINT_PATH=s'          => \$miniprothint_path,
     'CDBTOOLS_PATH=s'              => \$cdbtools_path,
     'MAKEHUB_PATH=s'               => \$makehub_path,
     'bam=s'                        => \@bam,
-    'BAMTOOLS_PATH=s'              => \$bamtools_path,
+    'SCORER_PATH=s'                => \$scorer_path,
     'threads=i'                    => \$CPU,
     'extrinsicCfgFiles=s'          => \@extrinsicCfgFiles,
-    'PROTHINT_PATH=s'              => \$prothint_path,
+    'MINIPROTHINT_PATH=s'          => \$miniprothint_path,
     'genome=s'                     => \$genome,
     'gff3'                         => \$gff3,
     'hints=s'                      => \@hints,
     'optCfgFile=s'                 => \$optCfgFile,
     'overwrite!'                   => \$overwrite,
-    'SAMTOOLS_PATH=s'              => \$SAMTOOLS_PATH_OP,
     'skipOptimize!'                => \$skipoptimize,
     'skipIterativePrediction!'     => \$skipIterativePrediction,
     'skipAllTraining!'             => \$skipAllTraining,
@@ -535,6 +539,8 @@ if (not ($skipAllTraining)){
 
 if(@prot_seq_files && $prg eq "miniprot"){
     set_MINIPROT_PATH();
+    set_SCORER_PATH();
+    set_MINIPROTHINT_PATH();
     if(scalar(@prot_seq_files) > 1){
         $prtStr = "\# "
             . (localtime)
@@ -1276,29 +1282,29 @@ sub set_AUGUSTUS_SCRIPTS_PATH {
     }
 }
 
-####################### set_BAMTOOLS_PATH ######################################
-# * set path to bamtools
+####################### set_SCORER_PATH ########################################
+# * set path to miniprot_boundary_scorer
 ################################################################################
 
-sub set_BAMTOOLS_PATH {
+sub set_SCORER_PATH {
 
     # try to get path from ENV
-    if ( defined( $ENV{'BAMTOOLS_PATH'} ) && not(defined($bamtools_path))) {
-        if ( -e $ENV{'BAMTOOLS_PATH'} ) {
+    if ( defined( $ENV{'SCORER_PATH'} ) && not(defined($scorer_path))) {
+        if ( -e $ENV{'SCORER_PATH'} ) {
             $prtStr
                 = "\# "
                 . (localtime)
-                . ": Found environment variable \$BAMTOOLS_PATH. Setting "
-                . "\$BAMTOOLS_PATH to ".$ENV{'BAMTOOLS_PATH'}."\n";
+                . ": Found environment variable \$SCORER_PATH. Setting "
+                . "\$SCORER_PATH to ".$ENV{'SCORER_PATH'}."\n";
             $logString .= $prtStr if ($v > 1);
-            $BAMTOOLS_BIN_PATH = $ENV{'BAMTOOLS_PATH'};
+            $SCORER_PATH = $ENV{'SCORER_PATH'};
         }
     }
-    elsif(not(defined($bamtools_path))) {
+    elsif(not(defined($scorer_path))) {
         $prtStr
             = "\# "
             . (localtime)
-            . ": Did not find environment variable \$BAMTOOLS_PATH "
+            . ": Did not find environment variable \$SCORER_PATH "
             . "(either variable does not exist, or the path given in "
             . "variable does not exist). Will try to set this variable in a "
             . "different way, later.\n";
@@ -1306,92 +1312,207 @@ sub set_BAMTOOLS_PATH {
     }
 
     # try to get path from GALBA
-    if ( defined($bamtools_path) ) {
-        my $last_char = substr( $bamtools_path, -1 );
+    if ( defined($scorer_path) ) {
+        my $last_char = substr( $scorer_path, -1 );
         if ( $last_char eq "\/" ) {
-            chop($bamtools_path);
+            chop($scorer_path);
         }
-        if ( -d $bamtools_path ) {
+        if ( -d $scorer_path ) {
             $prtStr
                 = "\# "
                 . (localtime)
-                . ": Setting \$BAMTOOLS_BIN_PATH to command line argument "
-                . "--BAMTOOLS_PATH value $bamtools_path.\n";
+                . ": Setting \$SCORER_PATH to command line argument "
+                . "--SCORER_PATH value $scorer_path.\n";
             $logString .= $prtStr if ($v > 1);
-            $BAMTOOLS_BIN_PATH = $bamtools_path;
-        }
-        else {
+            $SCORER_PATH = $scorer_path;
+        } else {
             $prtStr
                 = "#*********\n"
-                . "# WARNING: Command line argument --BAMTOOLS_PATH was "
-                . "supplied but value $bamtools_path is not a directory. Will "
-                . "not set \$BAMTOOLS_BIN_PATH to $bamtools_path!\n"
+                . "# WARNING: Command line argument --SCORER_PATH was "
+                . "supplied but value $scorer_path is not a directory. Will "
+                . "not set \$SCORER_PATH to $scorer_path!\n"
                 . "#*********\n";
             $logString .= $prtStr if ($v > 0);
         }
     }
 
     # try to guess
-    if ( not( defined($BAMTOOLS_BIN_PATH) )
-        || length($BAMTOOLS_BIN_PATH) == 0 )
+    if ( not( defined($SCORER_PATH) )
+        || length($SCORER_PATH) == 0 )
     {
         $prtStr
             = "\# "
             . (localtime)
-            . ": Trying to guess \$BAMTOOLS_BIN_PATH from location of bamtools"
+            . ": Trying to guess \$SCORER_PATH from location of miniprot_boundary_scorer"
             . " executable that is available in your \$PATH\n";
         $logString .= $prtStr if ($v > 1);
-        my $epath = which 'bamtools';
+        my $epath = which 'miniprot_boundary_scorer';
         if(defined($epath)){
             if ( -d dirname($epath) ) {
                 $prtStr
                     = "\# "
                     . (localtime)
-                    . ": Setting \$BAMTOOLS_BIN_PATH to "
+                    . ": Setting \$SCORER_PATH to "
                     . dirname($epath) . "\n";
                 $logString .= $prtStr if ($v > 1);
-                $BAMTOOLS_BIN_PATH = dirname($epath);
+                $SCORER_PATH = dirname($epath);
             }
         }
         else {
             $prtStr
                 = "#*********\n"
-                . "WARNING: Guessing the location of \$BAMTOOLS_BIN_PATH "
+                . "WARNING: Guessing the location of \$SCORER_PATH "
                 . "failed.\n"
                 . "#*********\n";
             $logString .= $prtStr if ($v > 0);
         }
     }
 
-    if ( not( defined($BAMTOOLS_BIN_PATH) ) ) {
-        my $bamtools_err;
-        $bamtools_err
+    if ( not( defined($SCORER_PATH) ) ) {
+        my $scorer_err;
+        $scorer_err
             .= "There are 3 alternative ways to set this variable for\n"
             . " galba.pl:\n"
-            . "   a) provide command-line argument --BAMTOOLS_PATH=/your/path\n"
-            . "   b) use an existing environment variable \$BAMTOOLS_PATH\n"
+            . "   a) provide command-line argument --SCORER_PATH=/your/path\n"
+            . "   b) use an existing environment variable \$SCORER_PATH\n"
             . "      for setting the environment variable, run\n"
-            . "           export BAMTOOLS_PATH=/your/path\n"
+            . "           export SCORER_PATH=/your/path\n"
             . "      in your shell. You may append this to your .bashrc or\n"
             . "      .profile file in order to make the variable available to\n"
             . "      all your bash sessions.\n"
             . "   c) galba.pl can try guessing the location of\n"
-            . "      \$BAMTOOLS_BIN_PATH from the location of a bamtools\n"
+            . "      \$SCORER_PATH from the location of a miniprot_boundary_scorer\n"
             . "      executable that is available in your \$PATH variable.\n"
             . "      If you try to rely on this option, you can check by\n"
             . "      typing\n"
-            . "           which bamtools\n"
-            . "      in your shell, whether there is a bamtools executable in\n"
+            . "           which miniprot_boundary_scorer\n"
+            . "      in your shell, whether there is a miniprot_boundary_scorer executable in\n"
             . "      your \$PATH\n";
         $prtStr
             = "\# " . (localtime) . " ERROR: in file " . __FILE__ ." at line "
-            . __LINE__ . "\n" . "\$BAMTOOLS_BIN_PATH not set!\n";
+            . __LINE__ . "\n" . "\$SCORER_PATH not set!\n";
         $logString .= $prtStr;
-        $logString .= $bamtools_err if ($v > 1);
+        $logString .= $scorer_err if ($v > 1);
         print STDERR $logString;
         exit(1);
     }
 }
+
+####################### set_MINIPROTHINT_PATH ##################################
+# * set path to miniprothint.py
+################################################################################
+
+sub set_MINIPROTHINT_PATH {
+    # try to get path from ENV
+    if ( defined( $ENV{'MINIPROTHINT_PATH'} ) && not(defined($miniprothint_path))) {
+        if ( -e $ENV{'MINIPROTHINT_PATH'} ) {
+            $prtStr
+                = "\# "
+                . (localtime)
+                . ": Found environment variable \$MINPROTHINT_PATH. Setting "
+                . "\$MINIPROTHINT_PATH to ".$ENV{'MINIPROTHINT_PATH'}."\n";
+            $logString .= $prtStr if ($v > 1);
+            $MINIPROTHINT_PATH = $ENV{'MINIPROTHINT_PATH'};
+        }
+    }
+    elsif(not(defined($miniprothint_path))) {
+        $prtStr
+            = "\# "
+            . (localtime)
+            . ": Did not find environment variable \$MINIPROTHINT_PATH "
+            . "(either variable does not exist, or the path given in "
+            . "variable does not exist). Will try to set this variable in a "
+            . "different way, later.\n";
+        $logString .= $prtStr if ($v > 1);
+    }
+
+    # try to get path from GALBA
+    if ( defined($miniprothint_path) ) {
+        my $last_char = substr( $miniprothint_path, -1 );
+        if ( $last_char eq "\/" ) {
+            chop($miniprothint_path);
+        }
+        if ( -d $miniprothint_path ) {
+            $prtStr
+                = "\# "
+                . (localtime)
+                . ": Setting \$MINIPROTHINT_PATH to command line argument "
+                . "--MINIPROTHINT_PATH value $miniprothint_path.\n";
+            $logString .= $prtStr if ($v > 1);
+            $MINIPROTHINT_PATH = $miniprothint_path;
+        } else {
+            $prtStr
+                = "#*********\n"
+                . "# WARNING: Command line argument --MINIPROTHINT_PATH was "
+                . "supplied but value $miniprothint_path is not a directory. Will "
+                . "not set \$MINIPROTHINT_PATH to $miniprothint_path!\n"
+                . "#*********\n";
+            $logString .= $prtStr if ($v > 0);
+        }
+    }
+
+    # try to guess
+    if ( not( defined($MINIPROTHINT_PATH) )
+        || length($MINIPROTHINT_PATH) == 0 )
+    {
+        $prtStr
+            = "\# "
+            . (localtime)
+            . ": Trying to guess \$MINIPROTHINT_PATH from location of miniprothint.py"
+            . " executable that is available in your \$PATH\n";
+        $logString .= $prtStr if ($v > 1);
+        my $epath = which 'miniprothint.py';
+        if(defined($epath)){
+            if ( -d dirname($epath) ) {
+                $prtStr
+                    = "\# "
+                    . (localtime)
+                    . ": Setting \$MINIPROTHINT_PATH to "
+                    . dirname($epath) . "\n";
+                $logString .= $prtStr if ($v > 1);
+                $MINIPROTHINT_PATH = dirname($epath);
+            }
+        }
+        else {
+            $prtStr
+                = "#*********\n"
+                . "WARNING: Guessing the location of \$MINIPROTHINT_PATH "
+                . "failed.\n"
+                . "#*********\n";
+            $logString .= $prtStr if ($v > 0);
+        }
+    }
+
+    if ( not( defined($SCORER_PATH) ) ) {
+        my $scorer_err;
+        $scorer_err
+            .= "There are 3 alternative ways to set this variable for\n"
+            . " galba.pl:\n"
+            . "   a) provide command-line argument --MINIPROTHINT_PATH=/your/path\n"
+            . "   b) use an existing environment variable \$MINIPROTHINT_PATH\n"
+            . "      for setting the environment variable, run\n"
+            . "           export MINIPROTHINT_PATH=/your/path\n"
+            . "      in your shell. You may append this to your .bashrc or\n"
+            . "      .profile file in order to make the variable available to\n"
+            . "      all your bash sessions.\n"
+            . "   c) galba.pl can try guessing the location of\n"
+            . "      \$MINIPROTHINT_PATH from the location of a miniprothint.py\n"
+            . "      executable that is available in your \$PATH variable.\n"
+            . "      If you try to rely on this option, you can check by\n"
+            . "      typing\n"
+            . "           which miniprothint.py\n"
+            . "      in your shell, whether there is a miniprothint.py executable in\n"
+            . "      your \$PATH\n";
+        $prtStr
+            = "\# " . (localtime) . " ERROR: in file " . __FILE__ ." at line "
+            . __LINE__ . "\n" . "\$MINIPROTHINT_PATH not set!\n";
+        $logString .= $prtStr;
+        $logString .= $scorer_err if ($v > 1);
+        print STDERR $logString;
+        exit(1);
+    }
+}
+
 
 ####################### set_MINIPROT_PATH ################################
 # * set path to Miniprot
@@ -3042,6 +3163,7 @@ sub make_prot_hints {
     my $prot_hints_file_temp = "$otherfilesDir/prot_align_out.temp.gff";
     $prot_hintsfile = "$otherfilesDir/prot_align_out.gff";
     my $alignment_outfile = "$otherfilesDir/protein_alignment_$prg.gff";
+    my $miniprot_aln_file = "$otherfilesDir/protein_alignment_$prg.aln";
 
     # change to working directory
     $cmdString = "cd $otherfilesDir";
@@ -3161,8 +3283,9 @@ sub make_prot_hints {
                 if ($nice) {
                     $cmdString .= "nice ";
                 }
+                # Currently running miniprot twice, the first run only serves training gene generation
                 $cmdString
-                    .= "$prot_aligner -ut$CPU --gtf $otherfilesDir/genome.mpi $prot_seq_files[$i] >> $alignment_outfile ";
+                    .= "$prot_aligner -ut$CPU --outn=1 --gtf $otherfilesDir/genome.mpi $prot_seq_files[$i] >> $alignment_outfile ";
                 print LOG "\# "
                     . (localtime)
                     . ": running Miniprot to produce protein to "
@@ -3284,6 +3407,78 @@ sub make_prot_hints {
         print LOG "$cmdString\n" if ($v > 2);
         system($cmdString) == 0 or die("ERROR in file " . __FILE__ ." at line "
             . __LINE__ ."\nFailed to execute: $cmdString!\n");
+    }
+    if( $prg eq 'miniprot'){
+        # run miniprot again to have an input format for the intron boundary scorer
+        unlink($hintsfile);
+        print LOG "\# "
+                . (localtime)
+                . ": rm $hintsfile.\n" if ($v > 3);
+        for ( my $i = 0; $i < scalar(@prot_seq_files); $i++ ) {
+            $cmdString = "";
+            if ($nice) {
+                $cmdString .= "nice ";
+            }
+
+            # Currently running miniprot twice, the first run only serves training gene generation, the second shall produce the actual hints
+            $cmdString
+                .= "$prot_aligner -ut$CPU --outn=1 --aln $otherfilesDir/genome.mpi $prot_seq_files[$i] >> $miniprot_aln_file ";
+            print LOG "\# "
+                . (localtime)
+                . ": running Miniprot to produce protein to "
+                . "genome alignments in aln format\n"  if ($v > 3);
+            $perlCmdString .= "2>>$errorfile";
+            print LOG "$cmdString\n" if ($v > 3);
+            system("$cmdString") == 0
+                or clean_abort("$AUGUSTUS_CONFIG_PATH/species/$species",
+                $useexisting, "ERROR in file " . __FILE__ ." at line "
+                . __LINE__ ."\nfailed to execute: $cmdString!\n");
+            print LOG "\# "
+                . (localtime)
+                . ": Alignments from file $prot_seq_files[$i] created.\n" if ($v > 3);
+        }
+        # run miniprot_boundary_scorer
+        $cmdString = "";
+        if ($nice) {
+            $cmdString .= "nice ";
+        }
+        $cmdString .= "$SCORER_PATH/miniprot_boundary_scorer -o $otherfilesDir/miniprot.gff -s $SCORER_PATH/blosum62.csv < $miniprot_aln_file ";
+        print LOG "\# "
+            . (localtime)
+            . ": $cmdString\n"  if ($v > 3);
+        $perlCmdString .= "2>>$errorfile";
+        system("$cmdString") == 0
+            or clean_abort("$AUGUSTUS_CONFIG_PATH/species/$species",
+            $useexisting, "ERROR in file " . __FILE__ ." at line "
+            . __LINE__ ."\nfailed to execute: $cmdString!\n");
+        # run miniprothint.py
+        $cmdString = "";
+        if ($nice) {
+            $cmdString .= "nice ";
+        }
+        $cmdString .= "$MINIPROTHINT_PATH/miniprothint.py $otherfilesDir/miniprot.gff --workdir $otherfilesDir";
+        print LOG "\# "
+            . (localtime)
+            . ": $cmdString\n"  if ($v > 3);
+        $perlCmdString .= "2>>$errorfile";
+        system("$cmdString") == 0
+            or clean_abort("$AUGUSTUS_CONFIG_PATH/species/$species",
+            $useexisting, "ERROR in file " . __FILE__ ." at line "
+            . __LINE__ ."\nfailed to execute: $cmdString!\n");
+        # concatenate hints files
+        $cmdString = "";
+        if ($nice) {
+            $cmdString .= "nice ";
+        }
+        $cmdString .= "cat $otherfilesDir/hc.gff $otherfilesDir/miniprothint.gff > $hintsfile";
+        print LOG "\# "
+            . (localtime)
+            . ": $cmdString\n"  if ($v > 3);
+        $perlCmdString .= "2>>$errorfile";
+        system("$cmdString") == 0
+            or clean_abort("$AUGUSTUS_CONFIG_PATH/species/$species",
+            $useexisting, "ERROR in file " . __FILE__ ." at line "
+            . __LINE__ ."\nfailed to execute: $cmdString!\n");
     }
 }
 
