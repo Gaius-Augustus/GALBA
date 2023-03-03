@@ -3465,20 +3465,10 @@ sub make_prot_hints {
             or clean_abort("$AUGUSTUS_CONFIG_PATH/species/$species",
             $useexisting, "ERROR in file " . __FILE__ ." at line "
             . __LINE__ ."\nfailed to execute: $cmdString!\n");
-        # concatenate hints files
-        $cmdString = "";
-        if ($nice) {
-            $cmdString .= "nice ";
-        }
-        $cmdString .= "cat $otherfilesDir/hc.gff $otherfilesDir/miniprothint.gff > $hintsfile";
-        print LOG "\# "
-            . (localtime)
-            . ": $cmdString\n"  if ($v > 3);
-        $perlCmdString .= "2>>$errorfile";
-        system("$cmdString") == 0
-            or clean_abort("$AUGUSTUS_CONFIG_PATH/species/$species",
-            $useexisting, "ERROR in file " . __FILE__ ." at line "
-            . __LINE__ ."\nfailed to execute: $cmdString!\n");
+        # process miniprothint output
+        cds_hints_from_traingenes($trainGenesGtf, $hintsfile);
+        summarize_hc_hints("$otherfilesDir/hc.gff", $hintsfile);
+        summarize_lc_hints("$otherfilesDir/miniprothint.gff", $hintsfile);
     }
 }
 
@@ -5722,4 +5712,102 @@ sub clean_up {
         my $loginfo = `$perlCmdString`;
         print LOG $loginfo;
     }
+}
+
+####################### summarize_hc_hints ###########################################
+# summarize hc.gff hints from miniprothint.py
+# input: hc.gff
+# output: appended to hintsfile.gff
+# last column will contain: grp=$grpID;src=C;pri=4;
+# splits each line of hc.gff at al_score=\d+; splice_sites=\w+; and appends the first
+# part of the line to an array in the hash of hashes $grps{lastpart}{@lines} 
+# with key last part of the line;
+# when hash is populated, print by keys the values of the hash of arrays, increment the
+# grpID by one for each hash entry
+####################### summarize_hc_hints ###########################################
+sub summarize_hc_hints{
+    my $hcfile = shift;
+    my $hfile = shift;
+    my %grps;
+    open(HC, "<", $hcfile) or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+        . "\nFailed to open file $hcfile!\n");
+    while(<HC>){
+        chomp;
+        if($_ =~ m/(.*)\tal_score=\d+\.\d+;.*(prots=[^;]*)/){
+            push(@{$grps{$2}}, $1);
+        }
+    }
+    close(HC) or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+        . "\nFailed to close file $hcfile!\n");
+    # loop over hash %grps
+    my $grpID = 1;
+    open(HFILE, ">>", $hfile) or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+        . "\nFailed to open file $hfile!\n");
+    while (my ($key, $value) = each %grps) {
+        foreach my $line (@{$value}){
+            print HFILE "$line\tgrp=chain_$grpID;src=C;pri=4;\n";
+        } 
+        $grpID++;
+    }
+    close(HFILE) or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+        . "\nFailed to close file $hfile!\n");
+}
+
+####################### summarize_lc_hints ###########################################
+# summarize miniprothint.gff hints from miniprothint.py
+# input: miniprothint.gff
+# output: appended to hintsfile.gff
+# last column will contain: mult=INT;src=P;pri=4;
+# INT is computed by counting the number of comma-separated strings in prots=([^;]+)
+####################### summarize_lc_hints ###########################################
+sub summarize_lc_hints{
+    my $lcfile = shift;
+    my $hfile = shift;
+    my %hints;
+    open(LC, "<", $lcfile) or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+        . "\nFailed to open file $lcfile!\n");
+    open(HFILE, ">>", $hfile) or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+        . "\nFailed to open file $hfile!\n");
+    while(<LC>){
+        chomp;
+        if($_ =~ m/(.*)\t.*prots=([^;]+);/){
+            my $firstPart = $1;
+            my $mult = () = $2 =~ /,/g;
+            $mult++;
+            print HFILE "$firstPart\tmult=$mult;src=P;pri=4;\n";
+        }
+    }
+    close(HFILE) or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+        . "\nFailed to close file $hfile!\n");
+    close(LC) or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+        . "\nFailed to close file $lcfile!\n");
+}
+
+####################### cds_hints_from_traingenes ####################################
+# extract CDS hints from traingenes.gtf
+# this is only a temporary solution until we have the best CDS chain
+# input: traingenes.gtf
+# output: appended to hintsfile.gff
+# last column will contain: grp=txid;src=C;pri=4;
+####################### cds_hints_from_traingenes ####################################
+sub cds_hints_from_traingenes{
+    my $tgfile = shift;
+    my $hfile = shift;
+    open(TGTF, "<", $tgfile) or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+        . "\nFailed to open file $tgfile!\n");
+    open(HFILE, ">>", $hfile) or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+        . "\nFailed to open file $hfile!\n");
+    while(<TGTF>){
+        chomp;
+        if($_ =~ m/.*\tCDS\t.*/){
+            my @a = split(/\t/, $_);
+            my $grp = $a[8];
+            $grp =~ s/.*transcript_id \"([^"]+)\".*/$1/;
+            print HFILE "$a[0]\t$a[1]\tCDSpart\t".($a[3]+7)."\t".($a[4]-7)."\t$a[5]\t$a[6]\t$a[7]\tgrp=$grp;src=C;pri=4;\n";
+        }
+    }
+    close(HFILE) or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+        . "\nFailed to close file $hfile!\n");
+    close(TGTF) or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+        . "\nFailed to close file $tgfile!\n");
 }
