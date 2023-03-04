@@ -3456,7 +3456,8 @@ sub make_prot_hints {
         if ($nice) {
             $cmdString .= "nice ";
         }
-        $cmdString .= "$MINIPROTHINT_PATH/miniprothint.py $otherfilesDir/miniprot.gff --workdir $otherfilesDir";
+        # ignoreCoverage prints hints to hc.gff ignoring coverage if file was otherwise empty
+        $cmdString .= "$MINIPROTHINT_PATH/miniprothint.py $otherfilesDir/miniprot.gff --workdir $otherfilesDir --ignoreCoverage";
         print LOG "\# "
             . (localtime)
             . ": $cmdString\n"  if ($v > 3);
@@ -5733,6 +5734,10 @@ sub summarize_hc_hints{
         . "\nFailed to open file $hcfile!\n");
     while(<HC>){
         chomp;
+        # replace start_codon by start in gff file
+        $_ =~ s/\tstart_codon\t/\tstart\t/;
+        # replace stop_codon by stop in gff file
+        $_ =~ s/\tstop_codon\t/\tstop\t/;
         if($_ =~ m/(.*)\tal_score=\d+\.\d+;.*(prots=[^;]*)/){
             push(@{$grps{$2}}, $1);
         }
@@ -5770,6 +5775,10 @@ sub summarize_lc_hints{
         . "\nFailed to open file $hfile!\n");
     while(<LC>){
         chomp;
+        # replace start_codon by start in gff file
+        $_ =~ s/\tstart_codon\t/\tstart\t/;
+        # replace stop_codon by stop in gff file
+        $_ =~ s/\tstop_codon\t/\tstop\t/;
         if($_ =~ m/(.*)\t.*prots=([^;]+);/){
             my $firstPart = $1;
             my $mult = () = $2 =~ /,/g;
