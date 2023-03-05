@@ -3914,7 +3914,7 @@ sub training_augustus {
         my $t_b_t = 0; # to be tested gene set size, used to determine
                        # stop codon setting and to compute k for cores>8
         # convert gtf to gb
-        gtf2gb ($trainGenesGtf, $trainGb1);
+        gtf2gb ($trainGenesGtf, $trainGb1, "False");
 
         # count how many genes are in trainGb1
         my $nLociGb1 = count_genes_in_gb_file($trainGb1);
@@ -4464,43 +4464,164 @@ sub training_augustus {
 
         test_training_accuracy("first");
         # clean up flanking region with first round predictions predictions
-        # skip ab initio predictions
-        #my $remember = 0;
-        #if($ab_initio){
-        #    $remember = 1;
-        #    $ab_initio = 0;
-        #}
-        #augustus();
-        #if($remember){
-        #    $ab_initio = 1;
-        #}
-        ## find the "good training genes" with evidence support
-        #my @good_preds;
-        #open( GFF, "<$otherfilesDir/augustus.hints.gff" )
-        #    or die("ERROR in file " . __FILE__ ." at line ". __LINE__
-        #    . "\nCan not open file $otherfilesDir/augustus.hints.gff!\n");
-        #while(<GFF>){
-        #    if(m/\ttranscript\t.*\t(g\d+\.t\d+)/){
-        #        my $tx_id = $1;
-        #    }
-        #    if(m/transcript supported.*100/){
-        #        push(@good_preds, $1);
-        #    }
-        #}
-        #close( GFF )
-        #    or die("ERROR in file " . __FILE__ ." at line ". __LINE__
-        #    . "\nCan not close file $otherfilesDir/augustus.hints.gff!\n");
+        # skip ab initio predictions if enabled
+        my $remember = 0;
+        if($ab_initio){
+            $remember = 1;
+            $ab_initio = 0;
+        }
+        # run augustus on full genome with hints
+        augustus();
+        if($remember){
+            $ab_initio = 1;
+        }
+        # find the "good training genes" with 100% evidence support
+        my $tx;
+        open( GFF, "<$otherfilesDir/augustus.hints.gff" )
+            or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+            . "\nCan not open file $otherfilesDir/augustus.hints.gff!\n");
+        open( GOOD, ">$otherfilesDir/good_training_genes.lst" )
+            or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+            . "\nCan not open file $otherfilesDir/good_training_genes.lst!\n");
+        while(<GFF>){
+            if (/\ttranscript\t.*\t(\S+)/){
+                $tx=$1;
+            }
+            if (/transcript supported.*100/) {
+                print GOOD "$tx\n";
+            }
+        }
+        close(GOOD) or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+            . "\nCan not close file $otherfilesDir/good_training_genes.lst!\n");
+        close( GFF )
+            or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+            . "\nCan not close file $otherfilesDir/augustus.hints.gff!\n");
+        # generate gtf file from first predictions
+        make_gtf("$otherfilesDir/augustus.hints.gff");
+        #generate gb file
+        gtf2gb("$otherfilesDir/augustus.hints.gtf", "$otherfilesDir/train2.gb", "$otherfilesDir/good_training_genes.lst");
+        # delete temporary augustus predictions
+        unlink("$otherfilesDir/augustus.hints.gff");
+        unlink("$otherfilesDir/augustus.hints.gtf");
+        # split into training and test set
+        if (!uptodate(
+                ["$otherfilesDir/train2.gb"],
+                [   "$otherfilesDir/train2.gb.test",
+                    "$otherfilesDir/train2.gb.train"
+                ]
+            )
+            || $overwrite
+            )
+        {
+            print LOG "\# "
+                . (localtime)
+                . ": Splitting genbank file into train and test file\n" if ($v > 3);
+            $string = find(
+                "randomSplit.pl",       $AUGUSTUS_BIN_PATH,
+                $AUGUSTUS_SCRIPTS_PATH, $AUGUSTUS_CONFIG_PATH
+            );
+            $errorfile = "$errorfilesDir/randomSplit.stderr";
+            if ( $gb_good_size < 600 ) { # SET BACK TO 600!
+                $prtStr = "#*********\n"
+                        . "# WARNING: Number of reliable training genes is low ($gb_good_size). "
+                        . "Recommended are at least 600 genes\n"
+                        . "#*********\n";
+                print LOG $prtStr if ($v > 0);
+                print STDOUT $prtStr if ($v > 0);
+                $testsize1 = floor($gb_good_size/3);
+                $testsize2 = floor($gb_good_size/3);
+                if( $testsize1 == 0 or $testsize2 == 0 or ($gb_good_size - ($testsize1 + $testsize2)) == 0 ){
+                    $prtStr = "\# "
+                            . (localtime)
+                            . " ERROR: in file " . __FILE__ ." at line "
+                            . __LINE__ ."\nUnable to create three genbank"
+                            . "files for optimizing AUGUSTUS (number of LOCI "
+                            . "too low)! \n"
+                            . "\$testsize1 is $testsize1, \$testsize2 is "
+                            . "$testsize2, additional genes are "
+                            . ($gb_good_size - ($testsize1 + $testsize2))
+                            . "\nThe provided input data is not "
+                            . "sufficient for running galba.pl!\n";
+                    print LOG $prtStr;
+                    clean_abort("$AUGUSTUS_CONFIG_PATH/species/$species",
+                        $useexisting, $prtStr);
+                }
+            }elsif ( $gb_good_size >= 600 && $gb_good_size <= 1000 ) {
+                $testsize1 = 200;
+                $testsize2 = 200;
+            }else{
+                $testsize1 = 300;
+                $testsize2 = 300;
+            }
+            $perlCmdString = "";
+            if ($nice) {
+                $perlCmdString .= "nice ";
+            }
+            $perlCmdString
+                .= "$perl $string $otherfilesDir/train2.gb $testsize1 2>$errorfile";
+            print LOG "$perlCmdString\n" if ($v > 3);
+            system("$perlCmdString") == 0
+                or clean_abort("$AUGUSTUS_CONFIG_PATH/species/$species",
+                    $useexisting, "ERROR in file " . __FILE__ ." at line "
+                    . __LINE__ ."\nFailed to execute: $perlCmdString\n");
+            print LOG "\# "
+                        . (localtime)
+                        . ": $otherfilesDir/train2.gb.test will be used for "
+                        . "measuring AUGUSTUS accuracy after training\n" if ($v > 3);
+            if($v > 3) {
+                count_genes_in_gb_file("$otherfilesDir/train2.gb.test");
+                count_genes_in_gb_file("$otherfilesDir/train2.gb.train");
+            }
+            $perlCmdString = "";
+            if ($nice) {
+                $perlCmdString .= "nice ";
+            }
+            $perlCmdString .= "$perl $string $otherfilesDir/train2.gb.train $testsize2 2>$errorfile";
+            print LOG "$perlCmdString\n" if ($v > 3);
+            system("$perlCmdString") == 0
+                or clean_abort("$AUGUSTUS_CONFIG_PATH/species/$species",
+                    $useexisting, "ERROR in file " . __FILE__ ." at line "
+                    . __LINE__ ."\nFailed to execute: $perlCmdString\n");
 
+            if($v > 3) {
+                count_genes_in_gb_file("$otherfilesDir/train2.gb.train.train");
+                count_genes_in_gb_file("$otherfilesDir/train2.gb.train.test");
+            }
 
-#THIS IS WHERE I AM
+            print LOG "\# "
+                . (localtime)
+                . ": $otherfilesDir/train2.gb.train.test will be used or "
+                . "measuring AUGUSTUS accuracy during training with "
+                . "optimize_augustus.pl\n"
+                . " $otherfilesDir/train2.gb.train.train will be used for "
+                . "running etraining in optimize_augustus.pl (together with "
+                . "train2.gb.train.test)\n"
+                . " $otherfilesDir/train2.gb.train will be used for running "
+                . "etraining (outside of optimize_augustus.pl)\n" if ($v > 3);
+        }
+        # second etraining
+        $augpath    = "$AUGUSTUS_BIN_PATH/etraining";
+        $errorfile  = "$errorfilesDir/firstetraining.stderr";
+        $stdoutfile = "$otherfilesDir/firstetraining.stdout";
+        $cmdString = "";
+        if ($nice) {
+            $cmdString .= "nice ";
+        }
+        $cmdString .= "$augpath --species=$species --AUGUSTUS_CONFIG_PATH=$AUGUSTUS_CONFIG_PATH $otherfilesDir/train2.gb.train 1>$stdoutfile 2>$errorfile";
+        print LOG "\# " . (localtime) . ": first etraining\n" if ($v > 3);
+        print LOG "$cmdString\n" if ($v > 3);
+        system("$cmdString") == 0
+            or die("ERROR in file " . __FILE__ ." at line "
+                . __LINE__ ."\nFailed to execute $cmdString\n");
+        test_training_accuracy("second");
 
 
 
         # optimize parameters
         if ( !$skipoptimize ) {
             if (!uptodate(
-                    [   "$otherfilesDir/train.gb.train.train",
-                        "$otherfilesDir/train.gb.train.test"
+                    [   "$otherfilesDir/train2.gb.train.train",
+                        "$otherfilesDir/train2.gb.train.test"
                     ],
                     [   $AUGUSTUS_CONFIG_PATH
                             . "/species/$species/$species\_exon_probs.pbl",
@@ -4541,11 +4662,11 @@ sub training_augustus {
                                  . "--species=$species "
                                  . "--kfold=$k_fold "
                                  . "--AUGUSTUS_CONFIG_PATH=$AUGUSTUS_CONFIG_PATH "
-                                 . "--onlytrain=$otherfilesDir/train.gb.train.train ";
+                                 . "--onlytrain=$otherfilesDir/train2.gb.train.train ";
                 if($CPU > 1) {
                     $perlCmdString .= "--cpus=$k_fold ";
                 }
-                $perlCmdString  .= "$otherfilesDir/train.gb.train.test "
+                $perlCmdString  .= "$otherfilesDir/train2.gb.train.test "
                                 . "1>$stdoutfile 2>$errorfile";
                 print LOG "\# "
                     . (localtime)
@@ -4560,9 +4681,9 @@ sub training_augustus {
             }
         }
 
-        # train AUGUSTUS for the second time
+        # train AUGUSTUS for the third time
         if (!uptodate(
-                ["$otherfilesDir/train.gb.train"],
+                ["$otherfilesDir/train2.gb.train"],
                 ["$otherfilesDir/secondetraining.stdout"]
             )
             )
@@ -4576,9 +4697,9 @@ sub training_augustus {
             }
             $cmdString .= "$augpath --species=$species "
                        .  "--AUGUSTUS_CONFIG_PATH=$AUGUSTUS_CONFIG_PATH "
-                       .  "$otherfilesDir/train.gb.train 1>$stdoutfile "
+                       .  "$otherfilesDir/train2.gb.train 1>$stdoutfile "
                        .  "2>$errorfile";
-            print LOG "\# " . (localtime) . ": Second etraining\n" if ($v > 3);
+            print LOG "\# " . (localtime) . ": Third etraining\n" if ($v > 3);
             print LOG "$cmdString\n" if ($v > 3);
             system("$cmdString") == 0
                 or die("ERROR in file " . __FILE__ ." at line ". __LINE__
@@ -4586,8 +4707,9 @@ sub training_augustus {
         }
 
         # second test
-        test_training_accuracy("second");
+        test_training_accuracy("third");
 
+        # TODO: if iterative training turns out to be good: reduce train2.gb size, and adapt CRF to train2.gb
         # optional CRF training
         if ($crf) {
             if (!uptodate(
@@ -4923,6 +5045,7 @@ sub gtf2gb {
     print LOG "\# " . (localtime) . ": Converting gtf file $gtf to genbank "
         . "file\n" if ($v > 2);
     my $gb  = shift;
+    my $goodLst = shift;
     if( not( defined( $flanking_DNA ) ) ) {
         $flanking_DNA = compute_flanking_region($gtf);
     }
@@ -4949,7 +5072,11 @@ sub gtf2gb {
             $perlCmdString .= "nice ";
         }
         $perlCmdString
-            .= "$perl $string $gtf $genome $flanking_DNA $gb 2>$errorfile";
+            .= "$perl $string ";
+        if( not($goodLst =~ m/False/) ) {    
+            $perlCmdString .=  "--good $goodLst ";
+        }
+        $perlCmdString .= "$gtf $genome $flanking_DNA $gb 2>$errorfile";
         print LOG "\# " . (localtime) . ": create genbank file $gb\n"
             if ($v > 3);
         print LOG "$perlCmdString\n" if ($v > 3);
