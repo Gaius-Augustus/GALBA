@@ -5793,11 +5793,12 @@ sub summarize_lc_hints{
 }
 
 ####################### cds_hints_from_traingenes ####################################
-# extract CDS hints from traingenes.gtf
+# extract CDSpart hints from traingenes.gtf
 # this is only a temporary solution until we have the best CDS chain
 # input: traingenes.gtf
 # output: appended to hintsfile.gff
 # last column will contain: grp=txid;src=C;pri=4;
+# CDSpart hints are padded by 15 bp
 ####################### cds_hints_from_traingenes ####################################
 sub cds_hints_from_traingenes{
     my $tgfile = shift;
@@ -5812,7 +5813,12 @@ sub cds_hints_from_traingenes{
             my @a = split(/\t/, $_);
             my $grp = $a[8];
             $grp =~ s/.*transcript_id \"([^"]+)\".*/$1/;
-            print HFILE "$a[0]\t$a[1]\tCDSpart\t".($a[3]+7)."\t".($a[4]-7)."\t$a[5]\t$a[6]\t$a[7]\tgrp=$grp;src=C;pri=4;\n";
+            my $start = $a[3] + 15;
+            my $end = $a[4] - 15;
+            if ( $start > $end ) {
+                $start = $end = int( ( $start + $end ) / 2 );
+            }
+            print HFILE "$a[0]\t$a[1]\tCDSpart\t".$start."\t".$end."\t$a[5]\t$a[6]\t$a[7]\tgrp=$grp;src=C;pri=4;\n";
         }
     }
     close(HFILE) or die("ERROR in file " . __FILE__ ." at line ". __LINE__
