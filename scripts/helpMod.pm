@@ -291,7 +291,7 @@ sub find {
         }
     }
     foreach (@unique) {
-        if ( -f $_ ) {
+        if ( -f $_ || -l $_) {
             $exist  = 1;
             $string = $_;
             last;

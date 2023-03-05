@@ -1,6 +1,8 @@
 # GALBA User Guide
 
-![Docker Pulls](https://img.shields.io/docker/pulls/katharinahoff/galba-notebook) ![GitHub all releases](https://img.shields.io/github/downloads/gaius-augustus/galba/total)
+![Docker Pulls](https://img.shields.io/docker/pulls/katharinahoff/galba-notebook)
+
+:warning: If you pulled from dockerhub between 24th and 28th of February, you may want to upgrade your container to the latest version, as soon as possible. There were a couple of serious bugs with the Pygustus integration... apologies. It has been fixed.
 
 <u>Contact for Github Repository of GALBA at
 https://github.com/Gaius-Augustus/GALBA:</u>
