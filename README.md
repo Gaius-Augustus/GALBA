@@ -639,7 +639,7 @@ Accuracy
 
 ![galba-miniprot-fly\[fig3\]](docs/figs/galba_miniprot_fly.png)
 
-Figure c: accuracy results of GALBA and BRAKER2 in *Drosophila melanogaster*. Shown are results from running GALBA with protein input from *D. simulans* (dsim), *D. erecta* (dere), *D. ananassae* (dana), *D. speudoobscura* (dpse), *D. willistoni* (dwil), *D. virilis* (dvir), and *D. grimshawi* (dgri). In addition, GALBA was run with proteins of the house fly (mdom). For "combo", the input proteins were a concatenation of dana, dpse, dwil, dere, and dgri. BRAKER2 results were computed with the OrthoDB Arthropoda partition, excluding *D. melanogaster* proteins.
+Figure c: accuracy results of GALBA and BRAKER2 in *Drosophila melanogaster*. Shown are results from running GALBA with protein input from *D. simulans* (dsim), *D. erecta* (dere), *D. ananassae* (dana), *D. speudoobscura* (dpse), *D. willistoni* (dwil), *D. virilis* (dvir), and *D. grimshawi* (dgri). In addition, GALBA was run with proteins of the house fly (mdom). For "combo", the input proteins were a concatenation of dana, dpse, dwil, dere, and dgri. BRAKER2 results were computed with the OrthoDB Arthropoda partition, either excluding *D. melanogaster* proteins, or excluding proteins of the same order. The red dot shows BRAKER2 results with exactly the same protein input as GALBA with "combo".
 
 :warning: As Figure c demonstrates, BRAKER2 (<https://github.com/Gaius-Augustus/BRAKER>) generates more accurate results than GALBA in fruit fly. We have computed similar results for *Arabidopsis thaliana* and *Caenorhabditis elegans*. Therefore, we generally recommend that you use BRAKER instead of GALBA!
 
