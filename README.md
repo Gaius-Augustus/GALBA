@@ -645,7 +645,7 @@ Figure c: accuracy results of GALBA and BRAKER2 in *Drosophila melanogaster*. Sh
 
 There may be some special cases where GALBA obtains better results than BRAKER. For example, if you observe a "split gene" problem with BRAKER, and if you have proteins of a very close relative at hand, then GALBA may improve over BRAKER. Also, if you miss genes that are known in relatives of your species of interest in a BRAKER output, it might be worth trying GALBA and combining the resulting gene set and hintsfile with TSEBRA with a BRAKER output.
 
-Accuracy of GALBA with GenomeThreader is generally lower than with miniprot. In many cases, GenomeThreader generates too few training genes for training AUGUSTUS, therefore we show only a subset of the data from Figure c in Figure d:
+Accuracy of GALBA with GenomeThreader is generally lower than with miniprot. In many cases, GenomeThreader generates too few training genes for training AUGUSTUS, therefore we show only a subset of the data from Figure c in Figure d (the shown accuracy with miniprot is from GALBA v1.0.0; we stopped testing GenomeThreader afterwards; GALBA with miniprot accuracy has improved, since):
 
 ![galba-miniprot-gth-fly\[fig4\]](docs/figs/galba_miniprot_gth_fly.png)
 
