@@ -151,7 +151,17 @@ CONFIGURATION OPTIONS (TOOLS CALLED BY GALBA)
                                     if not specified as environment
                                     MINIPROT_PATH variable. Has higher
                                     priority than environment variable. Only 
-                                    required if --prg="gth"
+                                    required if --prg="gth" is not set.
+--SCORER_PATH=/path/to/tool         Set path to Miniprot miniprot_boundary_scorer
+                                    if not specified as environment
+                                    SCORER_PATH variable. Has higher
+                                    priority than environment variable. Only 
+                                    required if --prg="gth" is not set.
+--MINIPROTHINT_PATH=/path/to/tool   Set path to miniprothint.py
+                                    if not specified as environment
+                                    MINIPROTHINT_PATH variable. Has higher
+                                    priority than environment variable. Only 
+                                    required if --prg="gth" is not set.
 --GENOMETHREADER_PATH=/path/to/tool Set path to GenomeThreader binary
                                     if not specified as environment
                                     GENOMETHREADER_PATH variable. Has higher
@@ -265,8 +275,8 @@ my @bam;                      # bam file names
 my @stranded;                 # contains +,-,+,-... corresponding to 
                               # bam files
 my $checkOnly = 0;
-my $bamtools_path;
-my $BAMTOOLS_BIN_PATH;
+my $scorer_path;
+my $SCORER_PATH;
 my $bool_species = "true";     # false, if $species contains forbidden words
 my $cmdString;    # to store shell commands
 my $CPU        = 1;      # number of CPUs that can be used
@@ -283,9 +293,6 @@ my @files;               # contains all files in $rootDir
 my @forbidden_words;     # words/commands that are not allowed in species name
 my $gb_good_size;        # number of LOCUS entries in 'train.gb'
 my $genbank;             # genbank file name
-my $PROTHINT_PATH;
-my $prothint_path;
-my $PROTHINT_REQUIRED = "prothint.py 2.6.0";   # Version of ProtHint required for this GALBA version
 my $genome;              # name of sequence file
 my %scaffSizes;          # length of scaffolds
 my $gff3 = 0;            # create output file in GFF3 format
@@ -303,8 +310,6 @@ my $overwrite = 0; # overwrite existing files (except for species parameter file
 my $parameterDir;     # directory of parameter files for species
 my $perlCmdString;    # stores perl commands
 my $printVersion = 0; # print version number, if set
-my $SAMTOOLS_PATH;
-my $SAMTOOLS_PATH_OP;    # path to samtools executable
 my $scriptPath = dirname($0); # path of directory where this script is located
 my $skipoptimize   = 0; # skip optimize parameter step
 my $skipIterativePrediction;
@@ -355,8 +360,8 @@ my $diamond_path; # command line argument value for $DIAMOND_PATH
 my $python3_path; # command line argument value for $PYTHON3_PATH
 my $java_path;
 my $JAVA_PATH;
-my $gushr_path;
-my $GUSHR_PATH;
+my $miniprothint_path;
+my $MINIPROTHINT_PATH;
 my %hintTypes;    # stores hint types occuring over all generated and supplied
                   # hints for comparison
 my $rounds = 5;   # rounds used by optimize_augustus.pl
@@ -400,20 +405,19 @@ GetOptions(
     'DIAMOND_PATH=s'               => \$diamond_path,
     'PYTHON3_PATH=s'               => \$python3_path,
     'JAVA_PATH=s'                  => \$java_path,
-    'GUSHR_PATH=s'                 => \$gushr_path,
+    'MINIPROTHINT_PATH=s'          => \$miniprothint_path,
     'CDBTOOLS_PATH=s'              => \$cdbtools_path,
     'MAKEHUB_PATH=s'               => \$makehub_path,
     'bam=s'                        => \@bam,
-    'BAMTOOLS_PATH=s'              => \$bamtools_path,
+    'SCORER_PATH=s'                => \$scorer_path,
     'threads=i'                    => \$CPU,
     'extrinsicCfgFiles=s'          => \@extrinsicCfgFiles,
-    'PROTHINT_PATH=s'              => \$prothint_path,
+    'MINIPROTHINT_PATH=s'          => \$miniprothint_path,
     'genome=s'                     => \$genome,
     'gff3'                         => \$gff3,
     'hints=s'                      => \@hints,
     'optCfgFile=s'                 => \$optCfgFile,
     'overwrite!'                   => \$overwrite,
-    'SAMTOOLS_PATH=s'              => \$SAMTOOLS_PATH_OP,
     'skipOptimize!'                => \$skipoptimize,
     'skipIterativePrediction!'     => \$skipIterativePrediction,
     'skipAllTraining!'             => \$skipAllTraining,
@@ -535,6 +539,8 @@ if (not ($skipAllTraining)){
 
 if(@prot_seq_files && $prg eq "miniprot"){
     set_MINIPROT_PATH();
+    set_SCORER_PATH();
+    set_MINIPROTHINT_PATH();
     if(scalar(@prot_seq_files) > 1){
         $prtStr = "\# "
             . (localtime)
@@ -1276,29 +1282,29 @@ sub set_AUGUSTUS_SCRIPTS_PATH {
     }
 }
 
-####################### set_BAMTOOLS_PATH ######################################
-# * set path to bamtools
+####################### set_SCORER_PATH ########################################
+# * set path to miniprot_boundary_scorer
 ################################################################################
 
-sub set_BAMTOOLS_PATH {
+sub set_SCORER_PATH {
 
     # try to get path from ENV
-    if ( defined( $ENV{'BAMTOOLS_PATH'} ) && not(defined($bamtools_path))) {
-        if ( -e $ENV{'BAMTOOLS_PATH'} ) {
+    if ( defined( $ENV{'SCORER_PATH'} ) && not(defined($scorer_path))) {
+        if ( -e $ENV{'SCORER_PATH'} ) {
             $prtStr
                 = "\# "
                 . (localtime)
-                . ": Found environment variable \$BAMTOOLS_PATH. Setting "
-                . "\$BAMTOOLS_PATH to ".$ENV{'BAMTOOLS_PATH'}."\n";
+                . ": Found environment variable \$SCORER_PATH. Setting "
+                . "\$SCORER_PATH to ".$ENV{'SCORER_PATH'}."\n";
             $logString .= $prtStr if ($v > 1);
-            $BAMTOOLS_BIN_PATH = $ENV{'BAMTOOLS_PATH'};
+            $SCORER_PATH = $ENV{'SCORER_PATH'};
         }
     }
-    elsif(not(defined($bamtools_path))) {
+    elsif(not(defined($scorer_path))) {
         $prtStr
             = "\# "
             . (localtime)
-            . ": Did not find environment variable \$BAMTOOLS_PATH "
+            . ": Did not find environment variable \$SCORER_PATH "
             . "(either variable does not exist, or the path given in "
             . "variable does not exist). Will try to set this variable in a "
             . "different way, later.\n";
@@ -1306,92 +1312,207 @@ sub set_BAMTOOLS_PATH {
     }
 
     # try to get path from GALBA
-    if ( defined($bamtools_path) ) {
-        my $last_char = substr( $bamtools_path, -1 );
+    if ( defined($scorer_path) ) {
+        my $last_char = substr( $scorer_path, -1 );
         if ( $last_char eq "\/" ) {
-            chop($bamtools_path);
+            chop($scorer_path);
         }
-        if ( -d $bamtools_path ) {
+        if ( -d $scorer_path ) {
             $prtStr
                 = "\# "
                 . (localtime)
-                . ": Setting \$BAMTOOLS_BIN_PATH to command line argument "
-                . "--BAMTOOLS_PATH value $bamtools_path.\n";
+                . ": Setting \$SCORER_PATH to command line argument "
+                . "--SCORER_PATH value $scorer_path.\n";
             $logString .= $prtStr if ($v > 1);
-            $BAMTOOLS_BIN_PATH = $bamtools_path;
-        }
-        else {
+            $SCORER_PATH = $scorer_path;
+        } else {
             $prtStr
                 = "#*********\n"
-                . "# WARNING: Command line argument --BAMTOOLS_PATH was "
-                . "supplied but value $bamtools_path is not a directory. Will "
-                . "not set \$BAMTOOLS_BIN_PATH to $bamtools_path!\n"
+                . "# WARNING: Command line argument --SCORER_PATH was "
+                . "supplied but value $scorer_path is not a directory. Will "
+                . "not set \$SCORER_PATH to $scorer_path!\n"
                 . "#*********\n";
             $logString .= $prtStr if ($v > 0);
         }
     }
 
     # try to guess
-    if ( not( defined($BAMTOOLS_BIN_PATH) )
-        || length($BAMTOOLS_BIN_PATH) == 0 )
+    if ( not( defined($SCORER_PATH) )
+        || length($SCORER_PATH) == 0 )
     {
         $prtStr
             = "\# "
             . (localtime)
-            . ": Trying to guess \$BAMTOOLS_BIN_PATH from location of bamtools"
+            . ": Trying to guess \$SCORER_PATH from location of miniprot_boundary_scorer"
             . " executable that is available in your \$PATH\n";
         $logString .= $prtStr if ($v > 1);
-        my $epath = which 'bamtools';
+        my $epath = which 'miniprot_boundary_scorer';
         if(defined($epath)){
             if ( -d dirname($epath) ) {
                 $prtStr
                     = "\# "
                     . (localtime)
-                    . ": Setting \$BAMTOOLS_BIN_PATH to "
+                    . ": Setting \$SCORER_PATH to "
                     . dirname($epath) . "\n";
                 $logString .= $prtStr if ($v > 1);
-                $BAMTOOLS_BIN_PATH = dirname($epath);
+                $SCORER_PATH = dirname($epath);
             }
         }
         else {
             $prtStr
                 = "#*********\n"
-                . "WARNING: Guessing the location of \$BAMTOOLS_BIN_PATH "
+                . "WARNING: Guessing the location of \$SCORER_PATH "
                 . "failed.\n"
                 . "#*********\n";
             $logString .= $prtStr if ($v > 0);
         }
     }
 
-    if ( not( defined($BAMTOOLS_BIN_PATH) ) ) {
-        my $bamtools_err;
-        $bamtools_err
+    if ( not( defined($SCORER_PATH) ) ) {
+        my $scorer_err;
+        $scorer_err
             .= "There are 3 alternative ways to set this variable for\n"
             . " galba.pl:\n"
-            . "   a) provide command-line argument --BAMTOOLS_PATH=/your/path\n"
-            . "   b) use an existing environment variable \$BAMTOOLS_PATH\n"
+            . "   a) provide command-line argument --SCORER_PATH=/your/path\n"
+            . "   b) use an existing environment variable \$SCORER_PATH\n"
             . "      for setting the environment variable, run\n"
-            . "           export BAMTOOLS_PATH=/your/path\n"
+            . "           export SCORER_PATH=/your/path\n"
             . "      in your shell. You may append this to your .bashrc or\n"
             . "      .profile file in order to make the variable available to\n"
             . "      all your bash sessions.\n"
             . "   c) galba.pl can try guessing the location of\n"
-            . "      \$BAMTOOLS_BIN_PATH from the location of a bamtools\n"
+            . "      \$SCORER_PATH from the location of a miniprot_boundary_scorer\n"
             . "      executable that is available in your \$PATH variable.\n"
             . "      If you try to rely on this option, you can check by\n"
             . "      typing\n"
-            . "           which bamtools\n"
-            . "      in your shell, whether there is a bamtools executable in\n"
+            . "           which miniprot_boundary_scorer\n"
+            . "      in your shell, whether there is a miniprot_boundary_scorer executable in\n"
             . "      your \$PATH\n";
         $prtStr
             = "\# " . (localtime) . " ERROR: in file " . __FILE__ ." at line "
-            . __LINE__ . "\n" . "\$BAMTOOLS_BIN_PATH not set!\n";
+            . __LINE__ . "\n" . "\$SCORER_PATH not set!\n";
         $logString .= $prtStr;
-        $logString .= $bamtools_err if ($v > 1);
+        $logString .= $scorer_err if ($v > 1);
         print STDERR $logString;
         exit(1);
     }
 }
+
+####################### set_MINIPROTHINT_PATH ##################################
+# * set path to miniprothint.py
+################################################################################
+
+sub set_MINIPROTHINT_PATH {
+    # try to get path from ENV
+    if ( defined( $ENV{'MINIPROTHINT_PATH'} ) && not(defined($miniprothint_path))) {
+        if ( -e $ENV{'MINIPROTHINT_PATH'} ) {
+            $prtStr
+                = "\# "
+                . (localtime)
+                . ": Found environment variable \$MINPROTHINT_PATH. Setting "
+                . "\$MINIPROTHINT_PATH to ".$ENV{'MINIPROTHINT_PATH'}."\n";
+            $logString .= $prtStr if ($v > 1);
+            $MINIPROTHINT_PATH = $ENV{'MINIPROTHINT_PATH'};
+        }
+    }
+    elsif(not(defined($miniprothint_path))) {
+        $prtStr
+            = "\# "
+            . (localtime)
+            . ": Did not find environment variable \$MINIPROTHINT_PATH "
+            . "(either variable does not exist, or the path given in "
+            . "variable does not exist). Will try to set this variable in a "
+            . "different way, later.\n";
+        $logString .= $prtStr if ($v > 1);
+    }
+
+    # try to get path from GALBA
+    if ( defined($miniprothint_path) ) {
+        my $last_char = substr( $miniprothint_path, -1 );
+        if ( $last_char eq "\/" ) {
+            chop($miniprothint_path);
+        }
+        if ( -d $miniprothint_path ) {
+            $prtStr
+                = "\# "
+                . (localtime)
+                . ": Setting \$MINIPROTHINT_PATH to command line argument "
+                . "--MINIPROTHINT_PATH value $miniprothint_path.\n";
+            $logString .= $prtStr if ($v > 1);
+            $MINIPROTHINT_PATH = $miniprothint_path;
+        } else {
+            $prtStr
+                = "#*********\n"
+                . "# WARNING: Command line argument --MINIPROTHINT_PATH was "
+                . "supplied but value $miniprothint_path is not a directory. Will "
+                . "not set \$MINIPROTHINT_PATH to $miniprothint_path!\n"
+                . "#*********\n";
+            $logString .= $prtStr if ($v > 0);
+        }
+    }
+
+    # try to guess
+    if ( not( defined($MINIPROTHINT_PATH) )
+        || length($MINIPROTHINT_PATH) == 0 )
+    {
+        $prtStr
+            = "\# "
+            . (localtime)
+            . ": Trying to guess \$MINIPROTHINT_PATH from location of miniprothint.py"
+            . " executable that is available in your \$PATH\n";
+        $logString .= $prtStr if ($v > 1);
+        my $epath = which 'miniprothint.py';
+        if(defined($epath)){
+            if ( -d dirname($epath) ) {
+                $prtStr
+                    = "\# "
+                    . (localtime)
+                    . ": Setting \$MINIPROTHINT_PATH to "
+                    . dirname($epath) . "\n";
+                $logString .= $prtStr if ($v > 1);
+                $MINIPROTHINT_PATH = dirname($epath);
+            }
+        }
+        else {
+            $prtStr
+                = "#*********\n"
+                . "WARNING: Guessing the location of \$MINIPROTHINT_PATH "
+                . "failed.\n"
+                . "#*********\n";
+            $logString .= $prtStr if ($v > 0);
+        }
+    }
+
+    if ( not( defined($SCORER_PATH) ) ) {
+        my $scorer_err;
+        $scorer_err
+            .= "There are 3 alternative ways to set this variable for\n"
+            . " galba.pl:\n"
+            . "   a) provide command-line argument --MINIPROTHINT_PATH=/your/path\n"
+            . "   b) use an existing environment variable \$MINIPROTHINT_PATH\n"
+            . "      for setting the environment variable, run\n"
+            . "           export MINIPROTHINT_PATH=/your/path\n"
+            . "      in your shell. You may append this to your .bashrc or\n"
+            . "      .profile file in order to make the variable available to\n"
+            . "      all your bash sessions.\n"
+            . "   c) galba.pl can try guessing the location of\n"
+            . "      \$MINIPROTHINT_PATH from the location of a miniprothint.py\n"
+            . "      executable that is available in your \$PATH variable.\n"
+            . "      If you try to rely on this option, you can check by\n"
+            . "      typing\n"
+            . "           which miniprothint.py\n"
+            . "      in your shell, whether there is a miniprothint.py executable in\n"
+            . "      your \$PATH\n";
+        $prtStr
+            = "\# " . (localtime) . " ERROR: in file " . __FILE__ ." at line "
+            . __LINE__ . "\n" . "\$MINIPROTHINT_PATH not set!\n";
+        $logString .= $prtStr;
+        $logString .= $scorer_err if ($v > 1);
+        print STDERR $logString;
+        exit(1);
+    }
+}
+
 
 ####################### set_MINIPROT_PATH ################################
 # * set path to Miniprot
@@ -2495,7 +2616,7 @@ sub check_gff {
             # miniprot, or whether it's introduced during hints conversion
             # we can't have them negative for re-running with a hintsfile
             # therefore set to 1 if negative
-            if ( $gff_line[1] eq "miniprot2h" && $gff_line[5] < 0 ) {
+            if ( ( $gff_line[1] eq "miniprot2h" or $gff_line[1] eq "miniprot" ) && $gff_line[5] < 0 ) {
                 $gff_line[5] = 1;
             } # THIS DOES NOT AFFECT HINTS IN AUGUSTUS!
               # It only goes around our parser
@@ -3042,6 +3163,7 @@ sub make_prot_hints {
     my $prot_hints_file_temp = "$otherfilesDir/prot_align_out.temp.gff";
     $prot_hintsfile = "$otherfilesDir/prot_align_out.gff";
     my $alignment_outfile = "$otherfilesDir/protein_alignment_$prg.gff";
+    my $miniprot_aln_file = "$otherfilesDir/protein_alignment_$prg.aln";
 
     # change to working directory
     $cmdString = "cd $otherfilesDir";
@@ -3161,8 +3283,9 @@ sub make_prot_hints {
                 if ($nice) {
                     $cmdString .= "nice ";
                 }
+                # Currently running miniprot twice, the first run only serves training gene generation
                 $cmdString
-                    .= "$prot_aligner -ut$CPU --gtf $otherfilesDir/genome.mpi $prot_seq_files[$i] >> $alignment_outfile ";
+                    .= "$prot_aligner -ut$CPU --outn=1 --gtf $otherfilesDir/genome.mpi $prot_seq_files[$i] >> $alignment_outfile ";
                 print LOG "\# "
                     . (localtime)
                     . ": running Miniprot to produce protein to "
@@ -3284,6 +3407,69 @@ sub make_prot_hints {
         print LOG "$cmdString\n" if ($v > 2);
         system($cmdString) == 0 or die("ERROR in file " . __FILE__ ." at line "
             . __LINE__ ."\nFailed to execute: $cmdString!\n");
+    }
+    if( $prg eq 'miniprot'){
+        # run miniprot again to have an input format for the intron boundary scorer
+        unlink($hintsfile);
+        print LOG "\# "
+                . (localtime)
+                . ": rm $hintsfile.\n" if ($v > 3);
+        for ( my $i = 0; $i < scalar(@prot_seq_files); $i++ ) {
+            $cmdString = "";
+            if ($nice) {
+                $cmdString .= "nice ";
+            }
+
+            # Currently running miniprot twice, the first run only serves training gene generation, the second shall produce the actual hints
+            $cmdString
+                .= "$prot_aligner -ut$CPU --outn=1 --aln $otherfilesDir/genome.mpi $prot_seq_files[$i] >> $miniprot_aln_file ";
+            print LOG "\# "
+                . (localtime)
+                . ": running Miniprot to produce protein to "
+                . "genome alignments in aln format\n"  if ($v > 3);
+            $perlCmdString .= "2>>$errorfile";
+            print LOG "$cmdString\n" if ($v > 3);
+            system("$cmdString") == 0
+                or clean_abort("$AUGUSTUS_CONFIG_PATH/species/$species",
+                $useexisting, "ERROR in file " . __FILE__ ." at line "
+                . __LINE__ ."\nfailed to execute: $cmdString!\n");
+            print LOG "\# "
+                . (localtime)
+                . ": Alignments from file $prot_seq_files[$i] created.\n" if ($v > 3);
+        }
+        # run miniprot_boundary_scorer
+        $cmdString = "";
+        if ($nice) {
+            $cmdString .= "nice ";
+        }
+        $cmdString .= "$SCORER_PATH/miniprot_boundary_scorer -o $otherfilesDir/miniprot.gff -s $SCORER_PATH/blosum62.csv < $miniprot_aln_file ";
+        print LOG "\# "
+            . (localtime)
+            . ": $cmdString\n"  if ($v > 3);
+        $perlCmdString .= "2>>$errorfile";
+        system("$cmdString") == 0
+            or clean_abort("$AUGUSTUS_CONFIG_PATH/species/$species",
+            $useexisting, "ERROR in file " . __FILE__ ." at line "
+            . __LINE__ ."\nfailed to execute: $cmdString!\n");
+        # run miniprothint.py
+        $cmdString = "";
+        if ($nice) {
+            $cmdString .= "nice ";
+        }
+        # ignoreCoverage prints hints to hc.gff ignoring coverage if file was otherwise empty
+        $cmdString .= "$MINIPROTHINT_PATH/miniprothint.py $otherfilesDir/miniprot.gff --workdir $otherfilesDir --ignoreCoverage";
+        print LOG "\# "
+            . (localtime)
+            . ": $cmdString\n"  if ($v > 3);
+        $perlCmdString .= "2>>$errorfile";
+        system("$cmdString") == 0
+            or clean_abort("$AUGUSTUS_CONFIG_PATH/species/$species",
+            $useexisting, "ERROR in file " . __FILE__ ." at line "
+            . __LINE__ ."\nfailed to execute: $cmdString!\n");
+        # process miniprothint output
+        cds_hints_from_traingenes($trainGenesGtf, $hintsfile);
+        summarize_hc_hints("$otherfilesDir/hc.gff", $hintsfile);
+        summarize_lc_hints("$otherfilesDir/miniprothint.gff", $hintsfile);
     }
 }
 
@@ -3728,7 +3914,7 @@ sub training_augustus {
         my $t_b_t = 0; # to be tested gene set size, used to determine
                        # stop codon setting and to compute k for cores>8
         # convert gtf to gb
-        gtf2gb ($trainGenesGtf, $trainGb1);
+        gtf2gb ($trainGenesGtf, $trainGb1, "False");
 
         # count how many genes are in trainGb1
         my $nLociGb1 = count_genes_in_gb_file($trainGb1);
@@ -4278,43 +4464,164 @@ sub training_augustus {
 
         test_training_accuracy("first");
         # clean up flanking region with first round predictions predictions
-        # skip ab initio predictions
-        #my $remember = 0;
-        #if($ab_initio){
-        #    $remember = 1;
-        #    $ab_initio = 0;
-        #}
-        #augustus();
-        #if($remember){
-        #    $ab_initio = 1;
-        #}
-        ## find the "good training genes" with evidence support
-        #my @good_preds;
-        #open( GFF, "<$otherfilesDir/augustus.hints.gff" )
-        #    or die("ERROR in file " . __FILE__ ." at line ". __LINE__
-        #    . "\nCan not open file $otherfilesDir/augustus.hints.gff!\n");
-        #while(<GFF>){
-        #    if(m/\ttranscript\t.*\t(g\d+\.t\d+)/){
-        #        my $tx_id = $1;
-        #    }
-        #    if(m/transcript supported.*100/){
-        #        push(@good_preds, $1);
-        #    }
-        #}
-        #close( GFF )
-        #    or die("ERROR in file " . __FILE__ ." at line ". __LINE__
-        #    . "\nCan not close file $otherfilesDir/augustus.hints.gff!\n");
+        # skip ab initio predictions if enabled
+        my $remember = 0;
+        if($ab_initio){
+            $remember = 1;
+            $ab_initio = 0;
+        }
+        # run augustus on full genome with hints
+        augustus();
+        if($remember){
+            $ab_initio = 1;
+        }
+        # find the "good training genes" with 100% evidence support
+        my $tx;
+        open( GFF, "<$otherfilesDir/augustus.hints.gff" )
+            or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+            . "\nCan not open file $otherfilesDir/augustus.hints.gff!\n");
+        open( GOOD, ">$otherfilesDir/good_training_genes.lst" )
+            or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+            . "\nCan not open file $otherfilesDir/good_training_genes.lst!\n");
+        while(<GFF>){
+            if (/\ttranscript\t.*\t(\S+)/){
+                $tx=$1;
+            }
+            if (/transcript supported.*100/) {
+                print GOOD "$tx\n";
+            }
+        }
+        close(GOOD) or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+            . "\nCan not close file $otherfilesDir/good_training_genes.lst!\n");
+        close( GFF )
+            or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+            . "\nCan not close file $otherfilesDir/augustus.hints.gff!\n");
+        # generate gtf file from first predictions
+        make_gtf("$otherfilesDir/augustus.hints.gff");
+        #generate gb file
+        gtf2gb("$otherfilesDir/augustus.hints.gtf", "$otherfilesDir/train2.gb", "$otherfilesDir/good_training_genes.lst");
+        # delete temporary augustus predictions
+        unlink("$otherfilesDir/augustus.hints.gff");
+        unlink("$otherfilesDir/augustus.hints.gtf");
+        # split into training and test set
+        if (!uptodate(
+                ["$otherfilesDir/train2.gb"],
+                [   "$otherfilesDir/train2.gb.test",
+                    "$otherfilesDir/train2.gb.train"
+                ]
+            )
+            || $overwrite
+            )
+        {
+            print LOG "\# "
+                . (localtime)
+                . ": Splitting genbank file into train and test file\n" if ($v > 3);
+            $string = find(
+                "randomSplit.pl",       $AUGUSTUS_BIN_PATH,
+                $AUGUSTUS_SCRIPTS_PATH, $AUGUSTUS_CONFIG_PATH
+            );
+            $errorfile = "$errorfilesDir/randomSplit.stderr";
+            if ( $gb_good_size < 600 ) { # SET BACK TO 600!
+                $prtStr = "#*********\n"
+                        . "# WARNING: Number of reliable training genes is low ($gb_good_size). "
+                        . "Recommended are at least 600 genes\n"
+                        . "#*********\n";
+                print LOG $prtStr if ($v > 0);
+                print STDOUT $prtStr if ($v > 0);
+                $testsize1 = floor($gb_good_size/3);
+                $testsize2 = floor($gb_good_size/3);
+                if( $testsize1 == 0 or $testsize2 == 0 or ($gb_good_size - ($testsize1 + $testsize2)) == 0 ){
+                    $prtStr = "\# "
+                            . (localtime)
+                            . " ERROR: in file " . __FILE__ ." at line "
+                            . __LINE__ ."\nUnable to create three genbank"
+                            . "files for optimizing AUGUSTUS (number of LOCI "
+                            . "too low)! \n"
+                            . "\$testsize1 is $testsize1, \$testsize2 is "
+                            . "$testsize2, additional genes are "
+                            . ($gb_good_size - ($testsize1 + $testsize2))
+                            . "\nThe provided input data is not "
+                            . "sufficient for running galba.pl!\n";
+                    print LOG $prtStr;
+                    clean_abort("$AUGUSTUS_CONFIG_PATH/species/$species",
+                        $useexisting, $prtStr);
+                }
+            }elsif ( $gb_good_size >= 600 && $gb_good_size <= 1000 ) {
+                $testsize1 = 200;
+                $testsize2 = 200;
+            }else{
+                $testsize1 = 300;
+                $testsize2 = 300;
+            }
+            $perlCmdString = "";
+            if ($nice) {
+                $perlCmdString .= "nice ";
+            }
+            $perlCmdString
+                .= "$perl $string $otherfilesDir/train2.gb $testsize1 2>$errorfile";
+            print LOG "$perlCmdString\n" if ($v > 3);
+            system("$perlCmdString") == 0
+                or clean_abort("$AUGUSTUS_CONFIG_PATH/species/$species",
+                    $useexisting, "ERROR in file " . __FILE__ ." at line "
+                    . __LINE__ ."\nFailed to execute: $perlCmdString\n");
+            print LOG "\# "
+                        . (localtime)
+                        . ": $otherfilesDir/train2.gb.test will be used for "
+                        . "measuring AUGUSTUS accuracy after training\n" if ($v > 3);
+            if($v > 3) {
+                count_genes_in_gb_file("$otherfilesDir/train2.gb.test");
+                count_genes_in_gb_file("$otherfilesDir/train2.gb.train");
+            }
+            $perlCmdString = "";
+            if ($nice) {
+                $perlCmdString .= "nice ";
+            }
+            $perlCmdString .= "$perl $string $otherfilesDir/train2.gb.train $testsize2 2>$errorfile";
+            print LOG "$perlCmdString\n" if ($v > 3);
+            system("$perlCmdString") == 0
+                or clean_abort("$AUGUSTUS_CONFIG_PATH/species/$species",
+                    $useexisting, "ERROR in file " . __FILE__ ." at line "
+                    . __LINE__ ."\nFailed to execute: $perlCmdString\n");
 
+            if($v > 3) {
+                count_genes_in_gb_file("$otherfilesDir/train2.gb.train.train");
+                count_genes_in_gb_file("$otherfilesDir/train2.gb.train.test");
+            }
 
-#THIS IS WHERE I AM
+            print LOG "\# "
+                . (localtime)
+                . ": $otherfilesDir/train2.gb.train.test will be used or "
+                . "measuring AUGUSTUS accuracy during training with "
+                . "optimize_augustus.pl\n"
+                . " $otherfilesDir/train2.gb.train.train will be used for "
+                . "running etraining in optimize_augustus.pl (together with "
+                . "train2.gb.train.test)\n"
+                . " $otherfilesDir/train2.gb.train will be used for running "
+                . "etraining (outside of optimize_augustus.pl)\n" if ($v > 3);
+        }
+        # second etraining
+        $augpath    = "$AUGUSTUS_BIN_PATH/etraining";
+        $errorfile  = "$errorfilesDir/firstetraining.stderr";
+        $stdoutfile = "$otherfilesDir/firstetraining.stdout";
+        $cmdString = "";
+        if ($nice) {
+            $cmdString .= "nice ";
+        }
+        $cmdString .= "$augpath --species=$species --AUGUSTUS_CONFIG_PATH=$AUGUSTUS_CONFIG_PATH $otherfilesDir/train2.gb.train 1>$stdoutfile 2>$errorfile";
+        print LOG "\# " . (localtime) . ": first etraining\n" if ($v > 3);
+        print LOG "$cmdString\n" if ($v > 3);
+        system("$cmdString") == 0
+            or die("ERROR in file " . __FILE__ ." at line "
+                . __LINE__ ."\nFailed to execute $cmdString\n");
+        test_training_accuracy("second");
 
 
 
         # optimize parameters
         if ( !$skipoptimize ) {
             if (!uptodate(
-                    [   "$otherfilesDir/train.gb.train.train",
-                        "$otherfilesDir/train.gb.train.test"
+                    [   "$otherfilesDir/train2.gb.train.train",
+                        "$otherfilesDir/train2.gb.train.test"
                     ],
                     [   $AUGUSTUS_CONFIG_PATH
                             . "/species/$species/$species\_exon_probs.pbl",
@@ -4355,11 +4662,11 @@ sub training_augustus {
                                  . "--species=$species "
                                  . "--kfold=$k_fold "
                                  . "--AUGUSTUS_CONFIG_PATH=$AUGUSTUS_CONFIG_PATH "
-                                 . "--onlytrain=$otherfilesDir/train.gb.train.train ";
+                                 . "--onlytrain=$otherfilesDir/train2.gb.train.train ";
                 if($CPU > 1) {
                     $perlCmdString .= "--cpus=$k_fold ";
                 }
-                $perlCmdString  .= "$otherfilesDir/train.gb.train.test "
+                $perlCmdString  .= "$otherfilesDir/train2.gb.train.test "
                                 . "1>$stdoutfile 2>$errorfile";
                 print LOG "\# "
                     . (localtime)
@@ -4374,9 +4681,9 @@ sub training_augustus {
             }
         }
 
-        # train AUGUSTUS for the second time
+        # train AUGUSTUS for the third time
         if (!uptodate(
-                ["$otherfilesDir/train.gb.train"],
+                ["$otherfilesDir/train2.gb.train"],
                 ["$otherfilesDir/secondetraining.stdout"]
             )
             )
@@ -4390,9 +4697,9 @@ sub training_augustus {
             }
             $cmdString .= "$augpath --species=$species "
                        .  "--AUGUSTUS_CONFIG_PATH=$AUGUSTUS_CONFIG_PATH "
-                       .  "$otherfilesDir/train.gb.train 1>$stdoutfile "
+                       .  "$otherfilesDir/train2.gb.train 1>$stdoutfile "
                        .  "2>$errorfile";
-            print LOG "\# " . (localtime) . ": Second etraining\n" if ($v > 3);
+            print LOG "\# " . (localtime) . ": Third etraining\n" if ($v > 3);
             print LOG "$cmdString\n" if ($v > 3);
             system("$cmdString") == 0
                 or die("ERROR in file " . __FILE__ ." at line ". __LINE__
@@ -4400,8 +4707,9 @@ sub training_augustus {
         }
 
         # second test
-        test_training_accuracy("second");
+        test_training_accuracy("third");
 
+        # TODO: if iterative training turns out to be good: reduce train2.gb size, and adapt CRF to train2.gb
         # optional CRF training
         if ($crf) {
             if (!uptodate(
@@ -4737,6 +5045,7 @@ sub gtf2gb {
     print LOG "\# " . (localtime) . ": Converting gtf file $gtf to genbank "
         . "file\n" if ($v > 2);
     my $gb  = shift;
+    my $goodLst = shift;
     if( not( defined( $flanking_DNA ) ) ) {
         $flanking_DNA = compute_flanking_region($gtf);
     }
@@ -4763,7 +5072,11 @@ sub gtf2gb {
             $perlCmdString .= "nice ";
         }
         $perlCmdString
-            .= "$perl $string $gtf $genome $flanking_DNA $gb 2>$errorfile";
+            .= "$perl $string ";
+        if( not($goodLst =~ m/False/) ) {    
+            $perlCmdString .=  "--good $goodLst ";
+        }
+        $perlCmdString .= "$gtf $genome $flanking_DNA $gb 2>$errorfile";
         print LOG "\# " . (localtime) . ": create genbank file $gb\n"
             if ($v > 3);
         print LOG "$perlCmdString\n" if ($v > 3);
@@ -5527,4 +5840,116 @@ sub clean_up {
         my $loginfo = `$perlCmdString`;
         print LOG $loginfo;
     }
+}
+
+####################### summarize_hc_hints ###########################################
+# summarize hc.gff hints from miniprothint.py
+# input: hc.gff
+# output: appended to hintsfile.gff
+# last column will contain: grp=$grpID;src=C;pri=4;
+# splits each line of hc.gff at al_score=\d+; splice_sites=\w+; and appends the first
+# part of the line to an array in the hash of hashes $grps{lastpart}{@lines} 
+# with key last part of the line;
+# when hash is populated, print by keys the values of the hash of arrays, increment the
+# grpID by one for each hash entry
+####################### summarize_hc_hints ###########################################
+sub summarize_hc_hints{
+    my $hcfile = shift;
+    my $hfile = shift;
+    my %grps;
+    open(HC, "<", $hcfile) or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+        . "\nFailed to open file $hcfile!\n");
+    while(<HC>){
+        chomp;
+        # replace start_codon by start in gff file
+        $_ =~ s/\tstart_codon\t/\tstart\t/;
+        # replace stop_codon by stop in gff file
+        $_ =~ s/\tstop_codon\t/\tstop\t/;
+        if($_ =~ m/(.*)\tal_score=\d+\.\d+;.*(prots=[^;]*)/){
+            push(@{$grps{$2}}, $1);
+        }
+    }
+    close(HC) or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+        . "\nFailed to close file $hcfile!\n");
+    # loop over hash %grps
+    my $grpID = 1;
+    open(HFILE, ">>", $hfile) or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+        . "\nFailed to open file $hfile!\n");
+    while (my ($key, $value) = each %grps) {
+        foreach my $line (@{$value}){
+            print HFILE "$line\tgrp=chain_$grpID;src=C;pri=4;\n";
+        } 
+        $grpID++;
+    }
+    close(HFILE) or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+        . "\nFailed to close file $hfile!\n");
+}
+
+####################### summarize_lc_hints ###########################################
+# summarize miniprothint.gff hints from miniprothint.py
+# input: miniprothint.gff
+# output: appended to hintsfile.gff
+# last column will contain: mult=INT;src=P;pri=4;
+# INT is computed by counting the number of comma-separated strings in prots=([^;]+)
+####################### summarize_lc_hints ###########################################
+sub summarize_lc_hints{
+    my $lcfile = shift;
+    my $hfile = shift;
+    my %hints;
+    open(LC, "<", $lcfile) or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+        . "\nFailed to open file $lcfile!\n");
+    open(HFILE, ">>", $hfile) or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+        . "\nFailed to open file $hfile!\n");
+    while(<LC>){
+        chomp;
+        # replace start_codon by start in gff file
+        $_ =~ s/\tstart_codon\t/\tstart\t/;
+        # replace stop_codon by stop in gff file
+        $_ =~ s/\tstop_codon\t/\tstop\t/;
+        if($_ =~ m/(.*)\t.*prots=([^;]+);/){
+            my $firstPart = $1;
+            my $mult = () = $2 =~ /,/g;
+            $mult++;
+            print HFILE "$firstPart\tmult=$mult;src=P;pri=4;\n";
+        }
+    }
+    close(HFILE) or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+        . "\nFailed to close file $hfile!\n");
+    close(LC) or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+        . "\nFailed to close file $lcfile!\n");
+}
+
+####################### cds_hints_from_traingenes ####################################
+# extract CDSpart hints from traingenes.gtf
+# this is only a temporary solution until we have the best CDS chain
+# input: traingenes.gtf
+# output: appended to hintsfile.gff
+# last column will contain: grp=txid;src=C;pri=4;
+# CDSpart hints are padded by 15 bp
+####################### cds_hints_from_traingenes ####################################
+sub cds_hints_from_traingenes{
+    my $tgfile = shift;
+    my $hfile = shift;
+    open(TGTF, "<", $tgfile) or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+        . "\nFailed to open file $tgfile!\n");
+    open(HFILE, ">>", $hfile) or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+        . "\nFailed to open file $hfile!\n");
+    while(<TGTF>){
+        chomp;
+        if($_ =~ m/.*\tCDS\t.*/){
+            my @a = split(/\t/, $_);
+            my $grp = $a[8];
+            $grp =~ s/.*transcript_id \"([^"]+)\".*/$1/;
+            my $start = $a[3] + 15;
+            my $end = $a[4] - 15;
+            if ( $start > $end ) {
+                $start = $end = int( ( $start + $end ) / 2 );
+            }
+            print HFILE "$a[0]\t$a[1]\tCDSpart\t".$start."\t".$end."\t$a[5]\t$a[6]\t$a[7]\tgrp=$grp;src=C;pri=4;\n";
+        }
+    }
+    close(HFILE) or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+        . "\nFailed to close file $hfile!\n");
+    close(TGTF) or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+        . "\nFailed to close file $tgfile!\n");
 }

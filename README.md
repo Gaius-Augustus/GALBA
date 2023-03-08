@@ -13,7 +13,7 @@ Katharina J. Hoff, University of Greifswald, Germany, katharina.hoff@uni-greifsw
 Authors of GALBA
 ================
 
-Katharina J. Hoff<sup name="aff1">[a, ](#aff1)</sup><sup name="aff2">[b](#aff2)</sup>, Heng Li<sup name="aff3">[c, ](#aff3)</sup><sup name="aff4">[d ](#aff4)</sup>, Lars Gabriel<sup name="aff1">[a, ](#aff1)</sup><sup name="aff2">[b](#aff2)</sup>, and Mario Stanke<sup name="aff1">[a, ](#aff1)</sup><sup name="aff2">[b](#aff2)</sup>
+Katharina J. Hoff<sup name="aff1">[a, ](#aff1)</sup><sup name="aff2">[b](#aff2)</sup>, Heng Li<sup name="aff3">[c, ](#aff3)</sup><sup name="aff4">[d ](#aff4)</sup>, Tomas Bruna<sup name="aff5">[e, ](#aff1)</sup><sup name="aff5">[b](#aff5)</sup>, Lars Gabriel<sup name="aff1">[a, ](#aff1)</sup><sup name="aff2">[b](#aff2)</sup>, and Mario Stanke<sup name="aff1">[a, ](#aff1)</sup><sup name="aff2">[b](#aff2)</sup>
 
 <b id="aff1">[a]</b> University of Greifswald, Institute for Mathematics and Computer Science, Walther-Rathenau-Str. 47, 17489 Greifswald, Germany
 
@@ -22,6 +22,8 @@ Katharina J. Hoff<sup name="aff1">[a, ](#aff1)</sup><sup name="aff2">[b](#aff2)<
 <b id="aff3">[c]</b> Dana-Farber Cancer Institute, 450 Brookline Ave, Boston, MA 02215, USA
 
 <b id="aff4">[d]</b> Harvard Medical School, 10 Shattuck St, Boston, MA 02215, USA
+
+<b id="aff5">[e]</b> Joint Genome Institute, Lawrence Berkeley National Laboratory, USA
 
 Acknowledgements
 ===============
@@ -170,6 +172,10 @@ At the time of release, this GALBA version was tested with:
 -   cdbfasta 0.99
 
 -   cdbyank 0.981
+
+-   miniprot-boundary-scorer
+
+-   Miniprothint
 
 GALBA
 -------
@@ -340,7 +346,7 @@ This tool is required for parallelization of Augustus. Install Pygustus (<https:
 pip install pygustus
 ```
 
-Important: this version of GALBA relies on pygustus 0.8.0-alpha. It will not be compatible with older versions.
+Important: this version of GALBA relies on pygustus 0.8.3-alpha. It will not be compatible with older versions.
 
 #### Miniprot
 
@@ -353,6 +359,28 @@ make
 ```
 
 GALBA will try to locate the Miniprot executable by using an environment variable `$MINIPROT_PATH`. Alternatively, this can be supplied as command line argument (`--MINIPROT_PATH=/your/path/to/miniprot/`).
+
+#### miniprot-boundary-scorer
+
+This tool is only required, if you would like to run protein to genome alignments with GALBA using Miniprot. Download miniprot-boundary-scorer from <https://github.com/tomasbruna/miniprot-boundary-scorer>:
+
+```
+git clone https://github.com/tomasbruna/miniprot-boundary-scorer.git
+cd miniprot-boundary-scorer
+make
+```
+
+GALBA will try to locate the miniprot-boundary-scorer executable by using an environment variable `$SCORER_PATH`. Alternatively, this can be supplied as command line argument (`--SCORER_PATH=/your/path/to/miniprot-boudary-scorer/`).
+
+#### miniprotprothint
+
+This tool is only required, if you would like to run protein to genome alignments with GALBA using Miniprot. Download miniprothint from <https://github.com/tomasbruna/miniprothint>:
+
+```
+git clone https://github.com/tomasbruna/miniprothint.git
+```
+
+GALBA will try to locate the miniprothint.py executable by using an environment variable `$MINIPROTHINT_PATH`. Alternatively, this can be supplied as command line argument (`--MINIPROTHINT_PATH=/your/path/to/miniprothint/`).
 
 #### GenomeThreader
 
