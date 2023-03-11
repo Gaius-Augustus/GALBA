@@ -213,6 +213,10 @@ open( ALN,   "<$alignfile" )     or die("Cannot open file: $alignfile\n");
 open( HINTS, ">$hintsfilename" ) or die("Cannot open file: $hintsfilename");
 
 while (<ALN>) {
+    # skip if line contain star symbol
+    if( m/\*/ ) {
+        next;
+    }
     chomp;
     my @f = split( /\t/, $_ );
     next unless ( scalar(@f) >= 8 );
