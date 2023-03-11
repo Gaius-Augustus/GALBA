@@ -2501,10 +2501,6 @@ sub check_upfront {
         $AUGUSTUS_SCRIPTS_PATH, $AUGUSTUS_CONFIG_PATH
     );
     find(
-        "join_aug_pred.pl",     $AUGUSTUS_BIN_PATH,
-        $AUGUSTUS_SCRIPTS_PATH, $AUGUSTUS_CONFIG_PATH
-    );
-    find(
         "getAnnoFastaFromJoingenes.py", $AUGUSTUS_BIN_PATH,
         $AUGUSTUS_SCRIPTS_PATH, $AUGUSTUS_CONFIG_PATH
       );
@@ -5263,104 +5259,6 @@ sub assign_ex_cfg {
                 . "#*********\n";
         $logString .= $prtStr if ($v > 0);
         $extrinsicCfgFile = undef;
-    }
-}
-
-####################### join_aug_pred ##########################################
-# * join AUGUSTUS predictions from parallelized job execution
-################################################################################
-
-sub join_aug_pred {
-    my $pred_dir    = shift;
-    print LOG "\# " . (localtime) . ": Joining AUGUSTUS predictions in "
-        . "directory $pred_dir\n" if ($v > 2);
-    my $target_file = shift;
-    $string = find(
-        "join_aug_pred.pl",     $AUGUSTUS_BIN_PATH,
-        $AUGUSTUS_SCRIPTS_PATH, $AUGUSTUS_CONFIG_PATH);
-    my $n = 1;
-    while (-e "$otherfilesDir/augustus.tmp${n}.gff") {
-        $n += 1;
-    }
-    my $cat_file = "$otherfilesDir/augustus.tmp${n}.gff";
-    my @t = split(/\//, $pred_dir);
-    $t[scalar(@t)-1] =~ s/\///;
-    my $error_cat_file = "$errorfilesDir/augustus_".$t[scalar(@t)-1].".err";
-    print LOG "\# " . (localtime)
-        . ": Concatenating AUGUSTUS output files in $pred_dir\n" if ($v > 3);
-    opendir( DIR, $pred_dir ) or die("ERROR in file " . __FILE__ ." at line "
-        . __LINE__ ."\nFailed to open directory $pred_dir!\n");
-    # need to concatenate gff files in the correct order along chromosomes for
-    # join_aug_pred.pl
-    my %gff_files;
-    my %err_files;
-    while ( my $file = readdir(DIR) ) {
-        my %fileinfo;
-        if ( $file =~ m/\d+\.\d+\.(.*)\.(\d+)\.\.\d+\.gff/ ) {
-            $fileinfo{'start'} = $2;
-            $fileinfo{'filename'} = $file;
-            push @{$gff_files{$1}}, \%fileinfo;
-        }elsif ( $file =~ m/\d+\.\d+\.(.*)\.(\d+)\.\.\d+\.err/ ){
-            $fileinfo{'start'} = $2;
-            $fileinfo{'filename'} = $file;
-            push @{$err_files{$1}}, \%fileinfo;
-        }
-    }
-    foreach(keys %gff_files){
-        @{$gff_files{$_}} = sort { $a->{'start'} <=> $b->{'start'}} @{$gff_files{$_}};
-    }
-    foreach(keys %err_files){
-        @{$gff_files{$_}} = sort { $a->{'start'} <=> $b->{'start'}} @{$gff_files{$_}};
-    }
-    foreach(keys %gff_files){
-        foreach(@{$gff_files{$_}}){
-            $cmdString = "";
-            if ($nice) {
-                $cmdString .= "nice ";
-            }
-            $cmdString .= "cat $pred_dir/".$_->{'filename'}." >> $cat_file";
-            print LOG "$cmdString\n" if ($v > 3);
-            system("$cmdString") == 0 or die("ERROR in file " . __FILE__
-                . " at line ". __LINE__ ."\nFailed to execute $cmdString\n");
-        }
-    }
-    foreach(keys %err_files){
-        foreach(@{$err_files{$_}}){
-            if ( -s $_ ) {
-                $cmdString = "echo \"Contents of file ".$_->{'filename'}."\" >> $error_cat_file";
-                print LOG "$cmdString\n" if ($v > 3);
-                system ("$cmdString") == 0 or die ("ERROR in file " . __FILE__
-                    ." at line ". __LINE__ ."\nFailed to execute $cmdString\n");
-                $cmdString = "";
-                if ($nice) {
-                    $cmdString .= "nice ";
-                }
-                $cmdString .= "cat $pred_dir/".$_->{'filename'}." >> $error_cat_file";
-                print LOG "$cmdString\n" if ($v > 3);
-                system("$cmdString") == 0 or die("ERROR in file " . __FILE__
-                    ." at line ". __LINE__ ."\nFailed to execute $cmdString\n");
-            }
-        }
-    }
-
-    closedir(DIR) or die ("ERROR in file " . __FILE__ ." at line "
-        . __LINE__ ."\nFailed to close directory $pred_dir\n");
-
-    $perlCmdString = "";
-    if ($nice) {
-        $perlCmdString .= "nice ";
-    }
-    $perlCmdString .= "$perl $string < $cat_file > $target_file";
-    print LOG "$perlCmdString\n" if ($v > 3);
-    system("$perlCmdString") == 0
-        or die("ERROR in file " . __FILE__ ." at line ". __LINE__
-            ."\nFailed to execute $perlCmdString\n");
-    if($cleanup){
-        print LOG "\# " . (localtime) . ": Deleting $pred_dir\n" if ($v > 3);
-        rmtree( ["$pred_dir"] ) or die ("ERROR in file " . __FILE__ ." at line "
-            . __LINE__ ."\nFailed to delete $pred_dir!\n");
-        print LOG "\# " . (localtime) . ": Deleting $cat_file\n" if ($v > 3);
-        unlink($cat_file);
     }
 }
 
