@@ -1032,6 +1032,12 @@ sub set_AUGUSTUS_CONFIG_PATH {
         print STDERR $logString;
         exit(1);
     }
+
+    # fix typo in augustus parameters json file for current pygustus if necessary
+    # TODO: remove when it's safe to assume that all users have the fixed version
+    if( -e $AUGUSTUS_CONFIG_PATH."/parameters/aug_cmdln_parameters.json"){
+        fix_pygustus_json($AUGUSTUS_CONFIG_PATH."/parameters/aug_cmdln_parameters.json");
+    }
 }
 
 ####################### set_AUGUSTUS_BIN_PATH ##################################
@@ -1089,7 +1095,7 @@ sub set_AUGUSTUS_BIN_PATH {
         }
     }
 
-    # if both failed, try to guess
+    # if both above failed, try to guess
     if ( not( defined($AUGUSTUS_BIN_PATH) )
         || length($AUGUSTUS_BIN_PATH) == 0 )
     {
@@ -1112,6 +1118,38 @@ sub set_AUGUSTUS_BIN_PATH {
                 . "# WARNING: Guessing the location of "
                 . "\$AUGUSTUS_BIN_PATH failed. $AUGUSTUS_CONFIG_PATH/../bin is "
                 . "not a directory!\n"
+                . "#*********\n";
+            $logString .= $prtStr if ($v > 0);
+        }
+    }
+
+    # if all above failed, try via which
+    if ( not( defined($AUGUSTUS_BIN_PATH) )
+        || length($AUGUSTUS_BIN_PATH) == 0 )
+    {
+        $prtStr
+            = "\# "
+            . (localtime)
+            . ": Trying to guess \$AUGUSTUS_BIN_PATH from location of augustus"
+            . " executable that is available in your \$PATH\n";
+        $logString .= $prtStr if ($v > 1);
+        my $epath = which 'augustus';
+        if(defined($epath)){
+            if ( -d dirname($epath) ) {
+                $prtStr
+                    = "\# "
+                    . (localtime)
+                    . ": Setting \$AUGUSTUS_BIN_PATH to "
+                    . dirname($epath) . "\n";
+                $logString .= $prtStr if ($v > 1);
+                $AUGUSTUS_BIN_PATH = dirname($epath);
+            }
+        }
+        else {
+            $prtStr
+                = "#*********\n"
+                . "WARNING: Guessing the location of \$AUGUSTUS_BIN_PATH "
+                . "failed.\n"
                 . "#*********\n";
             $logString .= $prtStr if ($v > 0);
         }
@@ -5850,4 +5888,28 @@ sub cds_hints_from_traingenes{
         . "\nFailed to close file $hfile!\n");
     close(TGTF) or die("ERROR in file " . __FILE__ ." at line ". __LINE__
         . "\nFailed to close file $tgfile!\n");
+}
+
+################################ fix_pygustus_json ##################################
+# the "old" json file in $AUGUSTUS_CONFIG_PATH contains a severe typo that makes
+# the current pygustus crash. We here simply fix that typo by search/replace
+# TODO: remove function once we believe it's safe
+#####################################################################################
+
+sub fix_pygustus_json {
+    my $jsonfile = shift;
+    open( JSON, "<", $jsonfile ) or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+        . "\nFailed to open file $jsonfile!\n");
+    my $json = "";
+    while (<JSON>) {
+        $json .= $_;
+    }
+    close(JSON) or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+        . "\nFailed to close file $jsonfile!\n");
+    $json =~ s/partitionLargeSeqeunces/partitionLargeSequences/;
+    open( JSON, ">", $jsonfile ) or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+        . "\nFailed to open file $jsonfile!\n");
+    print JSON $json;
+    close(JSON) or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+        . "\nFailed to close file $jsonfile!\n");
 }
