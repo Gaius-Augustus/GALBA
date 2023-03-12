@@ -114,7 +114,7 @@ Singularity Image
 
 The easiest way to run GALBA is using singuarlity. We provide a docker container to build a singularity image (tested with singularity version 3.10.0-dirty). **We only include Miniprot in Docker & Singularity!** GenomeThreader is not included.
 
-Build as follows (requires 1.2 GB disk space):
+Build as follows (requires 1.4 GB disk space):
 
 ```
 singularity build galba.sif docker://katharinahoff/galba-notebook:latest
@@ -125,23 +125,6 @@ Execute GALBA from galba.sif like this (i.e. it automatically mounts the user's 
 ```
 singularity exec galba.sif galba.pl
 ```
-
-Known issue with partitionLargeSeqeunces or partitionLargeSequences
--------------------------------------------------------------------
-
-The AUGUSTUS developers team is currenlty transitioning between versions. One (very minor) change in Augustus is that we fixed a typo in the term "partionLargeSeqeunces (which is now of course partitionLargeSequences). It is a Pygustus argument. Pygustus looks for possible arguments in two places: if there is no json file with the required parameters in the $AUGUSTUS_CONFIG_PATH/parameters, then it uses its own (typo-fixed) json file. If it does find the json file in the $AUGUSTUS_CONFIG_PATH/parameters folder, then it uses that file, and it depends on what age that file has on your system whether our latest-tagged image will work, or not. The latest-tagged image will work for the older (mis-spelled) json file.
-
-If the image built from docker://katharinahoff/galba-notebook:latest dies at pygustus execution, please build the image from a different tag:
-
-```
-singularity build galba.sif docker://katharinahoff/galba-notebook:pygustusbug
-```
-
-and then try execution, again.
-
-In general, the tag docker://katharinahoff/galba-notebook:pygustusbug will probably work on all systems that do not have an older json file in the $AUGUSTUS_CONFIG_PATH/parameters folder.
-
-We will try to put some safeguards into the galba.pl code, later. Right now, you need to simply test which of the two tags works for your system.
 
 Running GALBA in Singularity outside of $HOME
 ---------------------------------------------

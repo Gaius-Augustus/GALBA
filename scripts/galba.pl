@@ -1155,7 +1155,7 @@ sub set_AUGUSTUS_BIN_PATH {
         }
     }
 
-    if ( not( defined($AUGUSTUS_BIN_PATH) ) ) {
+    if( not( defined($AUGUSTUS_BIN_PATH) ) ) {
         my $aug_bin_err;
         $aug_bin_err
             .= "There are 3 alternative ways to set this variable for\n"
@@ -1177,7 +1177,7 @@ sub set_AUGUSTUS_BIN_PATH {
             . "      executable that is available in your \$PATH\n"
             . "      (in this case, the augustus executable is not available).\n";
         $prtStr = "\# " . (localtime) . ": ERROR: in file " . __FILE__
-            . " at line ". __LINE__ . "\n" . "\$AUGUSTUS_BIN_PATH not set!\n";
+            . " at line ". __LINE__ . "\n\$AUGUSTUS_BIN_PATH not set!\n";
         $logString .= $prtStr;
         $logString .= $aug_bin_err if ($v > 0);
         print STDERR $logString;
@@ -3323,7 +3323,7 @@ sub make_prot_hints {
                 }
                 # Currently running miniprot twice, the first run only serves training gene generation
                 $cmdString
-                    .= "$prot_aligner -ut$CPU --outn=1 --gtf $otherfilesDir/genome.mpi $prot_seq_files[$i] >> $alignment_outfile ";
+                    .= "$prot_aligner -ut$CPU --outn=1 --gtf $otherfilesDir/genome.mpi $prot_seq_files[$i] >> $alignment_outfile 2>> $errorfile";
                 print LOG "\# "
                     . (localtime)
                     . ": running Miniprot to produce protein to "
@@ -3460,7 +3460,7 @@ sub make_prot_hints {
 
             # Currently running miniprot twice, the first run only serves training gene generation, the second shall produce the actual hints
             $cmdString
-                .= "$prot_aligner -ut$CPU --outn=1 --aln $otherfilesDir/genome.mpi $prot_seq_files[$i] >> $miniprot_aln_file ";
+                .= "$prot_aligner -ut$CPU --outn=1 --aln $otherfilesDir/genome.mpi $prot_seq_files[$i] >> $miniprot_aln_file 2>> $errorfile";
             print LOG "\# "
                 . (localtime)
                 . ": running Miniprot to produce protein to "
