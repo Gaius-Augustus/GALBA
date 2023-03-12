@@ -1171,7 +1171,11 @@ sub set_AUGUSTUS_BIN_PATH {
             . "   c) galba.pl can try guessing the location of \n"
             . "      \$AUGUSTUS_BIN_PATH from the location of \n"
             . "      \$AUGUSTUS_CONFIG_PATH (in this case\n"
-            . "      $AUGUSTUS_CONFIG_PATH/../bin\n";
+            . "      $AUGUSTUS_CONFIG_PATH/../bin)\n"
+            . "   d) galba.pl can try guessing the location of \n"
+            . "      \$AUGUSTUS_BIN_PATH from the location of the augustus\n"
+            . "      executable that is available in your \$PATH\n"
+            . "      (in this case, the augustus executable is not available).\n";
         $prtStr = "\# " . (localtime) . ": ERROR: in file " . __FILE__
             . " at line ". __LINE__ . "\n" . "\$AUGUSTUS_BIN_PATH not set!\n";
         $logString .= $prtStr;
