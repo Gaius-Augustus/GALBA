@@ -4471,7 +4471,7 @@ sub training_augustus {
             $ab_initio = 0;
         }
         # run augustus on full genome with hints
-        augustus();
+        augustus("alt_off");
         if($remember){
             $ab_initio = 1;
         }
@@ -5098,6 +5098,7 @@ sub gtf2gb {
 ################################################################################
 
 sub augustus {
+    my $alt_off = shift; # disable alternative transcript prediction for iterative training prediction run
     print LOG "\# " . (localtime) . ": RUNNING AUGUSTUS\n" if ($v > 2);
 
     print CITE $pubs{'aug-hmm'}; $pubs{'aug-hmm'} = "";
@@ -5170,9 +5171,11 @@ sub augustus {
               ."augargs = {'exonnames' : 1, 'codingseq' : 1, "
               ."'allow_hinted_splicesites': ['gcag','atac'], 'softmasking' : True, "
               ."'hintsfile' : '$otherfilesDir/hintsfile.gff', "
-              ."'alternatives-from-evidence' : $alternatives_from_evidence, "
               ."'extrinsicCfgFile' : '$extrinsicCfgFile', "
               ."'outfile' : '$otherfilesDir/augustus.hints.gff'";
+    if ( not($alt_off =~ m/alt_off/) ) {
+        print AUGH ", 'alternatives-from-evidence' : $alternatives_from_evidence";
+    }
     if ( defined($optCfgFile) ) {
         print AUGH ", 'optCfgFile' : '$optCfgFile'";
     }
