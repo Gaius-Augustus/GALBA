@@ -245,7 +245,7 @@ ENDUSAGE
 # Declartion of global variables ###############################################
 
 my $v = 4; # determines what is printed to log
-my $version = "1.0.1";
+my $version = "1.0.3";
 my $rootDir;
 my $logString = "";          # stores log messages produced before opening log file
 $logString .= "\#**********************************************************************************\n";
@@ -1032,6 +1032,12 @@ sub set_AUGUSTUS_CONFIG_PATH {
         print STDERR $logString;
         exit(1);
     }
+
+    # fix typo in augustus parameters json file for current pygustus if necessary
+    # TODO: remove when it's safe to assume that all users have the fixed version
+    if( -e $AUGUSTUS_CONFIG_PATH."/parameters/aug_cmdln_parameters.json"){
+        fix_pygustus_json($AUGUSTUS_CONFIG_PATH."/parameters/aug_cmdln_parameters.json");
+    }
 }
 
 ####################### set_AUGUSTUS_BIN_PATH ##################################
@@ -1089,7 +1095,7 @@ sub set_AUGUSTUS_BIN_PATH {
         }
     }
 
-    # if both failed, try to guess
+    # if both above failed, try to guess
     if ( not( defined($AUGUSTUS_BIN_PATH) )
         || length($AUGUSTUS_BIN_PATH) == 0 )
     {
@@ -1117,7 +1123,39 @@ sub set_AUGUSTUS_BIN_PATH {
         }
     }
 
-    if ( not( defined($AUGUSTUS_BIN_PATH) ) ) {
+    # if all above failed, try via which
+    if ( not( defined($AUGUSTUS_BIN_PATH) )
+        || length($AUGUSTUS_BIN_PATH) == 0 )
+    {
+        $prtStr
+            = "\# "
+            . (localtime)
+            . ": Trying to guess \$AUGUSTUS_BIN_PATH from location of augustus"
+            . " executable that is available in your \$PATH\n";
+        $logString .= $prtStr if ($v > 1);
+        my $epath = which 'augustus';
+        if(defined($epath)){
+            if ( -d dirname($epath) ) {
+                $prtStr
+                    = "\# "
+                    . (localtime)
+                    . ": Setting \$AUGUSTUS_BIN_PATH to "
+                    . dirname($epath) . "\n";
+                $logString .= $prtStr if ($v > 1);
+                $AUGUSTUS_BIN_PATH = dirname($epath);
+            }
+        }
+        else {
+            $prtStr
+                = "#*********\n"
+                . "WARNING: Guessing the location of \$AUGUSTUS_BIN_PATH "
+                . "failed.\n"
+                . "#*********\n";
+            $logString .= $prtStr if ($v > 0);
+        }
+    }
+
+    if( not( defined($AUGUSTUS_BIN_PATH) ) ) {
         my $aug_bin_err;
         $aug_bin_err
             .= "There are 3 alternative ways to set this variable for\n"
@@ -1133,9 +1171,13 @@ sub set_AUGUSTUS_BIN_PATH {
             . "   c) galba.pl can try guessing the location of \n"
             . "      \$AUGUSTUS_BIN_PATH from the location of \n"
             . "      \$AUGUSTUS_CONFIG_PATH (in this case\n"
-            . "      $AUGUSTUS_CONFIG_PATH/../bin\n";
+            . "      $AUGUSTUS_CONFIG_PATH/../bin)\n"
+            . "   d) galba.pl can try guessing the location of \n"
+            . "      \$AUGUSTUS_BIN_PATH from the location of the augustus\n"
+            . "      executable that is available in your \$PATH\n"
+            . "      (in this case, the augustus executable is not available).\n";
         $prtStr = "\# " . (localtime) . ": ERROR: in file " . __FILE__
-            . " at line ". __LINE__ . "\n" . "\$AUGUSTUS_BIN_PATH not set!\n";
+            . " at line ". __LINE__ . "\n\$AUGUSTUS_BIN_PATH not set!\n";
         $logString .= $prtStr;
         $logString .= $aug_bin_err if ($v > 0);
         print STDERR $logString;
@@ -2501,10 +2543,6 @@ sub check_upfront {
         $AUGUSTUS_SCRIPTS_PATH, $AUGUSTUS_CONFIG_PATH
     );
     find(
-        "join_aug_pred.pl",     $AUGUSTUS_BIN_PATH,
-        $AUGUSTUS_SCRIPTS_PATH, $AUGUSTUS_CONFIG_PATH
-    );
-    find(
         "getAnnoFastaFromJoingenes.py", $AUGUSTUS_BIN_PATH,
         $AUGUSTUS_SCRIPTS_PATH, $AUGUSTUS_CONFIG_PATH
       );
@@ -3285,7 +3323,7 @@ sub make_prot_hints {
                 }
                 # Currently running miniprot twice, the first run only serves training gene generation
                 $cmdString
-                    .= "$prot_aligner -ut$CPU --outn=1 --gtf $otherfilesDir/genome.mpi $prot_seq_files[$i] >> $alignment_outfile ";
+                    .= "$prot_aligner -ut$CPU --outn=1 --gtf $otherfilesDir/genome.mpi $prot_seq_files[$i] >> $alignment_outfile 2>> $errorfile";
                 print LOG "\# "
                     . (localtime)
                     . ": running Miniprot to produce protein to "
@@ -3422,7 +3460,7 @@ sub make_prot_hints {
 
             # Currently running miniprot twice, the first run only serves training gene generation, the second shall produce the actual hints
             $cmdString
-                .= "$prot_aligner -ut$CPU --outn=1 --aln $otherfilesDir/genome.mpi $prot_seq_files[$i] >> $miniprot_aln_file ";
+                .= "$prot_aligner -ut$CPU --outn=1 --aln $otherfilesDir/genome.mpi $prot_seq_files[$i] >> $miniprot_aln_file 2>> $errorfile";
             print LOG "\# "
                 . (localtime)
                 . ": running Miniprot to produce protein to "
@@ -5266,104 +5304,6 @@ sub assign_ex_cfg {
     }
 }
 
-####################### join_aug_pred ##########################################
-# * join AUGUSTUS predictions from parallelized job execution
-################################################################################
-
-sub join_aug_pred {
-    my $pred_dir    = shift;
-    print LOG "\# " . (localtime) . ": Joining AUGUSTUS predictions in "
-        . "directory $pred_dir\n" if ($v > 2);
-    my $target_file = shift;
-    $string = find(
-        "join_aug_pred.pl",     $AUGUSTUS_BIN_PATH,
-        $AUGUSTUS_SCRIPTS_PATH, $AUGUSTUS_CONFIG_PATH);
-    my $n = 1;
-    while (-e "$otherfilesDir/augustus.tmp${n}.gff") {
-        $n += 1;
-    }
-    my $cat_file = "$otherfilesDir/augustus.tmp${n}.gff";
-    my @t = split(/\//, $pred_dir);
-    $t[scalar(@t)-1] =~ s/\///;
-    my $error_cat_file = "$errorfilesDir/augustus_".$t[scalar(@t)-1].".err";
-    print LOG "\# " . (localtime)
-        . ": Concatenating AUGUSTUS output files in $pred_dir\n" if ($v > 3);
-    opendir( DIR, $pred_dir ) or die("ERROR in file " . __FILE__ ." at line "
-        . __LINE__ ."\nFailed to open directory $pred_dir!\n");
-    # need to concatenate gff files in the correct order along chromosomes for
-    # join_aug_pred.pl
-    my %gff_files;
-    my %err_files;
-    while ( my $file = readdir(DIR) ) {
-        my %fileinfo;
-        if ( $file =~ m/\d+\.\d+\.(.*)\.(\d+)\.\.\d+\.gff/ ) {
-            $fileinfo{'start'} = $2;
-            $fileinfo{'filename'} = $file;
-            push @{$gff_files{$1}}, \%fileinfo;
-        }elsif ( $file =~ m/\d+\.\d+\.(.*)\.(\d+)\.\.\d+\.err/ ){
-            $fileinfo{'start'} = $2;
-            $fileinfo{'filename'} = $file;
-            push @{$err_files{$1}}, \%fileinfo;
-        }
-    }
-    foreach(keys %gff_files){
-        @{$gff_files{$_}} = sort { $a->{'start'} <=> $b->{'start'}} @{$gff_files{$_}};
-    }
-    foreach(keys %err_files){
-        @{$gff_files{$_}} = sort { $a->{'start'} <=> $b->{'start'}} @{$gff_files{$_}};
-    }
-    foreach(keys %gff_files){
-        foreach(@{$gff_files{$_}}){
-            $cmdString = "";
-            if ($nice) {
-                $cmdString .= "nice ";
-            }
-            $cmdString .= "cat $pred_dir/".$_->{'filename'}." >> $cat_file";
-            print LOG "$cmdString\n" if ($v > 3);
-            system("$cmdString") == 0 or die("ERROR in file " . __FILE__
-                . " at line ". __LINE__ ."\nFailed to execute $cmdString\n");
-        }
-    }
-    foreach(keys %err_files){
-        foreach(@{$err_files{$_}}){
-            if ( -s $_ ) {
-                $cmdString = "echo \"Contents of file ".$_->{'filename'}."\" >> $error_cat_file";
-                print LOG "$cmdString\n" if ($v > 3);
-                system ("$cmdString") == 0 or die ("ERROR in file " . __FILE__
-                    ." at line ". __LINE__ ."\nFailed to execute $cmdString\n");
-                $cmdString = "";
-                if ($nice) {
-                    $cmdString .= "nice ";
-                }
-                $cmdString .= "cat $pred_dir/".$_->{'filename'}." >> $error_cat_file";
-                print LOG "$cmdString\n" if ($v > 3);
-                system("$cmdString") == 0 or die("ERROR in file " . __FILE__
-                    ." at line ". __LINE__ ."\nFailed to execute $cmdString\n");
-            }
-        }
-    }
-
-    closedir(DIR) or die ("ERROR in file " . __FILE__ ." at line "
-        . __LINE__ ."\nFailed to close directory $pred_dir\n");
-
-    $perlCmdString = "";
-    if ($nice) {
-        $perlCmdString .= "nice ";
-    }
-    $perlCmdString .= "$perl $string < $cat_file > $target_file";
-    print LOG "$perlCmdString\n" if ($v > 3);
-    system("$perlCmdString") == 0
-        or die("ERROR in file " . __FILE__ ." at line ". __LINE__
-            ."\nFailed to execute $perlCmdString\n");
-    if($cleanup){
-        print LOG "\# " . (localtime) . ": Deleting $pred_dir\n" if ($v > 3);
-        rmtree( ["$pred_dir"] ) or die ("ERROR in file " . __FILE__ ." at line "
-            . __LINE__ ."\nFailed to delete $pred_dir!\n");
-        print LOG "\# " . (localtime) . ": Deleting $cat_file\n" if ($v > 3);
-        unlink($cat_file);
-    }
-}
-
 ####################### copy_ex_cfg ############################################
 # * copy the extrinsic config file to GALBA working directory
 ################################################################################
@@ -5952,4 +5892,28 @@ sub cds_hints_from_traingenes{
         . "\nFailed to close file $hfile!\n");
     close(TGTF) or die("ERROR in file " . __FILE__ ." at line ". __LINE__
         . "\nFailed to close file $tgfile!\n");
+}
+
+################################ fix_pygustus_json ##################################
+# the "old" json file in $AUGUSTUS_CONFIG_PATH contains a severe typo that makes
+# the current pygustus crash. We here simply fix that typo by search/replace
+# TODO: remove function once we believe it's safe
+#####################################################################################
+
+sub fix_pygustus_json {
+    my $jsonfile = shift;
+    open( JSON, "<", $jsonfile ) or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+        . "\nFailed to open file $jsonfile!\n");
+    my $json = "";
+    while (<JSON>) {
+        $json .= $_;
+    }
+    close(JSON) or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+        . "\nFailed to close file $jsonfile!\n");
+    $json =~ s/partitionLargeSeqeunces/partitionLargeSequences/;
+    open( JSON, ">", $jsonfile ) or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+        . "\nFailed to open file $jsonfile!\n");
+    print JSON $json;
+    close(JSON) or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+        . "\nFailed to close file $jsonfile!\n");
 }
