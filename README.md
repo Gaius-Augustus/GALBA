@@ -2,8 +2,6 @@
 
 ![Docker Pulls](https://img.shields.io/docker/pulls/katharinahoff/galba-notebook)
 
-:warning: If you pulled from dockerhub between 24th and 28th of February, you may want to upgrade your container to the latest version, as soon as possible. There were a couple of serious bugs with the Pygustus integration... apologies. It has been fixed.
-
 <u>Contact for Github Repository of GALBA at
 https://github.com/Gaius-Augustus/GALBA:</u>
 
@@ -13,7 +11,7 @@ Katharina J. Hoff, University of Greifswald, Germany, katharina.hoff@uni-greifsw
 Authors of GALBA
 ================
 
-Katharina J. Hoff<sup name="aff1">[a, ](#aff1)</sup><sup name="aff2">[b](#aff2)</sup>, Heng Li<sup name="aff3">[c, ](#aff3)</sup><sup name="aff4">[d ](#aff4)</sup>, Tomas Bruna<sup name="aff5">[e, ](#aff1)</sup><sup name="aff5">[b](#aff5)</sup>, Lars Gabriel<sup name="aff1">[a, ](#aff1)</sup><sup name="aff2">[b](#aff2)</sup>, and Mario Stanke<sup name="aff1">[a, ](#aff1)</sup><sup name="aff2">[b](#aff2)</sup>
+Katharina J. Hoff<sup name="aff1">[a, ](#aff1)</sup><sup name="aff2">[b](#aff2)</sup>, Heng Li<sup name="aff3">[c, ](#aff3)</sup><sup name="aff4">[d ](#aff4)</sup>, Tomas Bruna<sup name="aff5">[e](#aff1)</sup>, Lars Gabriel<sup name="aff1">[a, ](#aff1)</sup><sup name="aff2">[b](#aff2)</sup>, and Mario Stanke<sup name="aff1">[a, ](#aff1)</sup><sup name="aff2">[b](#aff2)</sup>
 
 <b id="aff1">[a]</b> University of Greifswald, Institute for Mathematics and Computer Science, Walther-Rathenau-Str. 47, 17489 Greifswald, Germany
 
@@ -116,7 +114,7 @@ Singularity Image
 
 The easiest way to run GALBA is using singuarlity. We provide a docker container to build a singularity image (tested with singularity version 3.10.0-dirty). **We only include Miniprot in Docker & Singularity!** GenomeThreader is not included.
 
-Build as follows (requires 1.2 GB disk space):
+Build as follows (requires 1.4 GB disk space):
 
 ```
 singularity build galba.sif docker://katharinahoff/galba-notebook:latest
@@ -639,13 +637,13 @@ Accuracy
 
 ![galba-miniprot-fly\[fig3\]](docs/figs/galba_miniprot_fly.png)
 
-Figure c: accuracy results of GALBA and BRAKER2 in *Drosophila melanogaster*. Shown are results from running GALBA with protein input from *D. simulans* (dsim), *D. erecta* (dere), *D. ananassae* (dana), *D. speudoobscura* (dpse), *D. willistoni* (dwil), *D. virilis* (dvir), and *D. grimshawi* (dgri). In addition, GALBA was run with proteins of the house fly (mdom). For "combo", the input proteins were a concatenation of dana, dpse, dwil, dere, and dgri. BRAKER2 results were computed with the OrthoDB Arthropoda partition, excluding *D. melanogaster* proteins.
+Figure c: accuracy results of GALBA and BRAKER2 in *Drosophila melanogaster*. Shown are results from running GALBA with protein input from *D. simulans* (dsim), *D. erecta* (dere), *D. ananassae* (dana), *D. speudoobscura* (dpse), *D. willistoni* (dwil), *D. virilis* (dvir), and *D. grimshawi* (dgri). In addition, GALBA was run with proteins of the house fly (mdom). For "combo", the input proteins were a concatenation of dana, dpse, dwil, dere, and dgri. BRAKER2 results were computed with the OrthoDB Arthropoda partition, either excluding *D. melanogaster* proteins, or excluding proteins of the same order. The red dot shows BRAKER2 results with exactly the same protein input as GALBA with "combo".
 
 :warning: As Figure c demonstrates, BRAKER2 (<https://github.com/Gaius-Augustus/BRAKER>) generates more accurate results than GALBA in fruit fly. We have computed similar results for *Arabidopsis thaliana* and *Caenorhabditis elegans*. Therefore, we generally recommend that you use BRAKER instead of GALBA!
 
 There may be some special cases where GALBA obtains better results than BRAKER. For example, if you observe a "split gene" problem with BRAKER, and if you have proteins of a very close relative at hand, then GALBA may improve over BRAKER. Also, if you miss genes that are known in relatives of your species of interest in a BRAKER output, it might be worth trying GALBA and combining the resulting gene set and hintsfile with TSEBRA with a BRAKER output.
 
-Accuracy of GALBA with GenomeThreader is generally lower than with miniprot. In many cases, GenomeThreader generates too few training genes for training AUGUSTUS, therefore we show only a subset of the data from Figure c in Figure d:
+Accuracy of GALBA with GenomeThreader is generally lower than with miniprot. In many cases, GenomeThreader generates too few training genes for training AUGUSTUS, therefore we show only a subset of the data from Figure c in Figure d (the shown accuracy with miniprot is from GALBA v1.0.0; we stopped testing GenomeThreader afterwards; GALBA with miniprot accuracy has improved, since):
 
 ![galba-miniprot-gth-fly\[fig4\]](docs/figs/galba_miniprot_gth_fly.png)
 
