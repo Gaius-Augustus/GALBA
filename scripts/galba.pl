@@ -312,7 +312,6 @@ my $perlCmdString;    # stores perl commands
 my $printVersion = 0; # print version number, if set
 my $scriptPath = dirname($0); # path of directory where this script is located
 my $skipoptimize   = 0; # skip optimize parameter step
-my $skipIterativePrediction;
 my $skipAllTraining = 0;    # skip all training
 my $skipGetAnnoFromFasta = 0; # requires python3 & biopython
 my $species;                # species name
@@ -419,7 +418,6 @@ GetOptions(
     'optCfgFile=s'                 => \$optCfgFile,
     'overwrite!'                   => \$overwrite,
     'skipOptimize!'                => \$skipoptimize,
-    'skipIterativePrediction!'     => \$skipIterativePrediction,
     'skipAllTraining!'             => \$skipAllTraining,
     'skipGetAnnoFromFasta!'        => \$skipGetAnnoFromFasta,
     'species=s'                    => \$species,
@@ -4275,7 +4273,7 @@ sub training_augustus {
                 $AUGUSTUS_SCRIPTS_PATH, $AUGUSTUS_CONFIG_PATH
             );
             $errorfile = "$errorfilesDir/randomSplit.stderr";
-            if ( $gb_good_size < 600 ) { # SET BACK TO 600!
+            if ( $gb_good_size < 600 ) {
                 $prtStr = "#*********\n"
                         . "# WARNING: Number of reliable training genes is low ($gb_good_size). "
                         . "Recommended are at least 600 genes\n"
