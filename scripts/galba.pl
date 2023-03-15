@@ -28,7 +28,7 @@ use FindBin;
 use lib "$FindBin::RealBin/.";
 use File::Which;                    # exports which()
 use File::Which qw(which where);    # exports which() and where()
-
+use Fcntl qw(:flock);
 use Cwd;
 use Cwd 'abs_path';
 
@@ -2850,8 +2850,7 @@ sub check_options {
             . ": ERROR: in file " . __FILE__ ." at line ". __LINE__ ."\n"
             . "$AUGUSTUS_CONFIG_PATH/species/$species already exists. "
             . "Choose another species name, delete this directory or use the "
-            . "existing species with the option --useexisting. Be aware that "
-            . "existing parameters will then be overwritten during training.\n";
+            . "existing species with the option --skipAllTraining. Note that training will be skipped.\n";
         $logString .= $prtStr;
         print STDERR $logString;
         exit(1);
@@ -5209,8 +5208,10 @@ sub augustus {
               ."'hintsfile' : '$otherfilesDir/hintsfile.gff', "
               ."'extrinsicCfgFile' : '$extrinsicCfgFile', "
               ."'outfile' : '$otherfilesDir/augustus.hints.gff'";
-    if ( not($alt_off =~ m/alt_off/) ) {
-        print AUGH ", 'alternatives-from-evidence' : $alternatives_from_evidence";
+    if (defined($alt_off)){
+        if ( not($alt_off =~ m/alt_off/) ) {
+            print AUGH ", 'alternatives-from-evidence' : $alternatives_from_evidence";
+        }
     }
     if ( defined($optCfgFile) ) {
         print AUGH ", 'optCfgFile' : '$optCfgFile'";
@@ -5898,23 +5899,36 @@ sub cds_hints_from_traingenes{
 ################################ fix_pygustus_json ##################################
 # the "old" json file in $AUGUSTUS_CONFIG_PATH contains a severe typo that makes
 # the current pygustus crash. We here simply fix that typo by search/replace
+# put a file lock on file if changing file.
 # TODO: remove function once we believe it's safe
 #####################################################################################
 
 sub fix_pygustus_json {
     my $jsonfile = shift;
-    open( JSON, "<", $jsonfile ) or die("ERROR in file " . __FILE__ ." at line ". __LINE__
-        . "\nFailed to open file $jsonfile!\n");
-    my $json = "";
-    while (<JSON>) {
-        $json .= $_;
+    # Execute the grep command to search for the term in the file
+    my $cmdStr = "grep partitionLargeSeqeunces $jsonfile";
+    my $output = `$cmdStr`;
+    if($output =~ m/partitionLargeSeqeunces/){
+        # Open the file for reading and writing, and set a lock on it
+        open(my $fh, '+<', $jsonfile) or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+            . "\nFailed to open file $jsonfile\n");;
+        flock($fh, LOCK_EX) or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+            . "\nFailed to lock file $jsonfile\n");
+        # Read the content from the file
+        my $file_content = do { local $/; <$fh> };
+        # Modify the content
+        $file_content =~ s/partitionLargeSeqeunces/partitionLargeSequences/g;
+        # Truncate the file and print the modified content to it
+        truncate($fh, 0) or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+            . "\nFailed to truncate file $jsonfile\n");
+        seek($fh, 0, 0) or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+            . "\nFailed to seek in $jsonfile\n");
+        print $fh $file_content or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+            . "\nFailed to write to $jsonfile\n");
+        # Release the lock and close the file handle
+        flock($fh, LOCK_UN) or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+            . "\nFailed to unlock $jsonfile\n");
+        close($fh) or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+            . "\nFailed to unlock $jsonfile\n");
     }
-    close(JSON) or die("ERROR in file " . __FILE__ ." at line ". __LINE__
-        . "\nFailed to close file $jsonfile!\n");
-    $json =~ s/partitionLargeSeqeunces/partitionLargeSequences/;
-    open( JSON, ">", $jsonfile ) or die("ERROR in file " . __FILE__ ." at line ". __LINE__
-        . "\nFailed to open file $jsonfile!\n");
-    print JSON $json;
-    close(JSON) or die("ERROR in file " . __FILE__ ." at line ". __LINE__
-        . "\nFailed to close file $jsonfile!\n");
 }
