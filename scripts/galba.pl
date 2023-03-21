@@ -469,7 +469,7 @@ $pubs{'GALBA-whole'} = "\nHoff, K. J., Lomsadze, A., Borodovsky, M., & Stanke, M
 $pubs{'aug-hmm'} = "\nStanke, M., Schöffmann, O., Morgenstern, B., & Waack, S. (2006). Gene prediction in eukaryotes with a generalized hidden Markov model that uses hints from external sources. BMC Bioinformatics, 7(1), 62.\n";
 $pubs{'diamond'} = "\nBuchfink, B., Xie, C., & Huson, D. H. (2015). Fast and sensitive protein alignment using DIAMOND. Nature Methods, 12(1), 59.\n";
 $pubs{'gth'} = "\nGremme, G. (2013). Computational gene structure prediction.\n";
-$pubs{'miniprot'} = "\nLi, H. (2022). Protein-to-genome alignment with miniprot. arXiv:2210.08052v1.\n";
+$pubs{'miniprot'} = "\nLi, H. (2023). Protein-to-genome alignment with miniprot. Bioinformatics, 39(1), btad014.\n";
 $pubs{'augustus-prot'} = "Hoff, K. and Stanke, M. 2019. “Predicting genes in single genomes with AUGUSTUS.“ Current Protocols in Bioinformatics, 65(1), e57.\n";
 
 # Make paths to input files absolute ###########################################
@@ -3320,7 +3320,7 @@ sub make_prot_hints {
                 }
                 # Currently running miniprot twice, the first run only serves training gene generation
                 $cmdString
-                    .= "$prot_aligner -ut$CPU --outn=1 --gtf $otherfilesDir/genome.mpi $prot_seq_files[$i] >> $alignment_outfile 2>> $errorfile";
+                    .= "$prot_aligner -I -ut$CPU --outn=1 --gtf $otherfilesDir/genome.mpi $prot_seq_files[$i] >> $alignment_outfile 2>> $errorfile";
                 print LOG "\# "
                     . (localtime)
                     . ": running Miniprot to produce protein to "
@@ -3457,7 +3457,7 @@ sub make_prot_hints {
 
             # Currently running miniprot twice, the first run only serves training gene generation, the second shall produce the actual hints
             $cmdString
-                .= "$prot_aligner -ut$CPU --outn=1 --aln $otherfilesDir/genome.mpi $prot_seq_files[$i] >> $miniprot_aln_file 2>> $errorfile";
+                .= "$prot_aligner -I -ut$CPU --outn=1 --aln $otherfilesDir/genome.mpi $prot_seq_files[$i] >> $miniprot_aln_file 2>> $errorfile";
             print LOG "\# "
                 . (localtime)
                 . ": running Miniprot to produce protein to "
