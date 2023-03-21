@@ -5223,7 +5223,7 @@ sub augustus {
             print AUGH ", '$1' : '$2'";
         }
     }
-    if ($annot) {
+    if ($annot && not($alt_off =~ m/alt_off/)) { # in case of alt_off, enabling this will lead to problems with optimize
         print AUGH " , 'stopCodonExcludedFromCDS':'false'";
     }
 
