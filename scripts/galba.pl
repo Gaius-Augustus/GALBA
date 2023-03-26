@@ -3335,47 +3335,6 @@ sub make_prot_hints {
                 print LOG "\# "
                     . (localtime)
                     . ": Alignments from file $prot_seq_files[$i] created.\n" if ($v > 3);
-
-                # run miniprot_boundary_scorer
-                $cmdString = "";
-                if ($nice) {
-                    $cmdString .= "nice ";
-                }
-                $cmdString .= "$SCORER_PATH/miniprot_boundary_scorer -o $otherfilesDir/miniprot.gff -s $SCORER_PATH/blosum62.csv < $miniprot_aln_file ";
-                print LOG "\# "
-                    . (localtime)
-                    . ": $cmdString\n"  if ($v > 3);
-                $perlCmdString .= "2>>$errorfile";
-                system("$cmdString") == 0
-                    or clean_abort("$AUGUSTUS_CONFIG_PATH/species/$species",
-                    $useexisting, "ERROR in file " . __FILE__ ." at line "
-                    . __LINE__ ."\nfailed to execute: $cmdString!\n");
-
-                # run miniprothint.py. Miniprothint converts the "scorer" output to a regular miniprot-like gtf.
-                $cmdString = "";
-                if ($nice) {
-                    $cmdString .= "nice ";
-                }
-                # ignoreCoverage prints hints to hc.gff ignoring coverage if most hints have coverage = 1
-                $cmdString .= "$MINIPROTHINT_PATH/miniprothint.py $otherfilesDir/miniprot.gff --workdir $otherfilesDir --ignoreCoverage";
-                print LOG "\# "
-                    . (localtime)
-                    . ": $cmdString\n"  if ($v > 3);
-                $perlCmdString .= "2>>$errorfile";
-                system("$cmdString") == 0
-                    or clean_abort("$AUGUSTUS_CONFIG_PATH/species/$species",
-                    $useexisting, "ERROR in file " . __FILE__ ." at line "
-                    . __LINE__ ."\nfailed to execute: $cmdString!\n");
-
-                print LOG "\# "
-                    . (localtime)
-                    . ": moving $otherfilesDir/miniprot.gtf to $alignment_outfile\n" if ($v > 3);
-                $cmdString = "mv $otherfilesDir/miniprot.gtf $alignment_outfile";
-                print LOG "$cmdString\n" if ($v > 3);
-                system($cmdString) == 0
-                    or clean_abort("$AUGUSTUS_CONFIG_PATH/species/$species",
-                        $useexisting, "ERROR in file " . __FILE__ ." at line "
-                        . __LINE__ ."\nFailed to execute: $cmdString!\n");
             } else {
                 $prtStr
                     = "\# "
@@ -3386,6 +3345,46 @@ sub make_prot_hints {
                 print LOG $prtStr if ($v > 3);
             }
         }
+        # run miniprot_boundary_scorer
+        $cmdString = "";
+        if ($nice) {
+            $cmdString .= "nice ";
+        }
+        $cmdString .= "$SCORER_PATH/miniprot_boundary_scorer -o $otherfilesDir/miniprot.gff -s $SCORER_PATH/blosum62.csv < $miniprot_aln_file ";
+        print LOG "\# "
+            . (localtime)
+            . ": $cmdString\n"  if ($v > 3);
+        $perlCmdString .= "2>>$errorfile";
+        system("$cmdString") == 0
+            or clean_abort("$AUGUSTUS_CONFIG_PATH/species/$species",
+            $useexisting, "ERROR in file " . __FILE__ ." at line "
+            . __LINE__ ."\nfailed to execute: $cmdString!\n");
+
+        # run miniprothint.py. Miniprothint converts the "scorer" output to a regular miniprot-like gtf.
+        $cmdString = "";
+        if ($nice) {
+            $cmdString .= "nice ";
+        }
+        # ignoreCoverage prints hints to hc.gff ignoring coverage if most hints have coverage = 1
+        $cmdString .= "$MINIPROTHINT_PATH/miniprothint.py $otherfilesDir/miniprot.gff --workdir $otherfilesDir --ignoreCoverage";
+        print LOG "\# "
+            . (localtime)
+            . ": $cmdString\n"  if ($v > 3);
+        $perlCmdString .= "2>>$errorfile";
+        system("$cmdString") == 0
+            or clean_abort("$AUGUSTUS_CONFIG_PATH/species/$species",
+            $useexisting, "ERROR in file " . __FILE__ ." at line "
+            . __LINE__ ."\nfailed to execute: $cmdString!\n");
+
+        print LOG "\# "
+            . (localtime)
+            . ": moving $otherfilesDir/miniprot.gtf to $alignment_outfile\n" if ($v > 3);
+        $cmdString = "mv $otherfilesDir/miniprot.gtf $alignment_outfile";
+        print LOG "$cmdString\n" if ($v > 3);
+        system($cmdString) == 0
+            or clean_abort("$AUGUSTUS_CONFIG_PATH/species/$species",
+                $useexisting, "ERROR in file " . __FILE__ ." at line "
+                . __LINE__ ."\nFailed to execute: $cmdString!\n");
     }
     # convert pipeline created protein alignments to protein hints
     if ( @prot_seq_files && -e $alignment_outfile ) {
