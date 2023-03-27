@@ -17,10 +17,10 @@ try:
             if re.search(r'\tCDS\t', line):
                 if re.search(r'transcript_id \"([^"]+)\"', line).group(1) not in tx_dict:
                     # ignore alternative transcripts because they do not compare to single exon transcripts, take arbitrarily the first one
-                    if re.search(r'g1', re.search(r'transcript_id \"([^"]+)\"', line).group(1)):
+                    if re.search(r't1', re.search(r'transcript_id \"([^"]+)\"', line).group(1)):
                         tx_dict[re.search(r'transcript_id \"([^"]+)\"', line).group(1)] = 1
                 else:
-                    if re.search(r'g1', re.search(r'transcript_id \"([^"]+)\"', line).group(1)):
+                    if re.search(r't1', re.search(r'transcript_id \"([^"]+)\"', line).group(1)):
                         tx_dict[re.search(r'transcript_id \"([^"]+)\"', line).group(1)] += 1
 except IOError:
     print("Could not read file:", args.gtf_file)
