@@ -22,8 +22,8 @@ try:
                 txid = re.search(r'transcript_id \"([^"]+)\"', line).group(1)
                 look = True
             if look is True:
-                if re.search(r'%of transcript supported by hints \(any source\): (\d+)', line):
-                    support = re.search(r'%of transcript supported by hints \(any source\): (\d+)', line).group(1)
+                if re.search(r' of transcript supported by hints \(any source\): (\d+)', line):
+                    support = re.search(r' of transcript supported by hints \(any source\): (\d+)', line).group(1)
                     if support == '0':
                         print(txid)
                     look = False
