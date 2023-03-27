@@ -14,6 +14,7 @@ args = parser.parse_args()
 # search for lines with \tsingle\t and extract transcript ID
 # after extraction, search for %of transcript supported by hints (any source): 0
 # if found, print transcript ID
+look = False
 try:
     with open(args.gff_file, "r") as gff_file:
         for line in gff_file:
