@@ -716,7 +716,7 @@ Since GALBA is a pipeline that calls several Bioinformatics tools, publication o
 
 -   If GALBA was executed with Miniprot, cite:
 
-    -   Li, H. (2022) “Protein-to-genome alignment with miniprot.” arXiv:2210.08052v1.
+    -   Li, H. (2023). Protein-to-genome alignment with miniprot. Bioinformatics, 39(1), btad014.
 
 -   If GALBA was executed with GenomeThreader, cite:
 
@@ -743,7 +743,7 @@ Footnotes
 References
 ==========
 
-<b id="f1">[R1]</b> Li, H. (2022) “Protein-to-genome alignment with miniprot.” arXiv:2210.08052v1.[↩](#a1)
+<b id="f1">[R1]</b> Li, H. (2023). Protein-to-genome alignment with miniprot. Bioinformatics, 39(1), btad014.[↩](#a1)
 
 <b id="f2">[R2]</b> Gremme, G. 2013. “Computational Gene Structure Prediction.” PhD thesis, Universität Hamburg.[↩](#a2)
 
