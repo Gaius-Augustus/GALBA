@@ -5030,10 +5030,8 @@ sub augustus {
               ."'hintsfile' : '$otherfilesDir/hintsfile.gff', "
               ."'extrinsicCfgFile' : '$extrinsicCfgFile', "
               ."'outfile' : '$otherfilesDir/augustus.hints.gff'";
-    if (defined($alt_off)){
-        if ( not($alt_off =~ m/alt_off/) ) {
-            print AUGH ", 'alternatives-from-evidence' : $alternatives_from_evidence";
-        }
+    if (not(defined($alt_off))){
+        print AUGH ", 'alternatives-from-evidence' : $alternatives_from_evidence";
     }
     if ( defined($optCfgFile) ) {
         print AUGH ", 'optCfgFile' : '$optCfgFile'";
