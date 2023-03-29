@@ -114,7 +114,7 @@ Singularity Image
 
 The easiest way to run GALBA is using singuarlity. We provide a docker container to build a singularity image (tested with singularity version 3.10.0-dirty). **We only include Miniprot in Docker & Singularity!** GenomeThreader is not included.
 
-Build as follows (requires 1.4 GB disk space):
+Build as follows (requires 1.2 GB disk space):
 
 ```
 singularity build galba.sif docker://katharinahoff/galba-notebook:latest
