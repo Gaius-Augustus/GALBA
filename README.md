@@ -1,10 +1,11 @@
 # GALBA User Guide
 
-![Docker Pulls](https://img.shields.io/docker/pulls/katharinahoff/galba-notebook) ![Twitter Follow](https://img.shields.io/twitter/follow/katharina_hoff)
+![Docker Pulls](https://img.shields.io/docker/pulls/katharinahoff/galba-notebook) 
+
 <u>Contact for Github Repository of GALBA at
 https://github.com/Gaius-Augustus/GALBA:</u>
 
-Katharina J. Hoff, University of Greifswald, Germany, katharina.hoff@uni-greifswald.de, +49 3834 420 4624
+Katharina J. Hoff, University of Greifswald, Germany, katharina.hoff@uni-greifswald.de, +49 3834 420 4624, ![Twitter Follow](https://img.shields.io/twitter/follow/katharina_hoff)
 
 
 Authors of GALBA
