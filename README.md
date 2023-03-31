@@ -5,8 +5,7 @@
 <u>Contact for Github Repository of GALBA at
 https://github.com/Gaius-Augustus/GALBA:</u>
 
-Katharina J. Hoff, University of Greifswald, Germany, katharina.hoff@uni-greifswald.de, +49 3834 420 4624, ![https://twitter.com/katharina_hoff](https://img.shields.io/twitter/follow/katharina_hoff)
-
+Katharina J. Hoff, University of Greifswald, Germany, katharina.hoff@uni-greifswald.de, +49 3834 420 4624, [![https://twitter.com/katharina_hoff](https://img.shields.io/twitter/follow/katharina_hoff)](https://twitter.com/katharina_hoff))
 
 Authors of GALBA
 ================
