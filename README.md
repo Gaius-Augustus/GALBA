@@ -705,7 +705,7 @@ Since GALBA is a pipeline that calls several Bioinformatics tools, publication o
 
 -   Always cite:
 
-    -   Hoff, K.J., Lomsadze, A., Borodovsky, M. and Stanke, M. (2019). Whole-Genome Annotation with BRAKER. Methods Mol Biol. 1962:65-95, doi: 10.1007/978-1-4939-9173-0_5.
+    - Bruna, T., Li, H., Guhlin, J., Honsel, D., Herbold, S., Stanke, M., Nenasheva, N., Ebel, M., Gabriel, L., and Hoff, K.J. (2023) "GALBA: Genome Annotation with Miniprot and AUGUSTUS", bioRxiv https://doi.org/10.1101/2023.04.10.536199
 
     -   Hoff, K. and Stanke, M. 2019. “Predicting genes in single genomes with AUGUSTUS.“ *Current Protocols in Bioinformatics*, 65(1), e57.
 
@@ -720,11 +720,12 @@ Since GALBA is a pipeline that calls several Bioinformatics tools, publication o
 -   If GALBA was executed with GenomeThreader, cite:
 
     -   Gremme, G. (2013). Computational Gene Structure Prediction. PhD thesis, Universität Hamburg.
+    
+    -   Hoff, K.J., Lomsadze, A., Borodovsky, M. and Stanke, M. (2019). Whole-Genome Annotation with BRAKER. Methods Mol Biol. 1962:65-95, doi: 10.1007/978-1-4939-9173-0_5.
 
 -   If GALBA called MakeHub for creating a track data hub for visualization of GALBA results with the UCSC Genome Browser, cite:
 
-    -   Hoff, K.J. (2019) MakeHub: Fully automated generation of UCSC Genome Browser Assembly Hubs. Genomics, Proteomics and Bioinformatics, in press 2020, preprint on bioarXive, doi: <https://doi.org/10.1101/550145>.
-
+    -   Hoff, K.J. (2019) MakeHub: Fully automated generation of UCSC Genome Browser Assembly Hubs. Genomics, Proteomics and Bioinformatics 17(5):546-549.
 
 License
 =======
