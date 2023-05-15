@@ -4988,7 +4988,7 @@ sub augustus {
         # build the parallelization options of pygustus
         print ABINITIO "augustus.predict('$otherfilesDir/genome.fa', species='$species',";
         print ABINITIO "**augargs, partitionLargeSequences=True, "
-                      ."minSplitSize=1000000, chunksize=$chunksize, jobs=$CPU, **augargs)\n";
+                      ."minSplitSize=1000000, chunksize=$chunksize, jobs=$CPU)\n";
         close(ABINITIO) or die("ERROR in file " . __FILE__ ." at line ". __LINE__
                 . "\nFailed to close file: $otherfilesDir/pygustus_ab_initio.py!\n");
         # execute the python script
