@@ -2652,7 +2652,7 @@ sub check_gff {
             # miniprot, or whether it's introduced during hints conversion
             # we can't have them negative for re-running with a hintsfile
             # therefore set to 1 if negative
-            if ( ( $gff_line[1] eq "miniprot2h" or $gff_line[1] eq "miniprot" ) && $gff_line[5] < 0 ) {
+            if ( ( $gff_line[1] eq "miniprot2h" or $gff_line[1] eq "miniprot_scorer" ) && $gff_line[5] < 0 ) {
                 $gff_line[5] = 1;
             } # THIS DOES NOT AFFECT HINTS IN AUGUSTUS!
               # It only goes around our parser
