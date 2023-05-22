@@ -174,6 +174,8 @@ At the time of release, this GALBA version was tested with:
 
 -   Miniprothint
 
+-   TSEBRA
+
 GALBA
 -------
 
@@ -418,6 +420,24 @@ If already in your `$PATH` variable, GALBA will find diamond, automatically. Oth
 
 Add the above line to a startup script (e.g. `~/.bashrc`) in order to set the environment variable for all bash sessions.
 
+#### TSEBRA
+
+TSEBRA is (in most cases) used to remove noise from the Augustus predictions.
+
+Obtain TSEBRA as follows:
+
+```
+    git clone https://github.com/Gaius-Augustus/TSEBRA.git
+```
+
+If already in your `$PATH` variable, GALBA will find tsebra.py, automatically. Otherwise, GALBA can locate tsebra.py either by using an environment variable `$TSEBRA_PATH`, or by taking a command line argument (`--TSEBRA_PATH=/your_path_to_tsebra`). In order to set the environment variable e.g. for your current bash session, type:
+
+```
+    export TSEBRA_PATH=/your_path_to_tsebra/bin/
+```
+
+Add the above line to a startup script (e.g. `~/.bashrc`) in order to set the environment variable for all bash sessions.
+
 ### Optional tools
 
 #### Biopython
@@ -542,15 +562,25 @@ GALBA produces several important output files in the working directory.
 
 -   hintsfile.gff: The extrinsic evidence data extracted from protein data.
 
-AUGUSTUS output files may be present with the following name endings and formats:
+TSEBRA output files may be present with the following name endings and formats for genomes larger 150 Mbp, for these genomes, TSEBRA output is likely the best output:
 
 -   GTF-format is always produced.
 
 -   GFF3-format is produced if the flag `--gff3` was specified to GALBA.
 
--   Coding sequences in FASTA-format are produced if the flag `--skipGetAnnoFromFasta` was not set.
+-   Coding sequences in FASTA-format
 
--   Protein sequence files in FASTA-format are produced if the flag `--skipGetAnnoFromFasta` was not set.
+-   Protein sequence files in FASTA-format
+
+AUGUSTUS output files may be present with the following name endings and formats (for genomes smaller 150 Mbp, the Augustus with hints output is likely the best output):
+
+-   GTF-format is always produced.
+
+-   GFF3-format is produced if the flag `--gff3` was specified to GALBA.
+
+-   Coding sequences in FASTA-format
+
+-   Protein sequence files in FASTA-format
 
 For details about gtf format, see <http://www.sanger.ac.uk/Software/formats/GFF/>. A GTF-format file contains one line per predicted exon. Example:
 
@@ -722,6 +752,10 @@ Since GALBA is a pipeline that calls several Bioinformatics tools, publication o
     -   Gremme, G. (2013). Computational Gene Structure Prediction. PhD thesis, Universität Hamburg.
     
     -   Hoff, K.J., Lomsadze, A., Borodovsky, M. and Stanke, M. (2019). Whole-Genome Annotation with BRAKER. Methods Mol Biol. 1962:65-95, doi: 10.1007/978-1-4939-9173-0_5.
+
+-   If GALBA called TSEBRA (for all genomes >140 Mbp), cite:
+    
+    -    Gabriel, L., Hoff, K. J., Bruna, T., Borodovsky, M., and Stanke, M. (2021). TSEBRA: transcript selector for BRAKER. BMC Bioinformatics 22(1):1-12.
 
 -   If GALBA called MakeHub for creating a track data hub for visualization of GALBA results with the UCSC Genome Browser, cite:
 

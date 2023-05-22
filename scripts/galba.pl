@@ -177,6 +177,7 @@ CONFIGURATION OPTIONS (TOOLS CALLED BY GALBA)
                                     is used).
 --CDBTOOLS_PATH=/path/to            cdbfasta/cdbyank are required for running
                                     fix_in_frame_stop_codon_genes.py.
+--TSEBRA_PATH=/path/to              path to tsebra.py
 
 EXPERT OPTIONS
 
@@ -245,7 +246,7 @@ ENDUSAGE
 # Declartion of global variables ###############################################
 
 my $v = 4; # determines what is printed to log
-my $version = "1.0.6";
+my $version = "1.0.7";
 my $rootDir;
 my $logString = "";          # stores log messages produced before opening log file
 $logString .= "\#**********************************************************************************\n";
@@ -270,6 +271,8 @@ my $MAKEHUB_PATH;
 my $CDBTOOLS_PATH;
 my $cdbtools_path;
 my $makehub_path;
+my $TSEBRA_PATH;
+my $tsebra_path;
 my $email; # for make_hub.py
 my @bam;                      # bam file names
 my @stranded;                 # contains +,-,+,-... corresponding to 
@@ -407,6 +410,7 @@ GetOptions(
     'MINIPROTHINT_PATH=s'          => \$miniprothint_path,
     'CDBTOOLS_PATH=s'              => \$cdbtools_path,
     'MAKEHUB_PATH=s'               => \$makehub_path,
+    'TSEBRA_PATH=s'                => \$tsebra_path,
     'bam=s'                        => \@bam,
     'SCORER_PATH=s'                => \$scorer_path,
     'threads=i'                    => \$CPU,
@@ -470,7 +474,8 @@ $pubs{'aug-hmm'} = "\nStanke, M., Schöffmann, O., Morgenstern, B., & Waack, S. 
 $pubs{'diamond'} = "\nBuchfink, B., Xie, C., & Huson, D. H. (2015). Fast and sensitive protein alignment using DIAMOND. Nature Methods, 12(1), 59.\n";
 $pubs{'gth'} = "\nGremme, G. (2013). Computational gene structure prediction.\n";
 $pubs{'miniprot'} = "\nLi, H. (2023). Protein-to-genome alignment with miniprot. Bioinformatics, 39(1), btad014.\n";
-$pubs{'augustus-prot'} = "Hoff, K. and Stanke, M. 2019. “Predicting genes in single genomes with AUGUSTUS.“ Current Protocols in Bioinformatics, 65(1), e57.\n";
+$pubs{'augustus-prot'} = "\nHoff, K. J. and Stanke, M. (2019). “Predicting genes in single genomes with AUGUSTUS.“ Current Protocols in Bioinformatics, 65(1), e57.\n";
+$pubs{'tsebra'} = "\nGabriel L., Hoff, K. J., Bruna, T., Borodovsky, M., and Stanke, M. (2021). TSEBRA: transcript selector for BRAKER. BMC Bioinformatics, 22(566)\n";
 
 # Make paths to input files absolute ###########################################
 
@@ -559,6 +564,8 @@ if ( $makehub ) {
 }
 
 set_CDBTOOLS_PATH();
+
+set_TSEBRA_PATH();
 
 if($checkOnly){
     $prtStr = "\# " . (localtime)
@@ -751,6 +758,7 @@ print LOG "\#*******************************************************************
         . "\#**********************************************************************************\n";
 augustus();
 post_process_augustus("$otherfilesDir/augustus.hints.gff");
+run_tsebra("$otherfilesDir/augustus.hints.gff", "$otherfilesDir/hintsfile.gff", $genome);
 
 if ( $gff3 != 0) {
     all_preds_gtf2gff3();
@@ -2374,6 +2382,128 @@ sub set_MAKEHUB_PATH {
         $prtStr = "\# " . (localtime) . " ERROR: in file " . __FILE__
             ." at line ". __LINE__ ."\n"
             . "$MAKEHUB_PATH/make_hub.py is not an executable file!\n";
+        $logString .= $prtStr;
+        print STDERR $logString;
+        exit(1);
+    }
+}
+
+####################### set_TSEBRA_PATH #######################################
+# * set path to tsebra.py
+################################################################################
+
+sub set_TSEBRA_PATH {
+    # try to get path from ENV
+    if ( defined( $ENV{'TSEBRA_PATH'} ) && not (defined($tsebra_path)) ) {
+        if ( -e $ENV{'TSEBRA_PATH'} ) {
+            $prtStr
+                = "\# "
+                . (localtime)
+                . ": Found environment variable \$TSEBRA_PATH. Setting "
+                . "\$TSEBRA_PATH to ".$ENV{'TSEBRA_PATH'}."\n";
+            $logString .= $prtStr if ($v > 1);
+            $TSEBRA_PATH = $ENV{'TSEBRA_PATH'};
+        }
+    }elsif(not(defined($tsebra_path))) {
+        $prtStr
+            = "\# "
+            . (localtime)
+            . ": Did not find environment variable \$TSEBRA_PATH\n";
+        $logString .= $prtStr if ($v > 1);
+    }
+
+    # try to get path from command line
+    if ( defined($tsebra_path) ) {
+        my $last_char = substr( $tsebra_path, -1 );
+        if ( $last_char eq "\/" ) {
+            chop($tsebra_path);
+        }
+        if ( -d $tsebra_path ) {
+            $prtStr
+                = "\# "
+                . (localtime)
+                . ": Setting \$TSEBRA_PATH to command line argument "
+                . "--TSEBRA_PATH value $tsebra_path.\n";
+            $logString .= $prtStr if ($v > 1);
+            $TSEBRA_PATH = $tsebra_path;
+        }
+        else {
+            $prtStr = "#*********\n"
+                    . "# WARNING: Command line argument --TSEBRA_PATH was "
+                    . "supplied but value $tsebra_path is not a directory. Will not "
+                    . "set \$TSEBRA_PATH to $tsebra_path!\n"
+                    . "#*********\n";
+            $logString .= $prtStr if ($v > 0);
+        }
+    }
+
+    # try to guess
+    if ( not( defined($TSEBRA_PATH) )
+        || length($TSEBRA_PATH) == 0 )
+    {
+        $prtStr
+            = "\# "
+            . (localtime)
+            . ": Trying to guess \$TSEBRA_PATH from location of tsebra.py"
+            . " executable that is available in your \$PATH\n";
+        $logString .= $prtStr if ($v > 1);
+        my $epath = which 'tsebra.py';
+        if(defined($epath)){
+            if ( -d dirname($epath) ) {
+                $prtStr
+                    = "\# "
+                    . (localtime)
+                    . ": Setting \$TSEBRA_PATH to "
+                    . dirname($epath) . "\n";
+                $logString .= $prtStr if ($v > 1);
+                $TSEBRA_PATH = dirname($epath);
+            }
+        }
+        else {
+            $prtStr = "#*********\n"
+                    . "# WARNING: Guessing the location of \$TSEBRA_PATH "
+                    . "failed / GALBA failed "
+                    . "to detect tsebra.py with \"which tsebra.py\"!\n"
+                    . "#*********\n";
+            $logString .= $prtStr if ($v > 0);
+        }
+    }
+
+    if ( not( defined($TSEBRA_PATH) ) ) {
+        my $tsebra_err;
+        $tsebra_err .= "tsebra.py is required for reducing noise in the final \n"
+                    .  "gene set of GALBA\n"
+                    .  "You have 3 different "
+                    .  "options to provide a path to tsebra.py to galba.pl:\n"
+                    .  "   a) provide command-line argument\n"
+                    .  "      --TSEBRA_PATH=/your/path\n"
+                    .  "   b) use an existing environment variable\n"
+                    . "       \$TSEBRA_PATH\n"
+                    .  "      for setting the environment variable, run\n"
+                    .  "           export TSEBRA_PATH=/your/path\n"
+                    .  "      in your shell. You may append this to your "
+                    .  ".bashrc or .profile file in\n"
+                    .  "      order to make the variable available to all your\n"
+                    .  "      bash sessions.\n"
+                    .  "   c) galba.pl can try guessing the location of\n"
+                    .  "      \$TSEBRA_PATH from the location of a tsebra.py\n"
+                    .  "      executable that is available in your \$PATH\n"
+                    .  "      variable. If you try to rely on this option, you\n"
+                    . "       can check by typing\n"
+                    .  "           which tsebra.py\n"
+                    .  "      in your shell, whether there is a tsebra.py\n"
+                    .  "      executable in your \$PATH\n";
+        $prtStr = "\# " . (localtime) . " ERROR: in file " . __FILE__
+            . " at line ". __LINE__ . "\n" . "\$TSEBRA_PATH not set!\n";
+        $logString .= $prtStr;
+        $logString .= $tsebra_err if ($v > 1);
+        print STDERR $logString;
+        exit(1);
+    }
+    if ( not ( -x "$TSEBRA_PATH/tsebra.py" ) ) {
+        $prtStr = "\# " . (localtime) . " ERROR: in file " . __FILE__
+            ." at line ". __LINE__ ."\n"
+            . "$TSEBRA_PATH/tsebra.py is not an executable file!\n";
         $logString .= $prtStr;
         print STDERR $logString;
         exit(1);
@@ -5463,13 +5593,14 @@ sub gtf2gff3 {
 # convert gtf to gff3 format for the following possible final output files:
 #  * augustus.ab_initio.gtf
 #  * augustus.hints.gtf
+#  * tsebra.gtf
 ####################### all_preds_gtf2gff3 #####################################
 
 sub all_preds_gtf2gff3 {
     print LOG "\# " . (localtime) . ": converting essential output files "
         . "to gff3 format.\n" if ($v > 2);
     my @files = ("$otherfilesDir/augustus.ab_initio.gtf", 
-        "$otherfilesDir/augustus.hints.gtf");
+        "$otherfilesDir/augustus.hints.gtf", "$otherfilesDir/tsebra.gtf");
     foreach(@files){
         if(-e $_){
             my $gtf = $_;
@@ -5738,5 +5869,82 @@ sub fix_pygustus_json {
             . "\nFailed to unlock $jsonfile\n");
         close($fh) or die("ERROR in file " . __FILE__ ." at line ". __LINE__
             . "\nFailed to unlock $jsonfile\n");
+    }
+}
+
+################################ get_genome_size ####################################
+# compute size of genome (cumulative nucleotide count)
+#####################################################################################
+
+sub get_genome_size{
+    my $fasta_file = shift;
+    my $size = 0;
+    open(FASTA, "<", $fasta_file) or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+        . "\nFailed to open file $fasta_file\n");
+    while(<FASTA>){
+        chomp;
+        if($_ !~ m/^>/){
+            $size += length($_);
+        }
+    }   
+    close(FASTA) or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+        . "\nFailed to close file $fasta_file\n");
+    return $size;
+}
+
+################################ run_tsebra #########################################
+# run tsebra to reduce noise in Augustus gene set
+#####################################################################################
+
+sub run_tsebra{
+    my $augustus_gtf = shift;
+    my $hintsfile = shift;
+    my $genome_file = shift;
+    my $genome_size = get_genome_size($genome_file);
+    if($genome_size > 150000000){
+        print LOG  "\# " . (localtime) . ": reducing noise in augustus.hints.gtf "
+                         . "with TSEBRA \n" if ($v > 2);
+        print CITE $pubs{'tsebra'}; $pubs{'tsebra'} = "";
+        my $cmdStr = $PYTHON3_PATH . "/python3 " . $TSEBRA_PATH 
+                                   . "/tsebra.py -g $augustus_gtf -e $hintsfile  "
+                                   . "-o tsebra.gtf ";
+        $cmdStr .= " > $otherfilesDir/tsebra.log 2> $errorfilesDir/tsebra.err";
+        print LOG $cmdStr . "\n"  if ($v > 3);
+        system("$cmdStr") == 0
+                or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+                . "\nFailed to execute: $cmdStr\n");
+        # produce aa and condingseq files
+        my $string = find(
+            "getAnnoFastaFromJoingenes.py",      $AUGUSTUS_BIN_PATH,
+            $AUGUSTUS_SCRIPTS_PATH, $AUGUSTUS_CONFIG_PATH
+        );
+        my $errorfile = "$errorfilesDir/getAnnoFastaFromJoingenes.tsebra.stderr";
+        my $outfile = "$otherfilesDir/getAnnoFastaFromJoingenes.tsebra.stdout";
+        my $pythonCmdString = "";
+        if ($nice) {
+            $pythonCmdString .= "nice ";
+        }
+        $pythonCmdString .= "$PYTHON3_PATH/python3 $string ";
+        if (not($ttable == 1)){
+            $pythonCmdString .= "-t $ttable ";
+        }
+        $pythonCmdString .= "-g $genome_file -f tsebra.gtf "
+                         .  "-o tsebra 1> $outfile 2>$errorfile";
+        print LOG "$pythonCmdString\n" if ($v > 3);
+        system("$pythonCmdString") == 0
+            or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+                . "\nFailed to execute: $pythonCmdString\n");
+        my $tsebraprtstr = "\# IMPORTANT INFORMATION: the final output files \n"
+            . "of this GALBA run are tsebra.gtf, tsebra.aa, and tsebra.codingseq.\n"
+            . "In rare cases, the tsebra gene set may be too small due to a lack\n"
+            . "of evidence. In these cases, please compare to the augustus.hints.gtf\n"
+            . "gene set and use the one that is better.\n";
+        print LOG $tsebraprtstr;
+        print $tsebraprtstr;
+    } else {
+            my $tsebraprtstr = "\# IMPORTANT INFORMATION: the final output files \n"
+            . "of this GALBA run are augustus.hints.gtf, augustus.hints.aa, and augustus.hints.codingseq.\n";
+        print LOG $tsebraprtstr;
+        print $tsebraprtstr;
     }
 }
