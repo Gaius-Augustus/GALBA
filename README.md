@@ -174,8 +174,7 @@ At the time of release, this GALBA version was tested with:
 
 -   Miniprothint
 
--   TSEBRA
-
+-   TSEBRA v1.1.1
 GALBA
 -------
 
@@ -556,7 +555,7 @@ Output of GALBA
 
 GALBA produces several important output files in the working directory.
 
--   galba.gtf: Genes predicted by AUGUSTUS with hints from given extrinsic evidence. In large genomes (>1 Gbp), noise has been reduced in this gene set with TSEBRA.
+-   galba.gtf: Genes predicted by AUGUSTUS with hints from given extrinsic evidence. In genomes with a large intergenic region size (>40,000 nt), noise has been reduced in this gene set with TSEBRA.
 
 -   augustus.ab_initio.gtf: Genes predicted by AUGUSTUS in *ab initio* mode in GTF-format. The file will always be present if AUGUSTUS has been run with the option `--esmode`. Otherwise, it will only be present if GALBA was run with the option `--AUGUSTUS_ab_initio`.
 

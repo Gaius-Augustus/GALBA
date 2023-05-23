@@ -758,7 +758,8 @@ print LOG "\#*******************************************************************
         . "\#**********************************************************************************\n";
 augustus();
 post_process_augustus("$otherfilesDir/augustus.hints.gff");
-run_tsebra("$otherfilesDir/augustus.hints.gff", "$otherfilesDir/hintsfile.gff", $genome);
+# tsebra is only executed for large genomes. We estimate genome "size" by average length of intergenic region as proxy
+run_tsebra("$otherfilesDir/augustus.hints.gtf", "$otherfilesDir/hintsfile.gff", $genome);
 
 if ( $gff3 != 0) {
     all_preds_gtf2gff3();
@@ -3252,8 +3253,7 @@ sub check_fasta_headers {
             $scaffName =~ s/\|/_/g;
             print OUTPUT ">$scaffName\n";
             print MAP "$scaffName\t$oldHeader\n";
-        }
-        else {
+        } else {
             if ( length($_) > 0 ) {
                 if($genome_true == 1){
                     print OUTPUT "$_\n";
@@ -5872,24 +5872,58 @@ sub fix_pygustus_json {
     }
 }
 
-################################ get_genome_size ####################################
-# compute size of genome (cumulative nucleotide count)
+################################ get_intergenic_size ####################################
+# compute average length of intergenic region
 #####################################################################################
 
-sub get_genome_size{
-    my $fasta_file = shift;
-    my $size = 0;
-    open(FASTA, "<", $fasta_file) or die("ERROR in file " . __FILE__ ." at line ". __LINE__
-        . "\nFailed to open file $fasta_file\n");
-    while(<FASTA>){
-        chomp;
-        if($_ !~ m/^>/){
-            $size += length($_);
+sub get_intergenic_size{
+    my ($gtf_file) = @_;
+    my %gene_positions;
+    my @intergenic_lengths;
+
+    open(my $fh, '<', $gtf_file) or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+        . "\nFailed to open file $gtf_file\n");
+    while (my $line = <$fh>) {
+        next if $line =~ /^#/;
+        chomp $line;
+        my @parts = split('\t', $line);
+        next if scalar(@parts) < 8;
+
+        my $feature_type = $parts[2];
+        next if $feature_type ne 'gene';
+
+        my $seqname = $parts[0];
+        my $start = int($parts[3]);
+        my $end = int($parts[4]);
+
+        if (!exists $gene_positions{$seqname}) {
+            $gene_positions{$seqname} = [];
         }
-    }   
-    close(FASTA) or die("ERROR in file " . __FILE__ ." at line ". __LINE__
-        . "\nFailed to close file $fasta_file\n");
-    return $size;
+
+        push @{$gene_positions{$seqname}}, [$start, $end];
+    }
+
+    close($fh) or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+        . "\nFailed to close file $gtf_file\n");
+
+    foreach my $seqname (keys %gene_positions) {
+        my @genes = sort { $a->[0] <=> $b->[0] } @{$gene_positions{$seqname}};
+
+        for (my $i = 0; $i < scalar(@genes) - 1; $i++) {
+            my $intergenic_length = $genes[$i + 1][0] - $genes[$i][1] - 1;
+            push @intergenic_lengths, $intergenic_length;
+        }
+    }
+
+    # compute average
+    my $intergenic_size = 0;
+    my $regions = 0;
+    foreach(@intergenic_lengths){
+        $intergenic_size += $_;
+        $regions++;
+    }
+
+    return $intergenic_size/$regions;
 }
 
 ################################ run_tsebra #########################################
@@ -5900,10 +5934,10 @@ sub run_tsebra{
     my $augustus_gtf = shift;
     my $hintsfile = shift;
     my $genome_file = shift;
-    my $genome_size = get_genome_size($genome_file);
-    if($genome_size > 1000000000){ # enable TSEBRA only for genomes larger 1 Gbp, 
-                                   # possibly could be set to 150 Mbp, but it seems 
-                                   # more stable to be superior for the larger genomes
+    my $intergenic_size = get_intergenic_size($augustus_gtf);
+    print STDERR "Intergenic size: $intergenic_size\n";
+    if($intergenic_size > 40000){  # enable TSEBRA only for genomes with large 
+                                   # intergenic regions
         print LOG  "\# " . (localtime) . ": reducing noise in augustus.hints.gtf "
                          . "with TSEBRA \n" if ($v > 2);
         print CITE $pubs{'tsebra'}; $pubs{'tsebra'} = "";
@@ -5915,7 +5949,7 @@ sub run_tsebra{
         system("$cmdStr") == 0
                 or die("ERROR in file " . __FILE__ ." at line ". __LINE__
                 . "\nFailed to execute: $cmdStr\n");
-        # produce aa and condingseq files
+        # produce aa and codingseq files
         my $string = find(
             "getAnnoFastaFromJoingenes.py",      $AUGUSTUS_BIN_PATH,
             $AUGUSTUS_SCRIPTS_PATH, $AUGUSTUS_CONFIG_PATH
@@ -5961,8 +5995,8 @@ sub run_tsebra{
         my $tsebraprtstr = "\# IMPORTANT INFORMATION: the final output files \n"
             . "of this GALBA run are galba.gtf, galba.codingseq, and galba.aa\n"
             . "These files are exact copies auf augustus.hints predictions.\n"
-            . "For small genomes, we found that in the majority of cases, this\n"
-            . "gene set is better than the TSEBRA gene set.\n"
+            . "For genomes with small intergenic region size, we found that \n"
+            . "in the majority of cases, this gene set is better than the TSEBRA gene set.\n"
             . "However, in rare cases, the tsebra gene set may be better.\n"
             . "You can generate a TSEBRA gene set yourself with the following command:\n"
             . "\ttsebra.py -g augustus.hints.gtf -e hintsfile.gff -o tsebra\n"
