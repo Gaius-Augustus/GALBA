@@ -556,23 +556,13 @@ Output of GALBA
 
 GALBA produces several important output files in the working directory.
 
--   augustus.hints.gtf: Genes predicted by AUGUSTUS with hints from given extrinsic evidence.
+-   galba.gtf: Genes predicted by AUGUSTUS with hints from given extrinsic evidence. In large genomes (>1 Gbp), noise has been reduced in this gene set with TSEBRA.
 
 -   augustus.ab_initio.gtf: Genes predicted by AUGUSTUS in *ab initio* mode in GTF-format. The file will always be present if AUGUSTUS has been run with the option `--esmode`. Otherwise, it will only be present if GALBA was run with the option `--AUGUSTUS_ab_initio`.
 
 -   hintsfile.gff: The extrinsic evidence data extracted from protein data.
 
-TSEBRA output files may be present with the following name endings and formats for genomes larger 150 Mbp, for these genomes, TSEBRA output is likely the best output:
-
--   GTF-format is always produced.
-
--   GFF3-format is produced if the flag `--gff3` was specified to GALBA.
-
--   Coding sequences in FASTA-format
-
--   Protein sequence files in FASTA-format
-
-AUGUSTUS output files may be present with the following name endings and formats (for genomes smaller 150 Mbp, the Augustus with hints output is likely the best output):
+GALBA output files may be present with the following name endings:
 
 -   GTF-format is always produced.
 

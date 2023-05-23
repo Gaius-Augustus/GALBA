@@ -5600,7 +5600,7 @@ sub all_preds_gtf2gff3 {
     print LOG "\# " . (localtime) . ": converting essential output files "
         . "to gff3 format.\n" if ($v > 2);
     my @files = ("$otherfilesDir/augustus.ab_initio.gtf", 
-        "$otherfilesDir/augustus.hints.gtf", "$otherfilesDir/tsebra.gtf");
+        "$otherfilesDir/augustus.hints.gtf", "$otherfilesDir/galba.gtf");
     foreach(@files){
         if(-e $_){
             my $gtf = $_;
@@ -5893,7 +5893,7 @@ sub get_genome_size{
 }
 
 ################################ run_tsebra #########################################
-# run tsebra to reduce noise in Augustus gene set
+# run tsebra to reduce noise in Augustus gene set (only in large genomes)
 #####################################################################################
 
 sub run_tsebra{
@@ -5901,13 +5901,15 @@ sub run_tsebra{
     my $hintsfile = shift;
     my $genome_file = shift;
     my $genome_size = get_genome_size($genome_file);
-    if($genome_size > 150000000){
+    if($genome_size > 1000000000){ # enable TSEBRA only for genomes larger 1 Gbp, 
+                                   # possibly could be set to 150 Mbp, but it seems 
+                                   # more stable to be superior for the larger genomes
         print LOG  "\# " . (localtime) . ": reducing noise in augustus.hints.gtf "
                          . "with TSEBRA \n" if ($v > 2);
         print CITE $pubs{'tsebra'}; $pubs{'tsebra'} = "";
         my $cmdStr = $PYTHON3_PATH . "/python3 " . $TSEBRA_PATH 
                                    . "/tsebra.py -g $augustus_gtf -e $hintsfile  "
-                                   . "-o tsebra.gtf ";
+                                   . "-o galba.gtf ";
         $cmdStr .= " > $otherfilesDir/tsebra.log 2> $errorfilesDir/tsebra.err";
         print LOG $cmdStr . "\n"  if ($v > 3);
         system("$cmdStr") == 0
@@ -5928,22 +5930,44 @@ sub run_tsebra{
         if (not($ttable == 1)){
             $pythonCmdString .= "-t $ttable ";
         }
-        $pythonCmdString .= "-g $genome_file -f tsebra.gtf "
-                         .  "-o tsebra 1> $outfile 2>$errorfile";
+        $pythonCmdString .= "-g $genome_file -f galba.gtf "
+                         .  "-o galba 1> $outfile 2>$errorfile";
         print LOG "$pythonCmdString\n" if ($v > 3);
         system("$pythonCmdString") == 0
             or die("ERROR in file " . __FILE__ ." at line ". __LINE__
                 . "\nFailed to execute: $pythonCmdString\n");
         my $tsebraprtstr = "\# IMPORTANT INFORMATION: the final output files \n"
-            . "of this GALBA run are tsebra.gtf, tsebra.aa, and tsebra.codingseq.\n"
+            . "of this GALBA run are galba.gtf, galba.aa, and galba.codingseq.\n"
+            . "This gene set is a result of running TSEBRA.\n"
             . "In rare cases, the tsebra gene set may be too small due to a lack\n"
             . "of evidence. In these cases, please compare to the augustus.hints.gtf\n"
             . "gene set and use the one that is better.\n";
         print LOG $tsebraprtstr;
         print $tsebraprtstr;
     } else {
-            my $tsebraprtstr = "\# IMPORTANT INFORMATION: the final output files \n"
-            . "of this GALBA run are augustus.hints.gtf, augustus.hints.aa, and augustus.hints.codingseq.\n";
+        my @mv_files = ("$otherfilesDir/augustus.hints.gtf", "$otherfilesDir/augustus.hints.aa", 
+            "$otherfilesDir/augustus.hints.codingseq");
+        foreach(@mv_files){
+            if(-e $_){
+                my $mv_file = $_;
+                $mv_file =~ s/augustus\.hints/galba/;
+                my $cmdStr = "mv $_ $mv_file";
+                print LOG $cmdStr . "\n"  if ($v > 3);
+                system("$cmdStr") == 0
+                    or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+                        . "\nFailed to execute: $cmdStr\n");
+            }
+        }
+        my $tsebraprtstr = "\# IMPORTANT INFORMATION: the final output files \n"
+            . "of this GALBA run are galba.gtf, galba.codingseq, and galba.aa\n"
+            . "These files are exact copies auf augustus.hints predictions.\n"
+            . "For small genomes, we found that in the majority of cases, this\n"
+            . "gene set is better than the TSEBRA gene set.\n"
+            . "However, in rare cases, the tsebra gene set may be better.\n"
+            . "You can generate a TSEBRA gene set yourself with the following command:\n"
+            . "\ttsebra.py -g augustus.hints.gtf -e hintsfile.gff -o tsebra\n"
+            . "The accompanying fasta files can be generated with:\n"
+            . "\tgetAnnofastaFromJoingenes.py -g genome.fa -f tsebra.gtf -o tsebra\n";
         print LOG $tsebraprtstr;
         print $tsebraprtstr;
     }
