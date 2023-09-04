@@ -724,7 +724,7 @@ Since GALBA is a pipeline that calls several Bioinformatics tools, publication o
 
 -   Always cite:
 
-    - Bruna, T., Li, H., Guhlin, J., Honsel, D., Herbold, S., Stanke, M., Nenasheva, N., Ebel, M., Gabriel, L., and Hoff, K.J. (2023) "GALBA: Genome Annotation with Miniprot and AUGUSTUS", bioRxiv https://doi.org/10.1101/2023.04.10.536199
+    - Bruna, T., Li, H., Guhlin, J., Honsel, D., Herbold, S., Stanke, M., Nenasheva, N., Ebel, M., Gabriel, L., and Hoff, K.J. (2023) "GALBA: Genome Annotation with Miniprot and AUGUSTUS". *BMC Bioinformatics*, 24:327, https://doi.org/10.1186/s12859-023-05449-z.
 
     -   Hoff, K. and Stanke, M. 2019. “Predicting genes in single genomes with AUGUSTUS.“ *Current Protocols in Bioinformatics*, 65(1), e57.
 
