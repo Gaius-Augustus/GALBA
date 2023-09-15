@@ -95,7 +95,9 @@ my @files = ("firsttest.stdout", "genome.fa", "getAnnoFasta.augustus.ab_initio.s
 	"getAnnoFastaFromJoingenes.augustus.hints_hints.stdout", "getAnnoFastaFromJoingenes.augustus.ab_initio_.stdout",
 	"getAnnoFastaFromJoingenes.augustus.hints_.stdout", "startAlign.stdout", "cmd.log", "etrain.bad.lst", "gene_stat.yaml",
 	"good_genes.lst", "nonred.loci.lst", "nuc.fasta", "proteins.fa", 
-    "train.f.gb", "traingenes.good.gtf", "traingenes.good.nr.fa", "uniqueSeeds.gtf", "genome.mpi");
+    "train.f.gb", "traingenes.good.gtf", "traingenes.good.nr.fa", "uniqueSeeds.gtf", "genome.mpi", "pygustus_hints.out", "pygustus_hints.py",
+	"gff2gbSmallDNA.stderr", "miniprot_representatives.gff", "protein_alignment_miniprot.aln", "protein_alignment_miniprot.gff", "hc.gff", 
+	"miniprothint.gff", "thirdtest.stdout");
 
 
 foreach(@files){
@@ -112,3 +114,18 @@ while(-d $wdir."/align_gth".$gth_index){
 	$gth_index = $gth_index + 1;
 }
 
+# create a new directory for archived files
+my $archivedir = $wdir."/archive";
+if(not(-d $archivedir)){
+	mkdir($archivedir);
+}
+
+# move files that are not essential output to archive directory, 
+# there files are: augustus.hints.gff, train2.gb.train.test, train2.gb.train.train, train2.gb.test, train2.gb.train, train2.gb, miniprot_representatives.gtf, miniprot.gff
+my @archivefiles = ("augustus.hints.gff", "train2.gb.train.test", "train2.gb.train.train", "train2.gb.test", "train2.gb.train", "train2.gb", "miniprot_representatives.gtf", "miniprot.gff");
+foreach(@archivefiles){
+	if(-e $wdir."/".$_){
+		print "Moving file ".$wdir."/".$_." to archive directory\n";
+		rename($wdir."/".$_, $archivedir."/".$_);
+	}
+}
