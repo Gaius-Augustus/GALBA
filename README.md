@@ -108,7 +108,7 @@ Overview running GALBA
 
 GALBA mainly features semi-unsupervised, protein sequence evidence data supported training of AUGUSTUS with integration of extrinsic evidence in the final gene prediction step. GALBA can be used either with Miniprot or GenomeThreader as a protein spliced aligner. Miniprot is our preferred aligner because it continues to undergo development, we have put a lot of work into improving the integration of miniprot evidence (e.g. miniprothint), and is faster than GenomeThreader. We highly recommend to use Miniprot with GALBA. GenomeThreader is only included in GALBA for internal benchmarking purposes. We stopped testing GenomeThreader functionality a while ago, we do not include GenomeThreader in our containers. The GALBA pipeline with miniprot looks works like this (Figure 1 from the GALBA publication at https://link.springer.com/article/10.1186/s12859-023-05449-z):
 
-![galba-miniprot\[fig1\]](docs/figs/galba_miniprot.png)
+![galba-miniprot\[fig1\]](docs/figs/galba_minprot.png)
 
 Figure a: training AUGUSTUS on the basis of spliced alignment information from proteins of a closely related species against the target genome with miniprot.
 
