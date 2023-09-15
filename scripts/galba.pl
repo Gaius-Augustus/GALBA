@@ -5,7 +5,7 @@
 # galba.pl                                                                                         #
 # Pipeline for de novo gene prediction with AUGUSTUS using Miniprot or GenomeThreader              #
 #                                                                                                  #
-# Authors: Katharina Hoff, Heng Li, Lars Gabriel, & Mario Stanke                                   #
+# Authors: Katharina Hoff, Heng Li, Tomas Bruna, Lars Gabriel, & Mario Stanke                      #
 #                                                                                                  #
 # Contact: katharina.hoff@uni-greifswald.de                                                        #
 #                                                                                                  #
@@ -246,7 +246,7 @@ ENDUSAGE
 # Declartion of global variables ###############################################
 
 my $v = 4; # determines what is printed to log
-my $version = "1.0.7";
+my $version = "1.0.8";
 my $rootDir;
 my $logString = "";          # stores log messages produced before opening log file
 $logString .= "\#**********************************************************************************\n";
@@ -467,15 +467,17 @@ if($nocleanup){
 }
 
 # Define publications to be cited ##############################################
-# GALBA-whole, aug-hmm, diamond, gth, makehub, miniprot
+# GALBA, aug-hmm, diamond, gth, makehub, miniprot
 my %pubs;
-$pubs{'GALBA-whole'} = "\nHoff, K. J., Lomsadze, A., Borodovsky, M., & Stanke, M. (2019). Whole-genome annotation with BRAKER. In Gene Prediction (pp. 65-95). Humana, New York, NY.\n";
+$pubs{'GALBA'} = "\nBruna, T., Li, H., Guhlin, J., Honsel, D., Herbold, S., Stanke, M., Nenasheva, N., Ebel, M., Gabriel, L., & Hoff, K.J. (2023). GALBA: Genome Annotation with miniprot and AUGUSTUS. BMC Bioinformatics, 24(1):327.\n";
 $pubs{'aug-hmm'} = "\nStanke, M., Schöffmann, O., Morgenstern, B., & Waack, S. (2006). Gene prediction in eukaryotes with a generalized hidden Markov model that uses hints from external sources. BMC Bioinformatics, 7(1), 62.\n";
 $pubs{'diamond'} = "\nBuchfink, B., Xie, C., & Huson, D. H. (2015). Fast and sensitive protein alignment using DIAMOND. Nature Methods, 12(1), 59.\n";
-$pubs{'gth'} = "\nGremme, G. (2013). Computational gene structure prediction.\n";
 $pubs{'miniprot'} = "\nLi, H. (2023). Protein-to-genome alignment with miniprot. Bioinformatics, 39(1), btad014.\n";
 $pubs{'augustus-prot'} = "\nHoff, K. J. and Stanke, M. (2019). “Predicting genes in single genomes with AUGUSTUS.“ Current Protocols in Bioinformatics, 65(1), e57.\n";
 $pubs{'tsebra'} = "\nGabriel L., Hoff, K. J., Bruna, T., Borodovsky, M., and Stanke, M. (2021). TSEBRA: transcript selector for BRAKER. BMC Bioinformatics, 22(566)\n";
+# cite only if GenomeThreader is used
+$pubs{'GALBA-whole'} = "\nHoff, K. J., Lomsadze, A., Borodovsky, M., & Stanke, M. (2019). Whole-genome annotation with BRAKER. In Gene Prediction (pp. 65-95). Humana, New York, NY.\n";
+$pubs{'gth'} = "\nGremme, G. (2013). Computational gene structure prediction.\n";
 
 # Make paths to input files absolute ###########################################
 
@@ -670,7 +672,7 @@ open( CITE, ">", "$otherfilesDir/what-to-cite.txt") or die("ERROR in file " . __
     . __LINE__ ."\n$otherfilesDir/what-to-cite.txt!\n");
 print CITE "When publishing results of this GALBA run, please cite the following sources:\n";
 print CITE "------------------------------------------------------------------------------\n";
-print CITE $pubs{'GALBA-whole'}; $pubs{'GALBA-whole'} = "";
+print CITE $pubs{'GALBA'}; $pubs{'GALBA'} = "";
 
 # set hintsfile
 $hintsfile = "$otherfilesDir/hintsfile.gff";
@@ -736,7 +738,7 @@ print LOG "\#*******************************************************************
 # make hints from protein data
 
 if( @prot_seq_files){
-    make_prot_hints(); # Miniprot or GenomeThreader pipeline for generating protein hints!
+    make_prot_hints(); # Miniprot or GenomeThreader pipeline for generating protein hints
 }
 
 # add other user supplied hints
@@ -3359,6 +3361,7 @@ sub make_prot_hints {
                 . ": running Genome Threader to produce protein to "
                 . "genome alignments\n"  if ($v > 3);
             print CITE $pubs{'gth'}; $pubs{'gth'} = "";
+            print CITE $pubs{'GALBA-whole'}; $pubs{'GALBA-whole'} = "";
             if ( $CPU > 1 ) {
                 $perlCmdString .= "--CPU=$CPU ";
             }
@@ -3464,7 +3467,7 @@ sub make_prot_hints {
             $cmdString .= "nice ";
         }
         # ignoreCoverage prints hints to hc.gff ignoring coverage if most hints have coverage = 1
-        $cmdString .= "$MINIPROTHINT_PATH/miniprothint.py $otherfilesDir/miniprot.gff --workdir $otherfilesDir --ignoreCoverage";
+        $cmdString .= "$MINIPROTHINT_PATH/miniprothint.py $otherfilesDir/miniprot.gff --workdir $otherfilesDir --ignoreCoverage --topNperSeed 10 --minScoreFraction 0.5";
         print LOG "\# "
             . (localtime)
             . ": $cmdString\n"  if ($v > 3);
@@ -3559,9 +3562,8 @@ sub make_prot_hints {
     } elsif ( $prg eq "miniprot" ) {
         print LOG "\#  "
         . (localtime)
-        . ": selecting training genes from miniprot output "
-        . "$trainGenesGtf.\n" if ($v > 2);
-        $cmdString = "find_train_candidates.py -m $alignment_outfile -o $trainGenesGtf";
+        . ": using training genes from miniprothint \n" if ($v > 2);
+        $cmdString = "ln -s $otherfilesDir/miniprot_representatives.gtf $trainGenesGtf";
         print LOG "$cmdString\n" if ($v > 2);
         system($cmdString) == 0 or die("ERROR in file " . __FILE__ ." at line "
             . __LINE__ ."\nFailed to execute: $cmdString!\n");
@@ -5709,16 +5711,16 @@ sub clean_up {
                 . "\nFailed to delete $otherfilesDir/miniprot!\n");
         }
         $string = find(
-            "galba_cleanup.pl", $AUGUSTUS_BIN_PATH,
+            "galba_cleanup.py", $AUGUSTUS_BIN_PATH,
             $AUGUSTUS_SCRIPTS_PATH, $AUGUSTUS_CONFIG_PATH
         );
-        $perlCmdString = "";
+        $cmdString = "";
         if($nice){
-            $perlCmdString .= "nice ";
+            $cmdString .= "nice ";
         }
-        $perlCmdString .= "$perl $string --wdir=$otherfilesDir";
-        print LOG "$perlCmdString\n" if ($v > 3);
-        my $loginfo = `$perlCmdString`;
+        $cmdString .= "python3 $string --wdir $otherfilesDir";
+        print LOG "$cmdString\n" if ($v > 3);
+        my $loginfo = `$cmdString`;
         print LOG $loginfo;
     }
 }
@@ -5928,6 +5930,13 @@ sub get_intergenic_size{
 
 ################################ run_tsebra #########################################
 # run tsebra to reduce noise in Augustus gene set (only in large genomes)
+    # Currently, we are not sure whether using the intergenic size is a good idea
+    # to decide on whether or not run TSEBRA. Therefore, we disable the functionality.
+    # Idea for the future: integrate BUSCO assessment into GALBA and decide on the
+    # basis of BUSCO results.
+    # Currently problematic because we call BUSCO in an conda environement that needs
+    # to be activated. If anyone installs BUSCO in a different way, our pipeline will
+    # not work.
 #####################################################################################
 
 sub run_tsebra{
@@ -5935,50 +5944,51 @@ sub run_tsebra{
     my $hintsfile = shift;
     my $genome_file = shift;
     my $intergenic_size = get_intergenic_size($augustus_gtf);
-    print STDERR "Intergenic size: $intergenic_size\n";
-    if($intergenic_size > 40000){  # enable TSEBRA only for genomes with large 
-                                   # intergenic regions
-        print LOG  "\# " . (localtime) . ": reducing noise in augustus.hints.gtf "
-                         . "with TSEBRA \n" if ($v > 2);
-        print CITE $pubs{'tsebra'}; $pubs{'tsebra'} = "";
-        my $cmdStr = $PYTHON3_PATH . "/python3 " . $TSEBRA_PATH 
-                                   . "/tsebra.py -g $augustus_gtf -e $hintsfile  "
-                                   . "-o galba.gtf ";
-        $cmdStr .= " > $otherfilesDir/tsebra.log 2> $errorfilesDir/tsebra.err";
-        print LOG $cmdStr . "\n"  if ($v > 3);
-        system("$cmdStr") == 0
-                or die("ERROR in file " . __FILE__ ." at line ". __LINE__
-                . "\nFailed to execute: $cmdStr\n");
+    #print STDERR "Intergenic size: $intergenic_size\n";
+    #if($intergenic_size > 40000){  # enable TSEBRA only for genomes with large 
+    #                               # intergenic regions
+    #    print LOG  "\# " . (localtime) . ": reducing noise in augustus.hints.gtf "
+    #                     . "with TSEBRA \n" if ($v > 2);
+    #    print CITE $pubs{'tsebra'}; $pubs{'tsebra'} = "";
+    #    my $cmdStr = $PYTHON3_PATH . "/python3 " . $TSEBRA_PATH 
+    #                               . "/tsebra.py -g $augustus_gtf -e $hintsfile  "
+    #                               . "-o galba.gtf ";
+    #    $cmdStr .= " > $otherfilesDir/tsebra.log 2> $errorfilesDir/tsebra.err";
+    #    print LOG $cmdStr . "\n"  if ($v > 3);
+    #    system("$cmdStr") == 0
+    #            or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+    #            . "\nFailed to execute: $cmdStr\n");
         # produce aa and codingseq files
-        my $string = find(
-            "getAnnoFastaFromJoingenes.py",      $AUGUSTUS_BIN_PATH,
-            $AUGUSTUS_SCRIPTS_PATH, $AUGUSTUS_CONFIG_PATH
-        );
-        my $errorfile = "$errorfilesDir/getAnnoFastaFromJoingenes.tsebra.stderr";
-        my $outfile = "$otherfilesDir/getAnnoFastaFromJoingenes.tsebra.stdout";
-        my $pythonCmdString = "";
-        if ($nice) {
-            $pythonCmdString .= "nice ";
-        }
-        $pythonCmdString .= "$PYTHON3_PATH/python3 $string ";
-        if (not($ttable == 1)){
-            $pythonCmdString .= "-t $ttable ";
-        }
-        $pythonCmdString .= "-g $genome_file -f galba.gtf "
-                         .  "-o galba 1> $outfile 2>$errorfile";
-        print LOG "$pythonCmdString\n" if ($v > 3);
-        system("$pythonCmdString") == 0
-            or die("ERROR in file " . __FILE__ ." at line ". __LINE__
-                . "\nFailed to execute: $pythonCmdString\n");
-        my $tsebraprtstr = "\# IMPORTANT INFORMATION: the final output files \n"
-            . "of this GALBA run are galba.gtf, galba.aa, and galba.codingseq.\n"
-            . "This gene set is a result of running TSEBRA.\n"
-            . "In rare cases, the tsebra gene set may be too small due to a lack\n"
-            . "of evidence. In these cases, please compare to the augustus.hints.gtf\n"
-            . "gene set and use the one that is better.\n";
-        print LOG $tsebraprtstr;
-        print $tsebraprtstr;
-    } else {
+    #    my $string = find(
+    #        "getAnnoFastaFromJoingenes.py",      $AUGUSTUS_BIN_PATH,
+    #        $AUGUSTUS_SCRIPTS_PATH, $AUGUSTUS_CONFIG_PATH
+    #    );
+    #    my $errorfile = "$errorfilesDir/getAnnoFastaFromJoingenes.tsebra.stderr";
+    #    my $outfile = "$otherfilesDir/getAnnoFastaFromJoingenes.tsebra.stdout";
+    #    my $pythonCmdString = "";
+    #    if ($nice) {
+    #        $pythonCmdString .= "nice ";
+    #    }
+    #    $pythonCmdString .= "$PYTHON3_PATH/python3 $string ";
+    #    if (not($ttable == 1)){
+    #        $pythonCmdString .= "-t $ttable ";
+    #    }
+    #    $pythonCmdString .= "-g $genome_file -f galba.gtf "
+    #                     .  "-o galba 1> $outfile 2>$errorfile";
+    #    print LOG "$pythonCmdString\n" if ($v > 3);
+    #    system("$pythonCmdString") == 0
+    #        or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+    #            . "\nFailed to execute: $pythonCmdString\n");
+    #    my $tsebraprtstr = "\# IMPORTANT INFORMATION: the final output files \n"
+    #        . "of this GALBA run are galba.gtf, galba.aa, and galba.codingseq.\n"
+    #        . "This gene set is a result of running TSEBRA.\n"
+    #        . "In rare cases, the tsebra gene set may be too small due to a lack\n"
+    #        . "of evidence. In these cases, please compare to the augustus.hints.gtf\n"
+    #        . "gene set and use the one that is better. We recommend that you perform a\n"
+    #        . "BUSCO assessment of both gene sets to determine which one is better.\n";
+    #    print LOG $tsebraprtstr;
+    #    print $tsebraprtstr;
+    #} else {
         my @mv_files = ("$otherfilesDir/augustus.hints.gtf", "$otherfilesDir/augustus.hints.aa", 
             "$otherfilesDir/augustus.hints.codingseq");
         foreach(@mv_files){
@@ -5994,15 +6004,15 @@ sub run_tsebra{
         }
         my $tsebraprtstr = "\# IMPORTANT INFORMATION: the final output files \n"
             . "of this GALBA run are galba.gtf, galba.codingseq, and galba.aa\n"
-            . "These files are exact copies auf augustus.hints predictions.\n"
-            . "For genomes with small intergenic region size, we found that \n"
-            . "in the majority of cases, this gene set is better than the TSEBRA gene set.\n"
-            . "However, in rare cases, the tsebra gene set may be better.\n"
-            . "You can generate a TSEBRA gene set yourself with the following command:\n"
-            . "\ttsebra.py -g augustus.hints.gtf -e hintsfile.gff -o tsebra\n"
-            . "The accompanying fasta files can be generated with:\n"
-            . "\tgetAnnofastaFromJoingenes.py -g genome.fa -f tsebra.gtf -o tsebra\n";
+            . "These files are exact copies auf augustus.hints predictions.\n";
+    #        . "For genomes with small intergenic region size, we found that \n"
+    #        . "in the majority of cases, this gene set is better than the TSEBRA gene set.\n"
+    #        . "However, in rare cases, the tsebra gene set may be better.\n"
+    #        . "You can generate a TSEBRA gene set yourself with the following command:\n"
+    #        . "\ttsebra.py -g augustus.hints.gtf -e hintsfile.gff -o tsebra\n"
+    #        . "The accompanying fasta files can be generated with:\n"
+    #        . "\tgetAnnofastaFromJoingenes.py -g genome.fa -f tsebra.gtf -o tsebra\n";
         print LOG $tsebraprtstr;
         print $tsebraprtstr;
-    }
+    #}
 }
