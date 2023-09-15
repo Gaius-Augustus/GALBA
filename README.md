@@ -5,12 +5,13 @@
 <u>Contact for Github Repository of GALBA at
 https://github.com/Gaius-Augustus/GALBA:</u>
 
-Katharina J. Hoff, University of Greifswald, Germany, katharina.hoff@uni-greifswald.de, +49 3834 420 4624, [![https://twitter.com/katharina_hoff](https://img.shields.io/twitter/follow/katharina_hoff)](https://twitter.com/katharina_hoff)
+Katharina J. Hoff, University of Greifswald, Germany, katharina.hoff@uni-greifswald.de, +49 3834 420 4624, [![https://twitter.com/katharina_hoff](https://img.shields.io/twitter/follow/katharina_hoff)](https://twitter.com/katharina_hoff), @katharinahoff.bsky.social, @KatharinaHoff@fosstodon.org
 
 Authors of GALBA
 ================
 
-Katharina J. Hoff<sup name="aff1">[a, ](#aff1)</sup><sup name="aff2">[b](#aff2)</sup>, Heng Li<sup name="aff3">[c, ](#aff3)</sup><sup name="aff4">[d ](#aff4)</sup>, Tomas Bruna<sup name="aff5">[e](#aff1)</sup>, Lars Gabriel<sup name="aff1">[a, ](#aff1)</sup><sup name="aff2">[b](#aff2)</sup>, and Mario Stanke<sup name="aff1">[a, ](#aff1)</sup><sup name="aff2">[b](#aff2)</sup>
+Tomas Bruna<sup name="aff5">[e](#aff1)</sup>, Heng Li<sup name="aff3">[c, ](#aff3)</sup><sup name="aff4">[d ](#aff4)</sup>, Joseph Guhlin<sup name="aff6">[f](#aff6)</sup>, Daniel Honsel<sup name="aff7">[g](#aff7)</sup>,
+Steffen Herbold<sup name="aff8">[h](#aff8)</sup>, Natalia Nenasheva<sup name="aff1">[a, ](#aff1)</sup><sup name="aff2">[b](#aff2)</sup>, Matthis Ebel<sup name="aff1">[a, ](#aff1)</sup><sup name="aff2">[b](#aff2)</sup>, Lars Gabriel<sup name="aff1">[a, ](#aff1)</sup><sup name="aff2">[b](#aff2)</sup>, Mario Stanke<sup name="aff1">[a, ](#aff1)</sup><sup name="aff2">[b](#aff2)</sup>, and Katharina J. Hoff<sup name="aff1">[a, ](#aff1)</sup><sup name="aff2">[b](#aff2)</sup>
 
 <b id="aff1">[a]</b> University of Greifswald, Institute for Mathematics and Computer Science, Walther-Rathenau-Str. 47, 17489 Greifswald, Germany
 
@@ -22,10 +23,17 @@ Katharina J. Hoff<sup name="aff1">[a, ](#aff1)</sup><sup name="aff2">[b](#aff2)<
 
 <b id="aff5">[e]</b> Joint Genome Institute, Lawrence Berkeley National Laboratory, USA
 
+<b id="aff6">[f]</b> Genomics Aotearoa and Laboratory for Evolution and Development, Department of Biochemistry, University of Otago, Dunedin, 9016, New Zealand
+
+<b id="aff7">[g]</b> Institute of Computer Science, University of Göttingen, 37077, Göttingen, Germany
+
+<b id="aff8">[h]</b> Faculty for Computer Science and Mathematics, University of Passau, 94032, Passau, Germany
+
+
 Acknowledgements
 ===============
 
-GALBA code was derived from the BRAKER code, where a similar pipeline for using GenomeThreader with BRAKER was once published in <sup name="a9">[R9](#f9)</sup>. We hereby acknowledge the contributions of all BRAKER authors to the code that GALBA was derived from, and we are grateful for funding for BRAKER development by the National Institutes of Health (NIH) grant GM128145, which indirectly also supported development of GALBA.
+GALBA code was derived from the BRAKER code, where a similar pipeline for using GenomeThreader with BRAKER was once published in <sup name="a9">[R9](#f9)</sup>. We hereby acknowledge the contributions of all BRAKER authors (in particular Simone Lange, Anica Hoppe, Alexandre Lomsadze, and Mark Borodovsky) to the code that GALBA was derived from, and we are grateful for funding for BRAKER development by the National Institutes of Health (NIH) grant GM128145, which indirectly also supported development of GALBA.
 
 
 Related Software
@@ -76,11 +84,11 @@ Contents
 What is GALBA?
 ===============
 
-The rapidly growing number of sequenced genomes requires fully automated methods for accurate gene structure annotation. Here, we provide a fully automated gene pipeline that trains AUGUSTUS<sup name="a3">[R3, ](#f3)</sup><sup name="a4">[R4](#f4)</sup> for a novel species and subsequently predicts genes with AUGUSTUS in the genome of that species. GALBA uses the protein sequences of **one closely related species** to generate a training gene set for AUGUSTUS with either miniprot<sup name="a1">[R1, ](#f1)</sup> or GenomeThreader<sup name="a2">[R2](#f2)</sup>. After training, GALBA uses the evidence from protein to genome alignment during gene prediction. 
+The rapidly growing number of sequenced genomes requires fully automated methods for accurate gene structure annotation. Here, we provide a fully automated gene pipeline that trains AUGUSTUS<sup name="a3">[R3, ](#f3)</sup><sup name="a4">[R4](#f4)</sup> for a novel species and subsequently predicts genes with AUGUSTUS in the genome of that species. GALBA uses the protein sequences of **several (few) or one closely related species** to generate a training gene set for AUGUSTUS with either miniprot<sup name="a1">[R1, ](#f1)</sup> or GenomeThreader<sup name="a2">[R2](#f2)</sup>. After training, GALBA uses the evidence from protein to genome alignment during gene prediction. 
 
 :warning: Please note that the popular BRAKER<sup name="a5">[R5, ](#f5)</sup><sup name="a6">[R6](#f6)</sup> pipeline will very likely produce more accurate results than GALBA in small and medium size genomes (such als C. elegans, A. thaliana, D. melanogaster, ...). Instead of using protein sequences of only one closely related species, **BRAKER is capable of using proteins from a large sequence database** where the species in the database must not necessarily be closely related to the target species. BRAKER can also incorporate RNA-Seq data. In contrast to GALBA, BRAKER achieves high gene prediction accuracy even in the absence of the annotation of very closely related species (and in the absence of RNA-Seq data). However, GALBA has a clear advantage in large genomes (e.g. Mus musculus, Gallus gallus, ...) if you use input proteins from a close relative. Before deciding to use GALBA, please read the [Accuracy](#accuracy) section.
 
-**If you are not sure which pipeline to use: GALBA or BRAKER? The answer is: use BRAKER, first!**
+**If you are not sure which pipeline to use: GALBA or BRAKER? The answer is: if you have no RNA-Seq data and the genome is large, use GALBA! Otherwise use BRAKER, first.**
 
 GALBA is named after Servius Sulpicius Galba, who ruled the Roman Empire only for a short time, before he was murdered. The named seems appropriate, because both BRAKER2 and also the soon published BRAKER3 achieve in some cases higher accuracy than GALBA ever will, and AI is on the rise.
 
@@ -98,15 +106,11 @@ Keys to successful gene prediction
 Overview running GALBA
 ====================================
 
-GALBA mainly features semi-unsupervised, protein sequence evidence data supported training of AUGUSTUS with integration of extrinsic evidence in the final gene prediction step. GALBA can be used either with Miniprot or GenomeThreader as a protein spliced aligner. Miniprot is our preferred aligner because it continues to undergo development and is faster than GenomeThreader.
+GALBA mainly features semi-unsupervised, protein sequence evidence data supported training of AUGUSTUS with integration of extrinsic evidence in the final gene prediction step. GALBA can be used either with Miniprot or GenomeThreader as a protein spliced aligner. Miniprot is our preferred aligner because it continues to undergo development, we have put a lot of work into improving the integration of miniprot evidence (e.g. miniprothint), and is faster than GenomeThreader. We highly recommend to use Miniprot with GALBA. GenomeThreader is only included in GALBA for internal benchmarking purposes. We stopped testing GenomeThreader functionality a while ago, we do not include GenomeThreader in our containers. The GALBA pipeline with miniprot looks works like this (Figure 1 from the GALBA publication at https://link.springer.com/article/10.1186/s12859-023-05449-z):
 
 ![galba-miniprot\[fig1\]](docs/figs/galba_miniprot.png)
 
-Figure a: training AUGUSTUS on the basis of spliced alignment information from proteins of a very closely related species against the target genome with miniprot.
-
-![galba-gth\[fig2\]](docs/figs/galba_gth.png)
-
-Figure b:training AUGUSTUS on the basis of spliced alignment information from proteins of a very closely related species against the target genome with GenomeThreader.
+Figure a: training AUGUSTUS on the basis of spliced alignment information from proteins of a closely related species against the target genome with miniprot.
 
 Singularity Image
 =================
@@ -160,9 +164,9 @@ At the time of release, this GALBA version was tested with:
 
 -   Pygustus v0.8.0-alpha
 
--   Miniprot 0.5-r181<sup name="a1">[R1](#f1)</sup>
+-   Miniprot 0.12-r237<sup name="a1">[R1](#f1)</sup>
 
--   GenomeThreader 1.7.3<sup name="a2">[R2](#f2)</sup>
+-   (GenomeThreader 1.7.3<sup name="a2">[R2](#f2)</sup>)
 
 -   DIAMOND 0.9.230<sup name="a7">[R7](#f7)</sup>
 
@@ -175,6 +179,7 @@ At the time of release, this GALBA version was tested with:
 -   Miniprothint
 
 -   TSEBRA v1.1.1
+
 GALBA
 -------
 
@@ -248,7 +253,7 @@ GALBA is a collection of Perl and Python scripts and a Perl module. The main scr
 
 -   `downsample_traingenes.pl`
 
--   `galba_cleanup.pl`
+-   `galba_cleanup.py`
 
 All scripts (files ending with `*.pl` and `*.py`) that are part of GALBA must be executable in order to run GALBA. This should already be the case if you download GALBA from GitHub. Executability may be overwritten if you, e.g. transfer GALBA on a USB-stick to another computer. In order to check whether required files are executable, run the following command in the directory that contains GALBA Perl scripts:
 
@@ -258,7 +263,7 @@ The output should be similar to this:
 
 ```
     -rwxr-xr-x 1 katharina katharina  18191 Mai  7 10:25 aln2hints.pl
-    -rwxr-xr-x 1 katharina katharina   6090 Feb 19 09:35 galba_cleanup.pl
+    -rwxr-xr-x 1 katharina katharina   6090 Feb 19 09:35 galba_cleanup.py
     -rwxr-xr-x 1 katharina katharina 408782 Aug 17 18:24 galba.pl
     -rwxr-xr-x 1 katharina katharina   5024 Mai  7 10:25 downsample_traingenes.pl
     -rwxr-xr-x 1 katharina katharina   5754 Mai  7 10:25 filterIntronsFindStrand.pl
@@ -348,7 +353,7 @@ Important: this version of GALBA relies on pygustus 0.8.3-alpha. It will not be 
 
 #### Miniprot
 
-This tool is only required, if you would like to run protein to genome alignments with GALBA using Miniprot. Download Miniprot from <https://github.com/lh3/miniprot>:
+This tool is only required, if you would like to run protein to genome alignments with GALBA using Miniprot. We strongly recommend using Miniprot with GALBA. Download Miniprot from <https://github.com/lh3/miniprot>:
 
 ```
 git clone https://github.com/lh3/miniprot.git
@@ -555,9 +560,9 @@ Output of GALBA
 
 GALBA produces several important output files in the working directory.
 
--   galba.gtf: Genes predicted by AUGUSTUS with hints from given extrinsic evidence. In genomes with a large intergenic region size (>40,000 nt), noise has been reduced in this gene set with TSEBRA.
+-   galba.gtf: Genes predicted by AUGUSTUS with hints from given extrinsic evidence. 
 
--   augustus.ab_initio.gtf: Genes predicted by AUGUSTUS in *ab initio* mode in GTF-format. The file will always be present if AUGUSTUS has been run with the option `--esmode`. Otherwise, it will only be present if GALBA was run with the option `--AUGUSTUS_ab_initio`.
+-   augustus.ab_initio.gtf: Genes predicted by AUGUSTUS in *ab initio* mode in GTF-format. It will only be present if GALBA was run with the option `--AUGUSTUS_ab_initio`.
 
 -   hintsfile.gff: The extrinsic evidence data extracted from protein data.
 
@@ -653,15 +658,9 @@ This test is implemented in `test3.sh`, expected runtime is 2:30 minutes.
 Accuracy
 ========
 
-![galba-miniprot-fly\[fig3\]](docs/figs/galba_miniprot_fly.png)
+For accuracy results of GALBA, we refer you to our publication at https://link.springer.com/article/10.1186/s12859-023-05449-z .
 
-Figure c: accuracy results of GALBA and BRAKER2 in *Drosophila melanogaster*. Shown are results from running GALBA with protein input from *D. simulans* (dsim), *D. erecta* (dere), *D. ananassae* (dana), *D. speudoobscura* (dpse), *D. willistoni* (dwil), *D. virilis* (dvir), and *D. grimshawi* (dgri). In addition, GALBA was run with proteins of the house fly (mdom). For "combo", the input proteins were a concatenation of dana, dpse, dwil, dere, and dgri. BRAKER2 results were computed with the OrthoDB Arthropoda partition, either excluding *D. melanogaster* proteins, or excluding proteins of the same order. The red dot shows BRAKER2 results with exactly the same protein input as GALBA with "combo".
-
-:warning: As Figure c demonstrates, BRAKER2 (<https://github.com/Gaius-Augustus/BRAKER>) generates more accurate results than GALBA in fruit fly. We have computed similar results for *Arabidopsis thaliana* and *Caenorhabditis elegans*. Results look very different in large genomes (such as vertebrates) if you use proteins of a closely related species. GALBA may here achieve much better accuracy than BRAKER2.
-
-There may in addition be some special cases where GALBA obtains better results than BRAKER. For example, if you observe a "split gene" problem with BRAKER, and if you have proteins of a very close relative at hand, then GALBA may improve over BRAKER. Also, if you miss genes that are known in relatives of your species of interest in a BRAKER output, it might be worth trying GALBA and combining the resulting gene set and hintsfile with TSEBRA with a BRAKER output.
-
-Accuracy of GALBA with GenomeThreader is generally lower than with miniprot. In many cases, GenomeThreader generates too few training genes for training AUGUSTUS, therefore we show only a subset of the data from Figure c in Figure d (the shown accuracy with miniprot is from GALBA v1.0.0; we stopped testing GenomeThreader afterwards; GALBA with miniprot accuracy has improved, since):
+Accuracy of GALBA with GenomeThreader is generally lower than with miniprot. In many cases, GenomeThreader generates too few training genes for training AUGUSTUS (the shown accuracy with miniprot is from GALBA v1.0.0; we stopped testing GenomeThreader afterwards; GALBA with miniprot accuracy has improved, since):
 
 ![galba-miniprot-gth-fly\[fig4\]](docs/figs/galba_miniprot_gth_fly.png)
 
@@ -724,7 +723,7 @@ Since GALBA is a pipeline that calls several Bioinformatics tools, publication o
 
 -   Always cite:
 
-    - Bruna, T., Li, H., Guhlin, J., Honsel, D., Herbold, S., Stanke, M., Nenasheva, N., Ebel, M., Gabriel, L., and Hoff, K.J. (2023) "GALBA: Genome Annotation with Miniprot and AUGUSTUS". *BMC Bioinformatics*, 24:327, https://doi.org/10.1186/s12859-023-05449-z.
+    -   Bruna, T., Li, H., Guhlin, J., Honsel, D., Herbold, S., Stanke, M., Nenasheva, N., Ebel, M., Gabriel, L., and Hoff, K.J. (2023) "GALBA: Genome Annotation with Miniprot and AUGUSTUS". *BMC Bioinformatics*, 24:327, https://doi.org/10.1186/s12859-023-05449-z.
 
     -   Hoff, K. and Stanke, M. 2019. “Predicting genes in single genomes with AUGUSTUS.“ *Current Protocols in Bioinformatics*, 65(1), e57.
 
