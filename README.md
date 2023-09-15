@@ -1,6 +1,6 @@
 # GALBA User Guide
 
-![Docker Pulls](https://img.shields.io/docker/pulls/katharinahoff/galba-notebook) 
+![Docker Pulls](https://img.shields.io/docker/pulls/katharinahoff/galba-notebook) ![GitHub last commit (branch)](https://img.shields.io/github/last-commit/Gaius-Augustus/GALBA/main)
 
 <u>Contact for Github Repository of GALBA at
 https://github.com/Gaius-Augustus/GALBA:</u>
@@ -74,7 +74,8 @@ Contents
     -   [Testing GALBA with GenomeThreader](#testing-galba-with-genomethreader)
     -   [Testing GALBA with pre-trained parameters](#testing-galba-with-pre-trained-parameters)
 -   [Accuracy](#accuracy)
--   [Bug reporting](#bug-reporting)
+-   [Bug reporting](#bug-reporting)https://img.shields.io/github/last-commit/Gaius-Augustus/GALBA/main
+
     -   [Reporting bugs on github](#reporting-bugs-on-github)
     -   [Common problems](#common-problems)
 -   [Citing GALBA and software called by GALBA](#citing-galba-and-software-called-by-galba)
