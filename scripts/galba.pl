@@ -3563,7 +3563,7 @@ sub make_prot_hints {
         print LOG "\#  "
         . (localtime)
         . ": using training genes from miniprothint \n" if ($v > 2);
-        $cmdString = "ln -s $otherfilesDir/miniprot_representatives.gtf $trainGenesGtf";
+        $cmdString = "ln -s $otherfilesDir/miniprot_trainingGenes.gtf $trainGenesGtf";
         print LOG "$cmdString\n" if ($v > 2);
         system($cmdString) == 0 or die("ERROR in file " . __FILE__ ." at line "
             . __LINE__ ."\nFailed to execute: $cmdString!\n");
@@ -5379,16 +5379,16 @@ sub evaluate {
             if ($v > 3);
     }
 
-    if ( -e "$otherfilesDir/augustus.hints.gtf" ) {
+    if ( -e "$otherfilesDir/galba.gtf" ) {
         print LOG "\# "
             . (localtime)
-            . ": evaluating $otherfilesDir/augustus.hints.gtf!\n"
+            . ": evaluating $otherfilesDir/galba.gtf!\n"
             if ($v > 3);
-        eval_gene_pred("$otherfilesDir/augustus.hints.gtf");
+        eval_gene_pred("$otherfilesDir/galba.gtf");
     }else{
         print LOG "\# "
             . (localtime)
-            . ": did not find $otherfilesDir/augustus_hints.gtf!\n"
+            . ": did not find $otherfilesDir/galba.gtf!\n"
             if ($v > 3);
     }
 

@@ -26,7 +26,7 @@ files_to_delete = [
     "good_genes.lst", "nonred.loci.lst", "nuc.fasta", "proteins.fa",
     "train.f.gb", "traingenes.good.gtf", "traingenes.good.nr.fa", "uniqueSeeds.gtf", "genome.mpi", "pygustus_hints.out", "pygustus_hints.py",
     "gff2gbSmallDNA.stderr", "miniprot_representatives.gff", "protein_alignment_miniprot.aln", "protein_alignment_miniprot.gff", "hc.gff",
-    "miniprothint.gff", "thirdtest.stdout"
+    "miniprothint.gff", "thirdtest.stdout", "miniprot_trainingGenes.gff"
 ]
 
 def main():
