@@ -852,7 +852,8 @@ sub fix_AUGUSTUS_CONFIG_PATH {
         # Therefore, we check whether we can write to ${HOME} or ${PWD} with touch and rm
         my $home_writable = 0;
         my $pwd_writable = 0;
-        my $cmdString = "touch ".$ENV{'HOME'}."/test_writable";
+        my $random_string = random_string(10); # otherwise array jobs collide
+        my $cmdString = "touch ".$ENV{'HOME'}."/test_writable.$random_string";
         my $prtStr = "\# "
             . (localtime)
             . ": Checking whether we can write to $ENV{'HOME'} with command:\n";
@@ -860,7 +861,7 @@ sub fix_AUGUSTUS_CONFIG_PATH {
         $logString .= $prtStr if ($v > 1);
         if(system("$cmdString") == 0){
             $home_writable = 1;
-            $cmdString = "rm ".$ENV{'HOME'}."/test_writable";
+            $cmdString = "rm ".$ENV{'HOME'}."/test_writable.$random_string";
             $prtStr = "\# "
                 . (localtime)
                 . ": Checking whether we can delete file in $ENV{'HOME'} with command:\n";
@@ -878,7 +879,7 @@ sub fix_AUGUSTUS_CONFIG_PATH {
                 . (localtime)
                 . ": Could not write to $ENV{'HOME'}.\n";
             $logString .= $prtStr if ($v > 1);
-            my $cmdString = "touch ".$ENV{'PWD'}."/test_writable";
+            my $cmdString = "touch ".$ENV{'PWD'}."/test_writable.$random_string";
             my $prtStr = "\# "
                 . (localtime)
                 . ": Checking whether we can write to $ENV{'PWD'} with command:\n";
@@ -886,7 +887,7 @@ sub fix_AUGUSTUS_CONFIG_PATH {
             $logString .= $prtStr if ($v > 1);
             if(system("$cmdString") == 0){
                 $pwd_writable = 1;
-                $cmdString = "rm ".$ENV{'PWD'}."/test_writable";
+                $cmdString = "rm ".$ENV{'PWD'}."/test_writable.$random_string";
                 $prtStr = "\# "
                     . (localtime)
                     . ": Checking whether we can delete file in $ENV{'PWD'} with command:\n";
