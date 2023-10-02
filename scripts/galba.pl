@@ -852,7 +852,7 @@ sub fix_AUGUSTUS_CONFIG_PATH {
         # Therefore, we check whether we can write to ${HOME} or ${PWD} with touch and rm
         my $home_writable = 0;
         my $pwd_writable = 0;
-        my $random_string = random_string(10); # otherwise array jobs collide
+        my $random_string = generate_random_string(10); # otherwise array jobs collide
         my $cmdString = "touch ".$ENV{'HOME'}."/test_writable.$random_string";
         my $prtStr = "\# "
             . (localtime)
@@ -2998,7 +2998,7 @@ sub check_options {
         # generate a random string
         my $does_not_exist = 1;
         while($does_not_exist){
-            my $random_string = random_string(10);
+            my $random_string = generate_random_string(10);
             $species = "Sp_$random_string";
             if ( ( !-d "$AUGUSTUS_CONFIG_PATH/species/$species" ) ) {
                 $does_not_exist = 0;
@@ -6063,4 +6063,14 @@ sub run_tsebra{
         print LOG $tsebraprtstr;
         print $tsebraprtstr;
     #}
+}
+
+sub generate_random_string {
+    my $length = shift;
+    my @chars = ('a'..'z', 'A'..'Z', 0..9);
+    my $random_string;
+    for (1..$length) {
+        $random_string .= $chars[rand @chars];
+    }
+    return $random_string;
 }
