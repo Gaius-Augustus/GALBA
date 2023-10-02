@@ -76,7 +76,7 @@ INPUT FILE OPTIONS
 FREQUENTLY USED OPTIONS
 
 --species=sname                     Species name. Existing species will not be
-                                    overwritten. Uses Sp_1 etc., if no species
+                                    overwritten. Uses Sp_1_randomString etc., if no species
                                     is assigned
 --AUGUSTUS_ab_initio                output ab initio predictions by AUGUSTUS
                                     in addition to predictions with hints by
@@ -2995,29 +2995,14 @@ sub check_options {
 
     # use standard name when no name is assigned or when it contains invalid parts
     if ( !defined($species) || $bool_species eq "false" ) {
-        my $no = 1;
-        $species = "Sp_$no";
-        while ( $no <= $limit ) {
-            $species = "Sp_$no";
+        # generate a random string
+        my $does_not_exist = 1;
+        while($does_not_exist){
+            my $random_string = random_string(10);
+            $species = "Sp_$random_string";
             if ( ( !-d "$AUGUSTUS_CONFIG_PATH/species/$species" ) ) {
-                last;
+                $does_not_exist = 0;
             }
-            else {
-                $no++;
-            }
-        }
-        if ( $no > $limit ) {
-            $prtStr
-                = "\# "
-                . (localtime)
-                . ": ERROR: in file " . __FILE__ ." at line ". __LINE__ ."\n"
-                . "There are already $limit species folders under "
-                . "$AUGUSTUS_CONFIG_PATH/species/ of type 'Sp_$limit'. "
-                . "Please delete or move some of those folders or assign a "
-                . "valid species identifier with --species=name.\n";
-            $logString .= $prtStr;
-            print STDERR $logString;
-            exit(1);
         }
         if ( $bool_species eq "false" ) {
             $prtStr = "\# " . (localtime) . ": Program will use $species instead.\n";
