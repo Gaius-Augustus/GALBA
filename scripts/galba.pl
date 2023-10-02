@@ -846,7 +846,69 @@ sub fix_AUGUSTUS_CONFIG_PATH {
             . ": WARNING: \$AUGUSTUS_CONFIG_PATH/species (in this case "
             . "$AUGUSTUS_CONFIG_PATH/species ) is not writeable.\n";
         $logString .= $prtStr if ($v > 1);
-        if(-w $ENV{'HOME'}){
+        # using -w flag for checking whether directory is writable is problematic if
+        # the singularity container sits elsewhere. It will see the w flag but
+        # may still not be able to write.
+        # Therefore, we check whether we can write to ${HOME} or ${PWD} with touch and rm
+        my $home_writable = 0;
+        my $pwd_writable = 0;
+        my $cmdString = "touch ".$ENV{'HOME'}."/test_writable";
+        my $prtStr = "\# "
+            . (localtime)
+            . ": Checking whether we can write to $ENV{'HOME'} with command:\n";
+        $prtStr .= $cmdString."\n" if ($v > 5);
+        $logString .= $prtStr if ($v > 1);
+        if(system("$cmdString") == 0){
+            $home_writable = 1;
+            $cmdString = "rm ".$ENV{'HOME'}."/test_writable";
+            $prtStr = "\# "
+                . (localtime)
+                . ": Checking whether we can delete file in $ENV{'HOME'} with command:\n";
+            $prtStr .= $cmdString."\n" if ($v > 5);
+            $logString .= $prtStr if ($v > 1);
+            if(system("$cmdString") != 0){
+                $prtStr = "\# "
+                    . (localtime)
+                    . ": WARNING: Could not delete file in $ENV{'HOME'}.\n";
+                $logString .= $prtStr if ($v > 1);
+                $home_writable = 0;
+            }
+        }else{
+            $prtStr = "\# "
+                . (localtime)
+                . ": Could not write to $ENV{'HOME'}.\n";
+            $logString .= $prtStr if ($v > 1);
+            my $cmdString = "touch ".$ENV{'PWD'}."/test_writable";
+            my $prtStr = "\# "
+                . (localtime)
+                . ": Checking whether we can write to $ENV{'PWD'} with command:\n";
+            $prtStr .= $cmdString."\n" if ($v > 5);
+            $logString .= $prtStr if ($v > 1);
+            if(system("$cmdString") == 0){
+                $pwd_writable = 1;
+                $cmdString = "rm ".$ENV{'PWD'}."/test_writable";
+                $prtStr = "\# "
+                    . (localtime)
+                    . ": Checking whether we can delete file in $ENV{'PWD'} with command:\n";
+                $prtStr .= $cmdString."\n" if ($v > 5);
+                $logString .= $prtStr if ($v > 1);
+                if(system("$cmdString") != 0){
+                    $prtStr = "\# "
+                        . (localtime)
+                        . ": WARNING: Could not delete file in $ENV{'PWD'}.\n";
+                    $logString .= $prtStr if ($v > 1);
+                    $pwd_writable = 0;
+                }
+            }else{
+                $prtStr = "\# "
+                    . (localtime)
+                    . ": Could not write to $ENV{'PWD'}.\n";
+                $logString .= $prtStr if ($v > 1);
+            }
+        }
+
+
+        if(-w $ENV{'HOME'} and $home_writable){
             if(not(-d $ENV{'HOME'}."/.augustus/species")) {
                 # copy augustus config path into ${HOME}/.augustus                                                                                                                                              
                 $cmdString = "cp -r $AUGUSTUS_CONFIG_PATH ".$ENV{'HOME'}."/.augustus";
@@ -863,7 +925,7 @@ sub fix_AUGUSTUS_CONFIG_PATH {
             # modify augustus config path to new location                                                                                                                                                        
             $AUGUSTUS_CONFIG_PATH = $ENV{'HOME'}."/.augustus";
             $augustus_cfg_path = $AUGUSTUS_CONFIG_PATH;
-        }elsif(-w $ENV{'PWD'}){
+        }elsif(-w $ENV{'PWD'} and $pwd_writable){
             if(not(-d $ENV{'PWD'}."/.augustus/species")) {
                 # copy augustus config path into ${HOME}/.augustus                                                                                                                                              
                 $cmdString = "cp -r $AUGUSTUS_CONFIG_PATH ".$ENV{'PWD'}."/.augustus";
