@@ -71,23 +71,23 @@ RUN cd /opt && \
 
 #miniprot
 RUN cd /opt && \
-    git clone --depth=1 https://github.com/lh3/miniprot && \
+    git    clone --depth=1 https://github.com/lh3/miniprot && \
     cd miniprot && \
     make
 
 #miniprot-boundary-scorer
 RUN cd /opt && \
-    git clone --depth=1 https://github.com/tomasbruna/miniprot-boundary-scorer.git && \
+    git clone  --depth=1 https://github.com/tomasbruna/miniprot-boundary-scorer.git && \
     cd miniprot-boundary-scorer && \
     make
 
 #miniprothint
 RUN cd /opt && \
-    git clone --depth=1 https://github.com/tomasbruna/miniprothint.git
+    git clone   --depth=1 https://github.com/tomasbruna/miniprothint.git
 
 #galba
 RUN cd /opt && \
-    git clone https://github.com/Gaius-Augustus/GALBA.git  && \
+    git                         clone https://github.com/Gaius-Augustus/GALBA.git  && \
     git clone --depth=1 https://github.com/Gaius-Augustus/BRAKER.git && \
     cp  BRAKER/scripts/compute_accuracies.sh GALBA/scripts/compute_accuracies.sh && \
     cp BRAKER/scripts/compare_intervals_exact.pl GALBA/scripts/compare_intervals_exact.pl
@@ -130,6 +130,17 @@ RUN cd /tmp/ && mkdir removeme && cd removeme && \
     cd /usr/share/augustus/scripts && \
     cp /tmp/removeme/* . && \
     rm -rf /tmp/removeme
+
+RUN cd /usr/share/augustus/config && \
+    mkdir parameters && \
+    cd parameters && \
+    wget https://raw.githubusercontent.com/Gaius-Augustus/Augustus/master/config/parameters/AUG_CMDLN_PARAMETERS.md && \
+    wget https://raw.githubusercontent.com/Gaius-Augustus/Augustus/master/config/parameters/aug_cmdln_parameters.json && \
+    chmod a+r AUG_CMDLN_PARAMETERS.md aug_cmdln_parameters.json && \
+    cd .. && \
+    chmod a+r parameters && \
+    chmod a+x parameters
+				
 
 ENV AUGUSTUS_BIN_PATH=/usr/bin/
 ENV AUGUSTUS_SCRIPTS_PATH=/usr/share/augustus/scripts/
