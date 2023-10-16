@@ -487,9 +487,7 @@ make_paths_absolute();
 
 my $wdGiven;
 # if no working directory is set, use current directory
-if ( !defined $workDir ) {;
-
-    ;
+if ( !defined $workDir ) {
     $wdGiven = 0;
     $workDir = $currentDir;
 }else {
