@@ -329,6 +329,20 @@ export AUGUSTUS_SCRIPTS_PATH=/usr/bin/augustus_scripts
 ```
 GALBA automatically sets the environment variables if run from the Singuarity image.
 
+If you installed Augustus as a debian package, then the scripts are currently up-to-date, but a folder with parameters file is missing. To fix this, please execute the following steps (with root permissions):
+
+```
+cd /usr/share/augustus/config
+mkdir parameters
+cd parameters
+wget https://raw.githubusercontent.com/Gaius-Augustus/Augustus/master/config/parameters/AUG_CMDLN_PARAMETERS.md
+wget https://raw.githubusercontent.com/Gaius-Augustus/Augustus/master/config/parameters/aug_cmdln_parameters.json
+chmod a+r AUG_CMDLN_PARAMETERS.md aug_cmdln_parameters.json
+cd ..
+chmod a+r parameters
+chmod a+x parameters
+```
+
 ##### Modification of $PATH
 
 Adding directories of AUGUSTUS binaries and scripts to your `$PATH` variable enables your system to locate these tools,
