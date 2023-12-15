@@ -98,6 +98,9 @@ FREQUENTLY USED OPTIONS
 --alternatives-from-evidence=true   Output alternative transcripts based on
                                     explicit evidence from hints (default is
                                     true).
+--disable_diamond_filter=true        Disable filtering AUGSTUS genes by DIAMOND
+                                    hit determination against input proteins
+                                    (default is false).
 --crf                               Execute CRF training for AUGUSTUS;
                                     resulting parameters are only kept for
                                     final predictions if they show higher
@@ -246,7 +249,7 @@ ENDUSAGE
 # Declartion of global variables ###############################################
 
 my $v = 4; # determines what is printed to log
-my $version = "1.0.9";
+my $version = "1.0.10";
 my $rootDir;
 my $logString = "";          # stores log messages produced before opening log file
 $logString .= "\#**********************************************************************************\n";
@@ -383,6 +386,7 @@ my $traingtf;
 my $flanking_DNA;        # length of flanking DNA, default value is
                          # min{ave. gene length/2, 10000}
 my $prot_aligner;
+my $disable_diamond_filter = 0;
 
 @forbidden_words = (
     "system",    "exec",  "passthru", "run",    "fork",   "qx",
@@ -428,6 +432,7 @@ GetOptions(
     'workingdir=s'                 => \$workDir,
     'crf!'                         => \$crf,
     'keepCrf!'                     => \$keepCrf,
+    'disable_diamond_filter!'      => \$disable_diamond_filter,
     'nice!'                        => \$nice,
     'help!'                        => \$help,
     'prg=s'                        => \$prg,
@@ -759,7 +764,8 @@ print LOG "\#*******************************************************************
 augustus();
 post_process_augustus("$otherfilesDir/augustus.hints.gff");
 # tsebra is only executed for large genomes. We estimate genome "size" by average length of intergenic region as proxy
-run_tsebra("$otherfilesDir/augustus.hints.gtf", "$otherfilesDir/hintsfile.gff", $genome);
+# run_tsebra("$otherfilesDir/augustus.hints.gtf", "$otherfilesDir/hintsfile.gff", $genome);
+# we currently do not practice this at all, replaced by diamond against ref proteome filtering!
 
 if ( $gff3 != 0) {
     all_preds_gtf2gff3();
@@ -2752,6 +2758,10 @@ sub check_upfront {
     );
     find(
         "fix_in_frame_stop_codon_genes.py", $AUGUSTUS_BIN_PATH,
+        $AUGUSTUS_SCRIPTS_PATH, $AUGUSTUS_CONFIG_PATH
+    );
+    find(
+        "filter_gtf_by_diamond_against_ref.py", $AUGUSTUS_BIN_PATH,
         $AUGUSTUS_SCRIPTS_PATH, $AUGUSTUS_CONFIG_PATH
     );
     if(defined($annot)){
@@ -5254,6 +5264,7 @@ sub augustus {
 }
 
 ####################### post_process_augustus ##################################
+# * calls diamond filter if not disabled on hints prediction file
 # * gtf, protein, codingseq file
 # * fixAnnoFastaFromJoingenes.py
 ################################################################################
@@ -5275,6 +5286,29 @@ sub post_process_augustus {
                       $AUGUSTUS_SCRIPTS_PATH, $hintsfile, $extrinsicCfgFile);
         }
         get_anno_fasta("$otherfilesDir/augustus.hints.gtf", "hints");
+        if( not($disable_diamond_filter) ){
+            filter_by_diamond();
+            get_anno_fasta($otherfilesDir."/galba.gtf", "");
+            # delete the augustus.hints files
+            unlink("$otherfilesDir/augustus.hints.gtf");
+            unlink("$otherfilesDir/augustus.hints.aa");
+            unlink("$otherfilesDir/augustus.hints.codingseq");
+        } else {
+            # move the augustus files to galba files
+            my @mv_files = ("$otherfilesDir/augustus.hints.gtf", "$otherfilesDir/augustus.hints.aa", 
+            "$otherfilesDir/augustus.hints.codingseq");
+            foreach(@mv_files){
+                if(-e $_){
+                    my $mv_file = $_;
+                    $mv_file =~ s/augustus\.hints/galba/;
+                    my $cmdStr = "mv $_ $mv_file";
+                    print LOG $cmdStr . "\n"  if ($v > 3);
+                    system("$cmdStr") == 0
+                        or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+                            . "\nFailed to execute: $cmdStr\n");
+                }
+            }
+        }
     }
 }
 ####################### assign_ex_cfg ##########################################
@@ -6071,4 +6105,47 @@ sub generate_random_string {
         $random_string .= $chars[rand @chars];
     }
     return $random_string;
+}
+
+sub filter_by_diamond {
+    # combine all prot_seq_files if necessary
+    my $prot_seq_file = "$otherfilesDir/prot_seq_all.fa";
+    if (scalar(@prot_seq_files) > 1) {
+
+        open(OUT, ">", $prot_seq_file) or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+            . "\nFailed to open file $prot_seq_file!\n");
+        foreach(@prot_seq_files){
+            open(IN, "<", $_) or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+                . "\nFailed to open file $_!\n");
+            while(<IN>){
+                print OUT $_;
+            }
+            close(IN) or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+                . "\nFailed to close file $_!\n");
+        }
+        close(OUT) or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+            . "\nFailed to close file $prot_seq_file!\n");
+    } else {
+        # only one prot_seq_file, so we can use it directly, link to prot_seq_all.fa
+        my $prot_seq_file = "$otherfilesDir/prot_seq_all.fa";
+        my $cmdStr = "ln -s $prot_seq_files[0] $prot_seq_file";
+        print LOG $cmdStr . "\n"  if ($v > 3);
+        system("$cmdStr") == 0
+            or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+                . "\nFailed to execute: $cmdStr\n");
+    }
+    # execute script for filtering
+    my $string = find("filter_gtf_by_diamond_against_ref.py", $AUGUSTUS_BIN_PATH,
+        $AUGUSTUS_SCRIPTS_PATH, $AUGUSTUS_CONFIG_PATH);
+    my $errorfile = "$errorfilesDir/filter_gtf_by_diamond_against_ref.stderr";
+    my $outfile = "$otherfilesDir/filter_gtf_by_diamond_against_ref.stdout";
+    my $pythonCmdString = "";
+    $pythonCmdString .= "$PYTHON3_PATH/python3 $string ";
+    $pythonCmdString .= "-r $prot_seq_file -g $otherfilesDir/augustus.hints.gtf "
+                     .  "-o $otherfilesDir/galba.gtf -a augustus.hints.aa "
+                     .  "-t $CPU -d $DIAMOND_PATH 1> $outfile 2>$errorfile";
+    print LOG "$pythonCmdString\n" if ($v > 3);
+    system("$pythonCmdString") == 0
+        or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+            . "\nFailed to execute: $pythonCmdString\n");
 }

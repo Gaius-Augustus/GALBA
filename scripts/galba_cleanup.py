@@ -62,7 +62,8 @@ def main():
     # Move specific files to the archive directory
     archive_files = [
         "augustus.hints.gff", "train2.gb.train.test", "train2.gb.train.train",
-        "train2.gb.test", "train2.gb.train", "train2.gb", "miniprot_representatives.gtf", "miniprot.gff"
+        "train2.gb.test", "train2.gb.train", "train2.gb", "miniprot_representatives.gtf", "miniprot.gff",
+        "filter_gtf_by_diamond_against_ref.stdout"
     ]
     for filename in archive_files:
         file_path = os.path.join(args.wdir, filename)
