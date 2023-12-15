@@ -69,7 +69,8 @@ def filter_gtf(gtf, diamond_out_file, out_gtf):
                 query = fields[0]
                 if query not in diamond_hits_tx:
                     diamond_hits_tx[query] = 1
-                    diamond_hits_gene[re.search(r'(g\d+)\.t\d+', query).group(1)] = 1
+                    match = re.search(r'(g\d+)\.t\d+', query)
+                    diamond_hits_gene[match.group(1)] = 1
     except IOError:
         print("ERROR: DIAMOND output file " + diamond_out_file + " could not be opened")
         sys.exit(1)
