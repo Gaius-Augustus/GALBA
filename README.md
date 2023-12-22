@@ -35,6 +35,8 @@ Acknowledgements
 
 GALBA code was derived from the BRAKER code, where a similar pipeline for using GenomeThreader with BRAKER was once published in <sup name="a9">[R9](#f9)</sup>. We hereby acknowledge the contributions of all BRAKER authors (in particular Simone Lange, Anica Hoppe, Alexandre Lomsadze, and Mark Borodovsky) to the code that GALBA was derived from, and we are grateful for funding for BRAKER development by the National Institutes of Health (NIH) grant GM128145, which indirectly also supported development of GALBA.
 
+Ethan Tolman and Paul Frandsen first mentioned the idea of the DIAMOND filter for GALBA gene sets in their preprint doi: https://doi.org/10.1101/2023.12.11.569651 .
+
 
 Related Software
 ================
