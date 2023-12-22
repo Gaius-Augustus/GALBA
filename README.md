@@ -696,7 +696,7 @@ If you found a bug, please open an issue at <https://github.com/Gaius-Augustus/G
 
 Information worth mentioning in your bug report:
 
-Check in `${wd}/galba.log` at which step `galba.pl` crashed.
+Check in `${wd}/GALBA.log` at which step `galba.pl` crashed.
 
 There are a number of other files that might be of interest, depending on where in the pipeline the problem occurred. Some of the following files will not be present if they did not contain any errors.
 
