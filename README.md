@@ -76,7 +76,7 @@ Contents
     -   [Testing GALBA with GenomeThreader](#testing-galba-with-genomethreader)
     -   [Testing GALBA with pre-trained parameters](#testing-galba-with-pre-trained-parameters)
 -   [Accuracy](#accuracy)
--   [Bug reporting](#bug-reporting)https://img.shields.io/github/last-commit/Gaius-Augustus/GALBA/main
+-   [Bug reporting](#bug-reporting)
 
     -   [Reporting bugs on github](#reporting-bugs-on-github)
     -   [Common problems](#common-problems)
