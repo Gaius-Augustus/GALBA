@@ -569,6 +569,9 @@ Change the parameter $\lambda$ of the Poisson distribution that is used for down
 
 If `--makehub` and `--email=your@mail.de` (with your valid e-mail adress) are provided, a track data hub for visualizing results with the UCSC Genome Browser will be generated using MakeHub (<https://github.com/Gaius-Augustus/MakeHub>).
 
+### --disable_diamond_filter=true
+
+Disable filtering AUGUSTUS genes by DIAMOND hit determination against input proteins (default is false). If you do not trust the protein donor, or if the donor is rather distantly related, please disable the DIAMOND filter. With execellent quality protein donors and close relatives, you increase specificity in large vertebrate genomes, significantly, by using the DIAMOND filter. In smaller genomes, it makes less of a difference. Generally, using the filter comes at a (usually small) cost in sensivity, i.e. you will miss some genes that are not supported by protein evidence.
 
 Output of GALBA
 =================

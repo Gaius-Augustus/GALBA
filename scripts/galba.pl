@@ -85,8 +85,9 @@ FREQUENTLY USED OPTIONS
                                     format)
 --threads                           Specifies the maximum number of threads that
                                     can be used during computation. Be aware:
-                                    optimize_augustus.pl will use max. 8
-                                    threads; augustus will use max. nContigs in
+                                    optimize_augustus.pl will only use the full
+                                    threads if there are sufficient training genes; 
+                                    augustus will use max. nContigs in
                                     --genome=file threads.
 --workingdir=/path/to/wd/           Set path to working directory. In the
                                     working directory results and temporary
@@ -98,9 +99,12 @@ FREQUENTLY USED OPTIONS
 --alternatives-from-evidence=true   Output alternative transcripts based on
                                     explicit evidence from hints (default is
                                     true).
---disable_diamond_filter=true        Disable filtering AUGSTUS genes by DIAMOND
+--disable_diamond_filter=true       Disable filtering AUGSTUS genes by DIAMOND
                                     hit determination against input proteins
-                                    (default is false).
+                                    (default is false). If you do not trust the
+                                    protein donor, or if the donor is rather 
+                                    distantly related, please disable the
+                                    DIAMOND filter.
 --crf                               Execute CRF training for AUGUSTUS;
                                     resulting parameters are only kept for
                                     final predictions if they show higher
@@ -249,7 +253,7 @@ ENDUSAGE
 # Declartion of global variables ###############################################
 
 my $v = 4; # determines what is printed to log
-my $version = "1.0.10";
+my $version = "1.0.11";
 my $rootDir;
 my $logString = "";          # stores log messages produced before opening log file
 $logString .= "\#**********************************************************************************\n";
@@ -2738,6 +2742,14 @@ sub check_upfront {
     );
     find(
         "optimize_augustus.pl", $AUGUSTUS_BIN_PATH,
+        $AUGUSTUS_SCRIPTS_PATH, $AUGUSTUS_CONFIG_PATH
+    );
+    find(
+        "gtf_sanity_check.py", $AUGUSTUS_BIN_PATH,
+        $AUGUSTUS_SCRIPTS_PATH, $AUGUSTUS_CONFIG_PATH
+    );
+    find(
+        "filter_gtf_by_txid.py", $AUGUSTUS_BIN_PATH,
         $AUGUSTUS_SCRIPTS_PATH, $AUGUSTUS_CONFIG_PATH
     );
     find(
@@ -5285,6 +5297,35 @@ sub post_process_augustus {
                       $AUGUSTUS_CONFIG_PATH, $AUGUSTUS_BIN_PATH, 
                       $AUGUSTUS_SCRIPTS_PATH, $hintsfile, $extrinsicCfgFile);
         }
+        # remove transcripts that have overlapping CDS features or CDS 
+        # features on different strands within one transcript
+        my $cmdStr = "mv $otherfilesDir/augustus.hints.gtf $otherfilesDir/augustus.tmp.gtf";
+        print LOG $cmdStr . "\n"  if ($v > 3);
+        system("$cmdStr") == 0
+            or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+            . "\nFailed to execute: $cmdStr\n");
+        print LOG "\# " . (localtime) . ": deleting transcripts with CDS features on"
+            . " opposite strands and with overlapping CDS features...\n" if ($v > 2);
+        $string = find( "gtf_sanity_check.py", $AUGUSTUS_BIN_PATH, 
+            $AUGUSTUS_SCRIPTS_PATH, $AUGUSTUS_CONFIG_PATH);
+        $cmdStr = $PYTHON3_PATH . "/python3 " . $string ." -f $otherfilesDir/augustus.tmp.gtf "
+            . "-o $otherfilesDir/bad2.lst > $otherfilesDir/gtf_sanity_check.log "
+            ."2> $errorfilesDir/gtf_sanity_check.err";
+        print LOG $cmdStr . "\n"  if ($v > 3);
+        system("$cmdStr") == 0
+            or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+            . "\nFailed to execute: $cmdStr\n");
+        $string = find( "filter_gtf_by_txid.py", $AUGUSTUS_BIN_PATH, 
+            $AUGUSTUS_SCRIPTS_PATH, $AUGUSTUS_CONFIG_PATH);
+        $cmdStr = $PYTHON3_PATH . "/python3 " . $string ." -g $otherfilesDir/augustus.tmp.gtf "
+            . "-l $otherfilesDir/bad2.lst -o $otherfilesDir/augustus.hints.gtf "
+            . "> $otherfilesDir/filter_gtf_by_txid.log "
+            ."2> $errorfilesDir/filter_gtf_by_txid.err";
+        print LOG $cmdStr . "\n"  if ($v > 3);
+        system("$cmdStr") == 0
+            or die("ERROR in file " . __FILE__ ." at line ". __LINE__
+            . "\nFailed to execute: $cmdStr\n");
+        unlink("$otherfilesDir/augustus.tmp.gtf");
         get_anno_fasta("$otherfilesDir/augustus.hints.gtf", "hints");
         if( not($disable_diamond_filter) ){
             filter_by_diamond();
