@@ -126,6 +126,7 @@ RUN cd /tmp/ && mkdir removeme && cd removeme && \
     wget https://raw.githubusercontent.com/Gaius-Augustus/Augustus/master/scripts/randomSplit.pl && \
     wget https://raw.githubusercontent.com/Gaius-Augustus/Augustus/master/scripts/getAnnoFastaFromJoingenes.py && \
     wget https://raw.githubusercontent.com/Gaius-Augustus/Augustus/master/scripts/gtf2gff.pl && \
+    wget https://raw.githubusercontent.com/Gaius-Augustus/Augustus/master/scripts/filter_gtf_by_txid.py && \
     chmod a+x *.pl && \ 
     cd /usr/share/augustus/scripts && \
     cp /tmp/removeme/* . && \
