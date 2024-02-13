@@ -71,26 +71,50 @@ RUN cd /opt && \
 
 #miniprot
 RUN cd /opt && \
-    git    clone --depth=1 https://github.com/lh3/miniprot && \
+    git clone --depth=1 https://github.com/lh3/miniprot && \
     cd miniprot && \
     make
 
 #miniprot-boundary-scorer
 RUN cd /opt && \
-    git clone  --depth=1 https://github.com/tomasbruna/miniprot-boundary-scorer.git && \
+    git clone --depth=1 https://github.com/tomasbruna/miniprot-boundary-scorer.git && \
     cd miniprot-boundary-scorer && \
     make
 
 #miniprothint
 RUN cd /opt && \
-    git clone   --depth=1 https://github.com/tomasbruna/miniprothint.git
+    git clone --depth=1 https://github.com/tomasbruna/miniprothint.git
 
-#galba
+# get AUGUSTUS compilation dependencies
+# Install required packages
+RUN apt-get update
+RUN apt-get install -y build-essential wget git autoconf
+
+# Install dependencies for AUGUSTUS comparative gene prediction mode (CGP)
+RUN apt-get install -y libgsl-dev libboost-all-dev libsuitesparse-dev liblpsolve55-dev
+RUN apt-get install -y libsqlite3-dev libmysql++-dev
+
+# Install dependencies for the optional support of gzip compressed input files
+RUN apt-get install -y libboost-iostreams-dev zlib1g-dev
+
+# Install dependencies for bam2hints and filterBam
+RUN apt-get install -y libbamtools-dev
+
+# Install additional dependencies for bam2wig
+RUN apt-get install -y samtools libhts-dev
+
+# Install additional dependencies for homGeneMapping and utrrnaseq
+RUN apt-get install -y libboost-all-dev
+
+# compile augustus from source because of segmentation fault
 RUN cd /opt && \
-    git                         clone https://github.com/Gaius-Augustus/GALBA.git  && \
-    git clone --depth=1 https://github.com/Gaius-Augustus/BRAKER.git && \
-    cp  BRAKER/scripts/compute_accuracies.sh GALBA/scripts/compute_accuracies.sh && \
-    cp BRAKER/scripts/compare_intervals_exact.pl GALBA/scripts/compare_intervals_exact.pl
+    git clone https://github.com/Gaius-Augustus/Augustus.git && \
+    cd Augustus && \
+    make && \
+    cd scripts && \
+    chmod a+x *.pl && \
+    chmod a+x *.py
+
 
 FROM $BASE_CONTAINER
 
@@ -100,9 +124,13 @@ COPY --from=base /opt/ /opt/
 
 ENV PATH=${PATH}:/opt/seqstats:/opt/cdbfasta:/opt/hisat2:/opt/diamond:/opt/TSEBRA/bin:/opt/MakeHub:/opt/miniprot:/opt/GALBA/scripts:/opt/miniprot-boundary-scorer:/opt/miniprothint
 
-ENV AUGUSTUS_CONFIG_PATH=/usr/share/augustus/config/
+# AUGUSTUS does need several libraries that are now gone, re-install them:
+RUN apt-get update --yes && \
+    apt-get install -y libboost-iostreams-dev zlib1g-dev libboost-all-dev libboost-all-dev libbamtools-dev
 
-# augustus
+ENV AUGUSTUS_CONFIG_PATH=/opt/Augustus/config/
+
+# augustus, install only in order to get the dependencies, will uninstall augustus later on
 RUN apt update && \ 
     apt install -yq  augustus augustus-data augustus-doc \
     # for latex labels
@@ -113,38 +141,6 @@ RUN apt update && \
     time && \
     apt clean all && \
     fix-permissions "${AUGUSTUS_CONFIG_PATH}"
-
-# patch Augustus scripts (because Debian package is often outdated, this way we never need to worry)
-RUN cd /tmp/ && mkdir removeme && cd removeme && \
-    wget https://raw.githubusercontent.com/Gaius-Augustus/Augustus/master/scripts/optimize_augustus.pl && \
-    wget https://raw.githubusercontent.com/Gaius-Augustus/Augustus/master/scripts/aa2nonred.pl && \
-    wget https://raw.githubusercontent.com/Gaius-Augustus/Augustus/master/scripts/gff2gbSmallDNA.pl && \
-    wget https://raw.githubusercontent.com/Gaius-Augustus/Augustus/master/scripts/new_species.pl && \
-    wget https://raw.githubusercontent.com/Gaius-Augustus/Augustus/master/scripts/filterGenesIn.pl && \
-    wget https://raw.githubusercontent.com/Gaius-Augustus/Augustus/master/scripts/filterGenes.pl && \
-    wget https://raw.githubusercontent.com/Gaius-Augustus/Augustus/master/scripts/join_mult_hints.pl && \
-    wget https://raw.githubusercontent.com/Gaius-Augustus/Augustus/master/scripts/randomSplit.pl && \
-    wget https://raw.githubusercontent.com/Gaius-Augustus/Augustus/master/scripts/getAnnoFastaFromJoingenes.py && \
-    wget https://raw.githubusercontent.com/Gaius-Augustus/Augustus/master/scripts/gtf2gff.pl && \
-    wget https://raw.githubusercontent.com/Gaius-Augustus/Augustus/master/scripts/filter_gtf_by_txid.py && \
-    chmod a+x *.pl && \ 
-    cd /usr/share/augustus/scripts && \
-    cp /tmp/removeme/* . && \
-    rm -rf /tmp/removeme
-
-RUN cd /usr/share/augustus/config && \
-    mkdir parameters && \
-    cd parameters && \
-    wget https://raw.githubusercontent.com/Gaius-Augustus/Augustus/master/config/parameters/AUG_CMDLN_PARAMETERS.md && \
-    wget https://raw.githubusercontent.com/Gaius-Augustus/Augustus/master/config/parameters/aug_cmdln_parameters.json && \
-    chmod a+r AUG_CMDLN_PARAMETERS.md aug_cmdln_parameters.json && \
-    cd .. && \
-    chmod a+r parameters && \
-    chmod a+x parameters
-				
-
-ENV AUGUSTUS_BIN_PATH=/usr/bin/
-ENV AUGUSTUS_SCRIPTS_PATH=/usr/share/augustus/scripts/
 
 # perl & dependencies
 RUn apt update && \
@@ -175,5 +171,22 @@ RUN mamba install --quiet -c bioconda -c anaconda --yes \
 RUN pip install pygustus && \
     fix-permissions "${CONDA_DIR}" && \
     fix-permissions "/home/${NB_USER}"
+
+USER root
+
+RUN apt-get remove -y augustus augustus-data augustus-doc
+
+ENV AUGUSTUS_BIN_PATH=/opt/Augustus/bin/
+ENV AUGUSTUS_SCRIPTS_PATH=/opt/Augustus/scripts/
+ENV PATH=${PATH}:/opt/Augustus/scripts/:/opt/Augustus/bin/
+
+#galba
+RUN cd /opt && \
+    git clone https://github.com/Gaius-Augustus/GALBA.git  && \
+    git clone --depth=1 https://github.com/Gaius-Augustus/BRAKER.git && \
+    cp BRAKER/scripts/compute_accuracies.sh GALBA/scripts/compute_accuracies.sh && \
+    cp BRAKER/scripts/compare_intervals_exact.pl GALBA/scripts/compare_intervals_exact.pl
+
+USER ${NB_UID}
 
 WORKDIR "${HOME}"
