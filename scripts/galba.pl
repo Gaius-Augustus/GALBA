@@ -4575,7 +4575,7 @@ sub training_augustus {
                 "/Constant/opalprob", 1);
         }
 
-        test_training_accuracy("first");
+        $target_1 = test_training_accuracy("first");
         # clean up flanking region with first round predictions predictions
         # skip ab initio predictions if enabled
         my $remember = 0;
@@ -4707,7 +4707,7 @@ sub training_augustus {
         system("$cmdString") == 0
             or die("ERROR in file " . __FILE__ ." at line "
                 . __LINE__ ."\nFailed to execute $cmdString\n");
-        test_training_accuracy("second");
+        $target_2 = test_training_accuracy("second");
 
         # optimize parameters
         if ( !$skipoptimize ) {
@@ -4777,7 +4777,7 @@ sub training_augustus {
                 . "\nFailed to execute: $cmdString!\n");
 
         # second test
-        test_training_accuracy("third");
+        $target_3 = test_training_accuracy("third");
 
         # TODO: if iterative training turns out to be good: reduce train2.gb size, and adapt CRF to train2.gb
         # optional CRF training
@@ -4805,10 +4805,10 @@ sub training_augustus {
                 . ": etraining with CRF finished.\n" if ($v > 3);
 
             # third test
-            test_training_accuracy("third");
+            $target_4 = test_training_accuracy("fourth");
 
             # decide on whether to keep CRF parameters
-            if ( $target_2 > $target_3 && !$keepCrf ) {
+            if ( $target_3 > $target_4 && !$keepCrf ) {
                 print LOG "\# "
                     . (localtime)
                     . ": CRF performance is worse than HMM performance, "
@@ -4842,7 +4842,7 @@ sub training_augustus {
 
             # if the accuracy doesn't improve with CRF, overwrite the config
             # files with the HMM parameters from last etraining
-            if ( ( $target_2 > $target_3 ) && !$keepCrf ) {
+            if ( ( $target_3 > $target_4 ) && !$keepCrf ) {
                 print LOG "\# "
                     . (localtime)
                     . ": overwriting parameter files resulting from CRF "
@@ -4912,9 +4912,10 @@ sub test_training_accuracy{
     system("$cmdString") == 0
         or die("ERROR in file " . __FILE__ ." at line ". __LINE__
             . "\nFailed to execute: $cmdString\n");
-    $target_2 = accuracy_calculator($stdoutfile);
+    my $target = accuracy_calculator($stdoutfile);
     print LOG "\# " . (localtime) . ": The accuracy in round $round"
-                    ." is $target_2\n"if ($v > 3);
+                    ." is $target\n"if ($v > 3);
+    return $target;
 }
 
 ####################### fix_ifs_genes ##########################################
