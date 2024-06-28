@@ -15,7 +15,7 @@ def indexing(genome_fasta, output):
     
         print("Running command:", " ".join(hisat2_build_command))
     
-        result = subprocess.run(hisat2_build_command, capture_output=True)
+        result = subprocess.run(hisat2_build_command, capture_output=False)
     
         if result.returncode == 0:
             print("Indexing completed successfully.")
@@ -26,20 +26,20 @@ def indexing(genome_fasta, output):
     except Exception as e:
         print("An error occurred: {e}") 
 
-def mapping(output, reads_file):
+def mapping(output_indexing, reads_file, output_sam):
     try:
         hisat2_command = [
             "hisat2",
             "-f",                        
-            "-x", output,            
+            "-x", output_indexing,            
             "-U", reads_file,            
-            "-S", "output.sam",            
+            "-S", output_sam,            
             "--no-spliced-alignment"        
         ]
         
         print("Running command:", " ".join(hisat2_command))
         
-        result = subprocess.run(hisat2_command)
+        result = subprocess.run(hisat2_command, capture_output=True)
         
         if result.returncode == 0:
             print("Mapping completed successfully")
@@ -50,20 +50,19 @@ def mapping(output, reads_file):
     except Exception as e:
         print("ERROR") 
 
-def sam_to_bam(samFile):
+def sam_to_bam(samFile, output_bam):
     try:
         samtools_command = [
             "samtools",
-            "view",
-            "-b",
+            "sort",
             samFile,
             "-o",
-            "output.bam"
+            output_bam
         ]
 
         print("Running command:", "".join(samtools_command))
 
-        result = subprocess.run(samtools_command)
+        result = subprocess.run(samtools_command, capture_output=True)
 
         if result.returncode == 0:
             print("Conversion from .sam to .bam file completed successfully")
@@ -75,23 +74,48 @@ def sam_to_bam(samFile):
     except Exception:
         print("ERROR samtools")
 
+def fastq_to_fasta(fastqFile, output_fasta):
+    stringtie_path = os.path.expanduser("/home/s-amknut/GALBA/tools/seqtk/./seqtk")
+
+    seqtk_command = [
+        stringtie_path,
+        "seq",
+        "-a",
+        fastqFile,
+        ">",
+        output_fasta
+    ]
+
+    print("Running command:", " ".join(seqtk_command))
+
+    result = subprocess.run(seqtk_command, capture_output=True)
+
+    if result.returncode == 0:
+        print("Conversion from .fastq to .fasta file completed successfully")
+
+    else:
+        print("Error in converting .fastq to .fasta file: ")
+        print(result.stderr)
 #parser = argparse.ArgumentParser(description='Genome annotation pipeline')
 
 #Input: Genome file and reads file and defining output name
 genome_fasta = sys.argv[1]
-output = sys.argv[2]
+output_indexing = sys.argv[2]
 reads_file = sys.argv[3]
 
 if not os.path.isfile(genome_fasta):
     print("Error: The file {genome_fasta} does not exist.")
 
 else:
-    indexing(genome_fasta, output)
+    indexing(genome_fasta, output_indexing)
 
 if not os.path.isfile(reads_file):
     print("Error: The file {reads_file} does not exist.")
 
 else:
-    mapping(output, reads_file)
-    sam_to_bam("output.sam")
+    reads_fasta = "reads.fasta"
+    fastq_to_fasta(reads_file, reads_fasta)
+    output_sam = "output.sam"
+    mapping(output_indexing, reads_fasta, output_sam)
+    sam_to_bam(output_sam, "output.bam") 
         
