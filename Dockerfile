@@ -156,6 +156,7 @@ RUn apt update && \
                     libthread-queue-perl \
                     libmath-utils-perl \
                     libscalar-list-utils-perl && \
+                    samtools && \
     apt clean all
 
 USER ${NB_UID}
@@ -184,14 +185,32 @@ ENV PATH=${PATH}:/opt/Augustus/scripts/:/opt/Augustus/bin/
 RUN cd /opt && \
     git                              clone https://github.com/Gaius-Augustus/GALBA.git  && \
     git clone --depth=1 https://github.com/Gaius-Augustus/BRAKER.git && \
-    cp   BRAKER/scripts/compute_accuracies.sh GALBA/scripts/compute_accuracies.sh && \
+    cp  BRAKER/scripts/compute_accuracies.sh GALBA/scripts/compute_accuracies.sh && \
     cp  BRAKER/scripts/compare_intervals_exact.pl GALBA/scripts/compare_intervals_exact.pl
 
 RUN cd /opt/ && \ 
     wget https://github.com/DaehwanKimLab/hisat2/archive/refs/tags/v2.2.1.tar.gz && \ 
     tar -xf v2.2.1.tar.gz && \
-    rm v2.2.1.tar.gz && \ 
+    rm v2.2.1.tar.gz && \       
     mv hisat2-2.2.1 hisat2 
+
+RUN cd /opt && \
+    git clone https://github.com/gpertea/stringtie.git && \
+    cd stringtie && \
+    make release
+
+RUN cd /opt && \
+    git clone https://github.com/lh3/seqtk.git && \
+    cd seqtk && \
+    make
+
+RUN cd /opt && \
+    wget https://github.com/TransDecoder/TransDecoder/archive/refs/tags/v5.7.1.tar.gz && \
+    tar -xf v5.7.1.tar.gz && \
+    rm v5.7.1.tar.gz && \
+    mv TransDecoder-5.7.1 TransDecoder && \
+    cd TransDecoder && \
+    make
 
 ENV PATH=${PATH}:/opt/hisat2
 
