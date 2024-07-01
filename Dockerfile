@@ -71,19 +71,19 @@ RUN cd /opt && \
 
 #miniprot
 RUN cd /opt && \
-    git clone --depth=1 https://github.com/lh3/miniprot && \
+    git     clone --depth=1 https://github.com/lh3/miniprot && \
     cd miniprot && \
     make
 
 #miniprot-boundary-scorer
 RUN cd /opt && \
-    git clone --depth=1 https://github.com/tomasbruna/miniprot-boundary-scorer.git && \
+    git clone  --depth=1 https://github.com/tomasbruna/miniprot-boundary-scorer.git && \
     cd miniprot-boundary-scorer && \
     make
 
 #miniprothint
 RUN cd /opt && \
-    git clone --depth=1 https://github.com/tomasbruna/miniprothint.git
+    git clone   --depth=1 https://github.com/tomasbruna/miniprothint.git
 
 # get AUGUSTUS compilation dependencies
 # Install required packages
@@ -182,10 +182,10 @@ ENV PATH=${PATH}:/opt/Augustus/scripts/:/opt/Augustus/bin/
 
 #galba
 RUN cd /opt && \
-    git clone https://github.com/Gaius-Augustus/GALBA.git  && \
+    git                              clone https://github.com/Gaius-Augustus/GALBA.git  && \
     git clone --depth=1 https://github.com/Gaius-Augustus/BRAKER.git && \
-    cp BRAKER/scripts/compute_accuracies.sh GALBA/scripts/compute_accuracies.sh && \
-    cp BRAKER/scripts/compare_intervals_exact.pl GALBA/scripts/compare_intervals_exact.pl
+    cp   BRAKER/scripts/compute_accuracies.sh GALBA/scripts/compute_accuracies.sh && \
+    cp  BRAKER/scripts/compare_intervals_exact.pl GALBA/scripts/compare_intervals_exact.pl
 
 USER ${NB_UID}
 
