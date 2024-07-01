@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 import argparse
 import subprocess
@@ -157,7 +157,7 @@ def assembling(bamFile):
     except Exception:
         print("ERROR stringtie")
 
-parser = argparse.ArgumentParser()
+parser = argparse.ArgumentParser()  
 parser.add_argument('--g', help='Genome file', required=True)
 parser.add_argument('--r', help='Reads file', required=True)
 #parser.add_argument('--o', help='Output name', required=True)
