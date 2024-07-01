@@ -187,6 +187,11 @@ RUN cd /opt && \
     cp   BRAKER/scripts/compute_accuracies.sh GALBA/scripts/compute_accuracies.sh && \
     cp  BRAKER/scripts/compare_intervals_exact.pl GALBA/scripts/compare_intervals_exact.pl
 
+RUN cd /opt/ && \ 
+    wget https://github.com/DaehwanKimLab/hisat2/archive/refs/tags/v2.2.1.tar.gz && \ 
+    tar -xf v2.2.1.tar.gz && \
+    rm v2.2.1.tar.gz 
+
 USER ${NB_UID}
 
 WORKDIR "${HOME}"
