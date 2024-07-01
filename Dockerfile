@@ -190,7 +190,10 @@ RUN cd /opt && \
 RUN cd /opt/ && \ 
     wget https://github.com/DaehwanKimLab/hisat2/archive/refs/tags/v2.2.1.tar.gz && \ 
     tar -xf v2.2.1.tar.gz && \
-    rm v2.2.1.tar.gz 
+    rm v2.2.1.tar.gz && \ 
+    mv hisat2-2.2.1 hisat2 
+
+ENV PATH=${PATH}:/opt/hisat2
 
 USER ${NB_UID}
 
