@@ -4,13 +4,30 @@ import argparse
 import subprocess
 import sys
 import os
-import stat
 
 #VARIABLES 
 cores = 64
 
 
 #FUNCTIONS
+def check_input(genome_file, reads_file):
+    if not os.path.isfile(genome_file):
+        print("Error: Could not find the genome file.")
+        sys.exit(1)
+    if not os.path.isfile(reads_file):
+        print("Error: Could not find the reads file.")
+        sys.exit(1)
+    if file_format(reads_file) == "fastq":
+        print("Input reads file is in fastq format")
+        fastq_to_fasta(reads_file)
+    if file_format(genome_file) == "fastq":
+        print("Input genome file is in fastq format")
+        fastq_to_fasta(genome_file)
+    if file_format(reads_file) == "unknown":
+        sys.exit("Error Reads file: Unknown file format")
+    if file_format(genome_file) == "unknown":
+        sys.exit("Error Genome file: Unknown file format")
+
 def fastq_to_fasta(fastqFile):
     seqtk_path = os.path.expanduser("/home/s-amknut/GALBA/tools/seqtk/./seqtk")
     output_fasta = os.path.expanduser("/home/s-amknut/GALBA/bin/reads.fa")
@@ -36,9 +53,11 @@ def fastq_to_fasta(fastqFile):
         else:
             print("Error in converting .fastq to .fasta file: ")
             print(result.stderr)
+            #sys.exit(1)
     
     except Exception:
         print("Could not run seqtk command.")
+       # sys.exit(1)
 
 def file_format(file):
     with open(file, 'r') as f:
@@ -48,15 +67,12 @@ def file_format(file):
 
         if first_line.startswith('>'):
             format = "fasta"
-            print("Input file is fasta format")
             return format
         elif first_line.startswith('@') and third_line.startswith('+'):
             format = "fastq"
-            print("Input file is fastq format")
             return format
         else:
             format = "unknown"
-            print("File format is unknown")
             return format
 
 def indexing(genome_fasta, output):
@@ -144,13 +160,13 @@ def sam_to_bam(samFile, output_bam):
     except Exception:
         print("Could not run samtools command.")
 
-def assembling(bamFile):
+def assembling(bamFile, output_gtf):
     if not os.path.isfile(bamFile):
         print("Error: The file {bamFile} does not exist.")
 
     try:
         print("Assembling the reads...")
-        command = "/home/s-amknut/GALBA/tools/stringtie2/stringtie -o /home/s-amknut/GALBA/bin/assembly.gtf /home/s-amknut/GALBA/bin/output.bam"
+        command = "/home/s-amknut/GALBA/tools/stringtie2/stringtie -o "+output_gtf+ " " + bamFile
         result = os.system(command)
         if result== 0:
             print("Assembled reads successfully")
@@ -165,38 +181,13 @@ def assembling(bamFile):
 parser = argparse.ArgumentParser()  
 parser.add_argument('-g', help='Genome file', required=True)
 parser.add_argument('-r', help='Reads file', required=True)
-#parser.add_argument('--o', help='Output name', required=True)
 
 args = parser.parse_args()
 genome_file = args.g
 reads_file = args.r
-output_indexing = "output_indexing"
 
-fastq_to_fasta(reads_file)
-indexing(genome_file, output_indexing)
-mapping(output_indexing, reads_file, "output.sam")
-sam_to_bam("output.sam", "output.bam") 
-assembling("output.bam")
-
-"""
-#Input: Genome file and reads file and defining output name
-genome_fasta = sys.argv[1]
-output_indexing = sys.argv[2]
-reads_file = sys.argv[3]
-
-if not os.path.isfile(genome_fasta):
-    print("Error: The file {genome_fasta} does not exist.")
-
-else:
-    indexing(genome_fasta, output_indexing)
-
-if not os.path.isfile(reads_file):
-    print("Error: The file {reads_file} does not exist.")
-
-else:
-    reads_fasta = "reads.fasta"
-    fastq_to_fasta(reads_file, reads_fasta)
-    output_sam = "output.sam"
-    mapping(output_indexing, reads_fasta, output_sam)
-    sam_to_bam(output_sam, "output.bam") 
-"""      
+check_input(genome_file, reads_file)
+indexing(genome_file, "indexing")
+mapping("indexing", reads_file, "mapping.sam")
+sam_to_bam("mapping.sam", "mapping.bam") 
+assembling("mapping.bam", "assembly.gtf")
