@@ -30,7 +30,7 @@ def check_input(genome_file, reads_file):
 
 def fastq_to_fasta(fastqFile):
     seqtk_path = os.path.expanduser("/home/s-amknut/GALBA/tools/seqtk/./seqtk")
-    output_fasta = os.path.expanduser("/home/s-amknut/GALBA/bin/reads.fa")
+    output_fasta = os.path.expanduser("/home/s-amknut/GALBA/scripts/reads.fa") #PROBLEM: GANZER PFAD WIRD ANGEGEBEN
     try:
         seqtk_command = [
             seqtk_path,
@@ -40,19 +40,20 @@ def fastq_to_fasta(fastqFile):
             ">",
             output_fasta
         ]
-
+        command= "seqtk seq -a "+fastqFile+" > "+output_fasta
         print("Converting .fastq to .fasta file...")
+        os.system(command)
+        #with open(output_fasta, 'w') as output_file:
 
-        with open(output_fasta, 'w') as output_file:
+            #result = subprocess.run(seqtk_command, stdout=output_file, capture_output=False)
+        #result = subprocess.run(seqtk_command, capture_output=False)
 
-            result = subprocess.run(seqtk_command, stdout=output_file, capture_output=False)
+        #if result.returncode == 0:
+         #   print("Conversion from .fastq to .fasta file completed successfully")
 
-        if result.returncode == 0:
-            print("Conversion from .fastq to .fasta file completed successfully")
-
-        else:
-            print("Error in converting .fastq to .fasta file: ")
-            print(result.stderr)
+        #else:
+         #   print("Error in converting .fastq to .fasta file: ")
+          #  print(result.stderr)
             #sys.exit(1)
     
     except Exception:
@@ -154,7 +155,7 @@ def sam_to_bam(samFile, output_bam):
             print("Conversion from .sam to .bam file completed successfully")
 
         else:
-            print("Error during conversion:")
+            print("Error during conversion from .sam to .bam file:")
             print(result.stderr)
 
     except Exception:
