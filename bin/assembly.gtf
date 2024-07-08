@@ -1,2 +1,2 @@
-# /home/s-amknut/GALBA/tools/stringtie2/./stringtie -p 4 output.bam -o assembly.gtf
+# /home/s-amknut/GALBA/tools/stringtie2/stringtie -o assembly.gtf mapping.bam
 # StringTie version 2.0
