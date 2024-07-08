@@ -138,7 +138,7 @@ RUN cd /opt && \
     wget https://github.com/TransDecoder/TransDecoder/archive/refs/tags/TransDecoder-v5.7.1.tar.gz && \
     tar -xf TransDecoder-v5.7.1.tar.gz && \
     rm TransDecoder-v5.7.1.tar.gz && \
-    mv TransDecoder-5.7.1 TransDecoder && \
+    mv TransDecoder-TransDecoder-5.7.1 TransDecoder && \
     cd TransDecoder && \
     make
 
