@@ -124,23 +124,23 @@ RUN cd /opt/ && \
     cd hisat2 && \
     make
 
-RUN cd /opt && \
-    git clone https://github.com/gpertea/stringtie.git && \
-    cd stringtie && \
-    make release
+#RUN cd /opt && \
+ #   git clone https://github.com/gpertea/stringtie.git && \
+  #  cd stringtie && \
+   # make release
 
-RUN cd /opt && \
-    git clone https://github.com/lh3/seqtk.git && \
-    cd seqtk && \
-    make
+#RUN cd /opt && \
+ #   git clone https://github.com/lh3/seqtk.git && \
+  #  cd seqtk && \
+   # make
 
-RUN cd /opt && \
-    wget https://github.com/TransDecoder/TransDecoder/archive/refs/tags/TransDecoder-v5.7.1.tar.gz && \
-    tar -xf TransDecoder-TransDecoder-v5.7.1.tar.gz && \
-    rm TransDecoder-TransDecoder-v5.7.1.tar.gz && \
-    mv TransDecoder-TransDecoder-5.7.1 TransDecoder && \
-    cd TransDecoder && \
-    make
+#RUN cd /opt && \
+ #   wget https://github.com/TransDecoder/TransDecoder/archive/refs/tags/TransDecoder-v5.7.1.tar.gz && \
+  #  tar -xf TransDecoder-TransDecoder-v5.7.1.tar.gz && \
+   # rm TransDecoder-TransDecoder-v5.7.1.tar.gz && \
+    #mv TransDecoder-TransDecoder-5.7.1 TransDecoder && \
+    #cd TransDecoder && \
+    #make
 
 FROM $BASE_CONTAINER
 
@@ -182,7 +182,7 @@ RUn apt update && \
                     libthread-queue-perl \
                     libmath-utils-perl \
                     libscalar-list-utils-perl \
-                    samtools && \
+                  #  samtools && \
     apt clean all
 
 USER ${NB_UID}
