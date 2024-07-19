@@ -545,7 +545,7 @@ set_AUGUSTUS_SCRIPTS_PATH();
 fix_AUGUSTUS_CONFIG_PATH(); # if not writable, set to ~/.augustus
 set_PYTHON3_PATH();
 
-if (not ($skipAllTraining)){
+if (not ($skipAllTraining && $disable_diamond_filter)){
     set_DIAMOND_PATH();
 }
 
