@@ -544,7 +544,10 @@ set_AUGUSTUS_BIN_PATH(); # determine bin and scripts relative to config path
 set_AUGUSTUS_SCRIPTS_PATH();
 fix_AUGUSTUS_CONFIG_PATH(); # if not writable, set to ~/.augustus
 set_PYTHON3_PATH();
-set_DIAMOND_PATH();
+
+if (not ($skipAllTraining && $disable_diamond_filter)){
+    set_DIAMOND_PATH();
+}
 
 if(@prot_seq_files && $prg eq "miniprot"){
     set_MINIPROT_PATH();
