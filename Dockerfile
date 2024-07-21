@@ -12,8 +12,8 @@ USER root
 
 RUN apt-get update --yes && \
     apt-get install --yes --no-install-recommends \
-    build-essential \
-    curl && \
+    build-essential && \
+    #curl && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 RUN apt update && \
