@@ -116,13 +116,13 @@ RUN cd /opt && \
     chmod a+x *.pl && \
     chmod a+x *.py
 
-RUN cd /opt/ && \
-    wget https://github.com/DaehwanKimLab/hisat2/archive/refs/tags/v2.2.1.tar.gz && \
-    tar -xf v2.2.1.tar.gz && \
-    rm v2.2.1.tar.gz && \
-    mv hisat2-2.2.1 hisat2 && \
-    cd hisat2 && \
-    make
+#RUN cd /opt/ && \
+ #   wget https://github.com/DaehwanKimLab/hisat2/archive/refs/tags/v2.2.1.tar.gz && \
+  #  tar -xf v2.2.1.tar.gz && \
+   # rm v2.2.1.tar.gz && \
+    #mv hisat2-2.2.1 hisat2 && \
+    #cd hisat2 && \
+    #make
 
 #RUN cd /opt && \
  #   git clone https://github.com/gpertea/stringtie.git && \
@@ -181,7 +181,7 @@ RUn apt update && \
                     libmce-perl \
                     libthread-queue-perl \
                     libmath-utils-perl \
-                    libscalar-list-utils-perl \
+                    libscalar-list-utils-perl && \
                   #  samtools && \
     apt clean all
 
@@ -214,7 +214,7 @@ RUN cd /opt && \
     cp  BRAKER/scripts/compute_accuracies.sh GALBA/scripts/compute_accuracies.sh && \
     cp  BRAKER/scripts/compare_intervals_exact.pl GALBA/scripts/compare_intervals_exact.pl
 
-ENV PATH=${PATH}:/opt/hisat2
+#ENV PATH=${PATH}:/opt/hisat2
 
 USER ${NB_UID}
 
