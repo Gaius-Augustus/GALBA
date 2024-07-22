@@ -123,6 +123,12 @@ RUN cd /opt && \
     mv hisat2-2.2.1 hisat2 && \
     cd hisat2 && \
     make
+    
+#RUN cd /opt/ && \
+ #   git clone --branch v2.2.1 https://github.com/DaehwanKimLab/hisat2.git && \
+  #  cd hisat2 && \
+   # make
+ENV PATH=${PATH}:/opt/hisat2
 
 #RUN cd /opt && \
  #   git clone https://github.com/gpertea/stringtie.git && \
@@ -214,7 +220,7 @@ RUN cd /opt && \
     cp  BRAKER/scripts/compute_accuracies.sh GALBA/scripts/compute_accuracies.sh && \
     cp  BRAKER/scripts/compare_intervals_exact.pl GALBA/scripts/compare_intervals_exact.pl
 
-ENV PATH=${PATH}:/opt/hisat2
+#ENV PATH=${PATH}:/opt/hisat2
 
 USER ${NB_UID}
 
