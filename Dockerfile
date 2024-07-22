@@ -3,7 +3,7 @@
 ARG OWNER=jupyter
 ARG BASE_CONTAINER=$OWNER/minimal-notebook
 FROM $BASE_CONTAINER as base
-#Hallo 22.07. 18:14
+#Hallo 22.07. 18:22
 # Fix: https://github.com/hadolint/hadolint/wiki/DL4006
 # Fix: https://github.com/koalaman/shellcheck/wiki/SC3014
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
@@ -116,19 +116,18 @@ RUN cd /opt && \
     chmod a+x *.pl && \
     chmod a+x *.py
 
-RUN cd /opt && \
-    wget https://github.com/DaehwanKimLab/hisat2/archive/refs/tags/v2.2.1.tar.gz && \
-    tar -xf v2.2.1.tar.gz && \
-    rm v2.2.1.tar.gz && \
-    mv hisat2-2.2.1 hisat2 && \
+#RUN cd /opt && \
+ #   wget https://github.com/DaehwanKimLab/hisat2/archive/refs/tags/v2.2.1.tar.gz && \
+  #  tar -xf v2.2.1.tar.gz && \
+   # rm v2.2.1.tar.gz && \
+    #mv hisat2-2.2.1 hisat2 && \
+    #cd hisat2 && \
+    #make
+    
+RUN cd /opt/ && \
+    git clone --branch v2.2.1 https://github.com/DaehwanKimLab/hisat2.git && \
     cd hisat2 && \
     make
-    
-#RUN cd /opt/ && \
- #   git clone --branch v2.2.1 https://github.com/DaehwanKimLab/hisat2.git && \
-  #  cd hisat2 && \
-   # make
-ENV PATH=${PATH}:/opt/hisat2
 
 #RUN cd /opt && \
  #   git clone https://github.com/gpertea/stringtie.git && \
@@ -220,7 +219,7 @@ RUN cd /opt && \
     cp  BRAKER/scripts/compute_accuracies.sh GALBA/scripts/compute_accuracies.sh && \
     cp  BRAKER/scripts/compare_intervals_exact.pl GALBA/scripts/compare_intervals_exact.pl
 
-#ENV PATH=${PATH}:/opt/hisat2
+ENV PATH=${PATH}:/opt/hisat2
 
 USER ${NB_UID}
 
