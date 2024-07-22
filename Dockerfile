@@ -119,8 +119,10 @@ RUN cd /opt && \
 RUN cd /opt/ && \
     wget https://github.com/DaehwanKimLab/hisat2/archive/refs/tags/v2.2.1.tar.gz && \
     tar -xf v2.2.1.tar.gz && \
+    mkdir hisat2 && \
     #rm v2.2.1.tar.gz && \
     mv hisat2-2.2.1 hisat2 && \
+    rm v2.2.1.tar.gz && \
     cd hisat2 && \
     make
 
