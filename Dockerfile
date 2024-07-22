@@ -3,7 +3,7 @@
 ARG OWNER=jupyter
 ARG BASE_CONTAINER=$OWNER/minimal-notebook
 FROM $BASE_CONTAINER as base
-#Hallo 21.07. 14:36
+#Hallo 22.07. 16:04
 # Fix: https://github.com/hadolint/hadolint/wiki/DL4006
 # Fix: https://github.com/koalaman/shellcheck/wiki/SC3014
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
@@ -119,7 +119,7 @@ RUN cd /opt && \
 RUN cd /opt/ && \
     wget https://github.com/DaehwanKimLab/hisat2/archive/refs/tags/v2.2.1.tar.gz && \
     tar -xf v2.2.1.tar.gz && \
-    rm v2.2.1.tar.gz && \
+    #rm v2.2.1.tar.gz && \
     mv hisat2-2.2.1 hisat2 && \
     cd hisat2 && \
     make
