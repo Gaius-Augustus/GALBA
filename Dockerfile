@@ -131,8 +131,8 @@ RUN cd /opt && \
     #cp -p hisat2 hisat2-* /usr/local/bin/ && \
     #rm -rf /opt/hisat2
 
-ENV PATH=${PATH}:/opt/hisat2
-#ENV PATH="/opt/hisat2:${PATH}"
+#ENV PATH=${PATH}:/opt/hisat2
+ENV PATH="/opt/hisat2:${PATH}"
 
 #RUN cd /opt && \
  #   git clone https://github.com/gpertea/stringtie.git && \
