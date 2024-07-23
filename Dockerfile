@@ -127,12 +127,12 @@ RUN cd /opt && \
 RUN cd /opt/ && \
     git clone https://github.com/infphilo/hisat2.git && \
     cd hisat2 && \
-    git checkout master && \
-    make && \
+    make 
     #cp -p hisat2 hisat2-* /usr/local/bin/ && \
-    rm -rf /opt/hisat2
+    #rm -rf /opt/hisat2
 
-ENV PATH=${PATH}:/opt/hisat2
+#ENV PATH=${PATH}:/opt/hisat2
+ENV PATH="/opt/hisat2:${PATH}"
 
 #RUN cd /opt && \
  #   git clone https://github.com/gpertea/stringtie.git && \
