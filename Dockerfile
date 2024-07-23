@@ -134,10 +134,10 @@ RUN cd /opt && \
 #ENV PATH=${PATH}:/opt/hisat2
 #ENV PATH="/opt/hisat2:${PATH}"
 RUN cd /opt && \
-  wget http://ccb.jhu.edu/software/stringtie/dl/stringtie-1.3.6.tar.gz && \
+  wget -c http://ccb.jhu.edu/software/stringtie/dl/stringtie-1.3.6.tar.gz && \
   tar -zxvf stringtie-1.3.6.tar.gz && \
   cd stringtie-1.3.6 && \
-  make && \
+  make 
   #cp stringtie /usr/local/bin
 
 #RUN cd /opt && \
