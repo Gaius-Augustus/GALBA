@@ -129,7 +129,8 @@ RUN cd /opt/ && \
     cd hisat2 && \
     git checkout master && \
     make && \
-    cp -p hisat2 hisat2-* /usr/local/bin/ 
+    cp -p hisat2 hisat2-* /usr/local/bin/ && \
+    rm -rf /opt/hisat2
 
 #ENV PATH=${PATH}:/opt/hisat2
 ENV PATH="/usr/local/bin:${PATH}"
