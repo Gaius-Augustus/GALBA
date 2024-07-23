@@ -3,7 +3,7 @@
 ARG OWNER=jupyter
 ARG BASE_CONTAINER=$OWNER/minimal-notebook
 FROM $BASE_CONTAINER as base
-# 23.07. 14:01
+# 23.07. 15:06
 # Fix: https://github.com/hadolint/hadolint/wiki/DL4006
 # Fix: https://github.com/koalaman/shellcheck/wiki/SC3014
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
@@ -13,7 +13,8 @@ USER root
 RUN apt-get update --yes && \
     apt-get install --yes --no-install-recommends \
     build-essential && \
-    #curl && \
+    curl && \ 
+    #curl vlt noch auskommentieren
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 RUN apt update && \
@@ -125,15 +126,14 @@ RUN cd /opt && \
     #make
     
 RUN cd /opt/ && \
-    git clone --branch v2.2.1 https://github.com/DaehwanKimLab/hisat2.git && \
+    git clone https://github.com/infphilo/hisat2.git && \
     cd hisat2 && \
     git checkout master && \
-    make && \
-    cp -p hisat2 hisat2-* /usr/local/bin/ && \
-    rm -rf /opt/hisat2
+    make 
+    #cp -p hisat2 hisat2-* /usr/local/bin/ && \
+    #rm -rf /opt/hisat2
 
-#ENV PATH=${PATH}:/opt/hisat2
-ENV PATH="/usr/local/bin:${PATH}"
+ENV PATH=${PATH}:/opt/hisat2
 
 #RUN cd /opt && \
  #   git clone https://github.com/gpertea/stringtie.git && \
