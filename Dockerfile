@@ -13,6 +13,9 @@ USER root
 RUN apt-get update --yes && \
     apt-get install --yes --no-install-recommends \
     build-essential && \
+    apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 3B4FE6ACC0B21F32 && \
+    apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 871920D1991BC93C && \
+    apt-get update --yes && \
     #curl && \ 
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
@@ -145,6 +148,7 @@ RUN cd /opt && \
     cd stringtie 
     #make release
 
+ENV PATH="/opt/stringtie:${PATH}"
 #RUN cd /opt && \
  #   git clone https://github.com/lh3/seqtk.git && \
   #  cd seqtk && \
