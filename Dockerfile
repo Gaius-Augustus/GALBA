@@ -129,9 +129,9 @@ RUN cd /opt && \
     cd hisat2 && \
     wget https://github.com/DaehwanKimLab/hisat2/archive/refs/tags/v2.2.1.tar.gz && \
     tar -xf v2.2.1.tar.gz && \
+    make && \
     rm v2.2.1.tar.gz && \
-    make
-    
+
 #RUN cd /opt/ && \
  #   git clone https://github.com/infphilo/hisat2.git && \
   #  cd hisat2 && \
