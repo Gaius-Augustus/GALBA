@@ -140,9 +140,9 @@ RUN cd /opt && \
   #make release 
   #cp stringtie /usr/local/bin
 
-#RUN cd /opt && \
- #   git clone https://github.com/gpertea/stringtie.git && \
-  #  cd stringtie && \
+RUN cd /opt && \
+    git clone https://github.com/gpertea/stringtie.git && \
+    cd stringtie 
     #make release
 
 #RUN cd /opt && \
