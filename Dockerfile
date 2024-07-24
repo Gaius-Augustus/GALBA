@@ -3,7 +3,7 @@
 ARG OWNER=jupyter
 ARG BASE_CONTAINER=$OWNER/minimal-notebook
 FROM $BASE_CONTAINER as base
-# 24.07. 15:06
+# 24.07. 15:16
 # Fix: https://github.com/hadolint/hadolint/wiki/DL4006
 # Fix: https://github.com/koalaman/shellcheck/wiki/SC3014
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
@@ -70,12 +70,13 @@ RUN cd /opt && \
     wget http://hgdownload.soe.ucsc.edu/admin/exe/linux.x86_64.v369/genePredToBigGenePred && \
     chmod u+x bedToBigBed genePredCheck faToTwoBit gtfToGenePred hgGcPercent ixIxx  twoBitInfo wigToBigWig genePredToBed genePredToBigGenePred make_hub.py
 
-#RUN cd /opt/ && \
- #   git clone --depth=1 https://github.com/infphilo/hisat2.git && \
-  #  cd hisat2 && \
-   # make 
-
-#RUN ls -l /opt/hisat2
+RUN cd /opt && \
+    wget https://github.com/DaehwanKimLab/hisat2/archive/refs/tags/v2.2.1.tar.gz && \
+    tar -xf v2.2.1.tar.gz && \
+    rm v2.2.1.tar.gz && \
+    mv hisat2-2.2.1 hisat2 && \
+    cd hisat2 && \
+    make
 
 #ENV PATH=${PATH}:/opt/hisat2
 
