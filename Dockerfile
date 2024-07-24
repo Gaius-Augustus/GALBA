@@ -136,7 +136,9 @@ RUN cd /opt && \
 RUN cd /opt && \
   wget http://ccb.jhu.edu/software/stringtie/dl/stringtie-1.3.6.tar.gz && \
   tar -zxvf stringtie-1.3.6.tar.gz && \
-  cd stringtie-1.3.6 && \
+  rm stringtie-1.3.6.tar.gz && \
+  mv stringtie-1.3.6 stringtie && \
+  cd stringtie && \
   make  
   #cp stringtie /usr/local/bin
 
