@@ -3,7 +3,7 @@
 ARG OWNER=jupyter
 ARG BASE_CONTAINER=$OWNER/minimal-notebook
 FROM $BASE_CONTAINER as base
-# 24.07. 11:55
+# 24.07. 14:55
 # Fix: https://github.com/hadolint/hadolint/wiki/DL4006
 # Fix: https://github.com/koalaman/shellcheck/wiki/SC3014
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
@@ -21,7 +21,7 @@ RUN apt-get update --yes && \
     build-essential zlib1g-dev wget git && \
     #curl && \ 
     apt-get clean && rm -rf /var/lib/apt/lists/*
-    
+
 RUN apt update && \
     apt-get install -y --no-install-recommends \
     man-db \
