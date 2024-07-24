@@ -3,22 +3,16 @@
 ARG OWNER=jupyter
 ARG BASE_CONTAINER=$OWNER/minimal-notebook
 FROM $BASE_CONTAINER as base
-# 24.07. 14:55
+# 24.07. 14:59
 # Fix: https://github.com/hadolint/hadolint/wiki/DL4006
 # Fix: https://github.com/koalaman/shellcheck/wiki/SC3014
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 USER root
-#old code
-#RUN apt-get update --yes && \
- #   apt-get install --yes --no-install-recommends \
-  #  build-essential && \
-   # apt-get clean && rm -rf /var/lib/apt/lists/*
 
-#my code
 RUN apt-get update --yes && \
     apt-get install --yes --no-install-recommends \
-    build-essential zlib1g-dev wget git && \
+    build-essential && \
     #curl && \ 
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
@@ -75,6 +69,15 @@ RUN cd /opt && \
     wget http://hgdownload.soe.ucsc.edu/admin/exe/linux.x86_64.v369/genePredToBed && \
     wget http://hgdownload.soe.ucsc.edu/admin/exe/linux.x86_64.v369/genePredToBigGenePred && \
     chmod u+x bedToBigBed genePredCheck faToTwoBit gtfToGenePred hgGcPercent ixIxx  twoBitInfo wigToBigWig genePredToBed genePredToBigGenePred make_hub.py
+
+RUN cd /opt/ && \
+    git clone --depth=1 https://github.com/infphilo/hisat2.git && \
+    cd hisat2 && \
+    make 
+
+#RUN ls -l /opt/hisat2
+
+#ENV PATH=${PATH}:/opt/hisat2
 
 #miniprot
 RUN cd /opt && \
