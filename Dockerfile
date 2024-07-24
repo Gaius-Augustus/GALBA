@@ -147,7 +147,8 @@ RUN cd /opt && \
   #  cd stringtie &&\
    # make release
 
-ENV PATH="/opt/stringtie:${PATH}"
+ENV PATH=${PATH}:/opt/stringtie
+#ENV PATH="/opt/stringtie:${PATH}"
 #RUN cd /opt && \
  #   git clone https://github.com/lh3/seqtk.git && \
   #  cd seqtk && \
