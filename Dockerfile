@@ -9,13 +9,19 @@ FROM $BASE_CONTAINER as base
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 USER root
+#old code
+#RUN apt-get update --yes && \
+ #   apt-get install --yes --no-install-recommends \
+  #  build-essential && \
+   # apt-get clean && rm -rf /var/lib/apt/lists/*
 
+#my code
 RUN apt-get update --yes && \
     apt-get install --yes --no-install-recommends \
-    build-essential && \
+    build-essential zlib1g-dev wget git && \
     #curl && \ 
     apt-get clean && rm -rf /var/lib/apt/lists/*
-
+    
 RUN apt update && \
     apt-get install -y --no-install-recommends \
     man-db \
@@ -129,6 +135,8 @@ RUN cd /opt/ && \
     cd hisat2 && \
     make 
 
+RUN ls -l /opt/hisat2
+
 ENV PATH=${PATH}:/opt/hisat2
 #ENV PATH="/opt/hisat2:${PATH}"
 #RUN cd /opt && \
@@ -140,10 +148,10 @@ ENV PATH=${PATH}:/opt/hisat2
   #make release 
   #cp stringtie /usr/local/bin
 
-RUN cd /opt && \
-    git clone --depth=1 https://github.com/gpertea/stringtie.git && \
-    cd stringtie && \
-    make release
+#RUN cd /opt && \
+ #   git clone --depth=1 https://github.com/gpertea/stringtie.git && \
+  #  cd stringtie && \
+   # make release
 
 #ENV PATH=${PATH}:/opt/stringtie
 #ENV PATH="/opt/stringtie:${PATH}"
