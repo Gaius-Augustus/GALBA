@@ -133,19 +133,19 @@ RUN cd /opt && \
 
 #ENV PATH=${PATH}:/opt/hisat2
 #ENV PATH="/opt/hisat2:${PATH}"
-RUN cd /opt && \
-  wget http://ccb.jhu.edu/software/stringtie/dl/stringtie-1.3.6.tar.gz && \
-  tar -zxvf stringtie-1.3.6.tar.gz && \
-  rm stringtie-1.3.6.tar.gz && \
-  mv stringtie-1.3.6 stringtie && \
-  cd stringtie && \
-  make release 
+#RUN cd /opt && \
+  #wget http://ccb.jhu.edu/software/stringtie/dl/stringtie-1.3.6.tar.gz && \
+ # tar -zxvf stringtie-1.3.6.tar.gz && \
+  #rm stringtie-1.3.6.tar.gz && \
+  #mv stringtie-1.3.6 stringtie && \
+  #cd stringtie && \
+  #make release 
   #cp stringtie /usr/local/bin
 
-#RUN cd /opt && \
- #   git clone https://github.com/gpertea/stringtie.git && \
-  #  cd stringtie &&\
-   # make release
+RUN cd /opt && \
+    git clone https://github.com/gpertea/stringtie.git && \
+    cd stringtie && \
+    make release
 
 ENV PATH=${PATH}:/opt/stringtie
 #ENV PATH="/opt/stringtie:${PATH}"
