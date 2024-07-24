@@ -139,7 +139,7 @@ RUN cd /opt && \
   rm stringtie-1.3.6.tar.gz && \
   mv stringtie-1.3.6 stringtie && \
   cd stringtie && \
-  make  
+  make clean release 
   #cp stringtie /usr/local/bin
 
 #RUN cd /opt && \
