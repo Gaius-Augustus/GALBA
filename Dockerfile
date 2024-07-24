@@ -3,7 +3,7 @@
 ARG OWNER=jupyter
 ARG BASE_CONTAINER=$OWNER/minimal-notebook
 FROM $BASE_CONTAINER as base
-# 24.07. 14:59
+# 24.07. 15:06
 # Fix: https://github.com/hadolint/hadolint/wiki/DL4006
 # Fix: https://github.com/koalaman/shellcheck/wiki/SC3014
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
@@ -133,14 +133,14 @@ RUN cd /opt && \
     #cd hisat2 && \
     #make
 
-RUN cd /opt/ && \
-    git clone --depth=1 https://github.com/infphilo/hisat2.git && \
-    cd hisat2 && \
-    make 
+#RUN cd /opt/ && \
+ #   git clone --depth=1 https://github.com/infphilo/hisat2.git && \
+  #  cd hisat2 && \
+   # make 
 
-RUN ls -l /opt/hisat2
+#RUN ls -l /opt/hisat2
 
-ENV PATH=${PATH}:/opt/hisat2
+#ENV PATH=${PATH}:/opt/hisat2
 #ENV PATH="/opt/hisat2:${PATH}"
 #RUN cd /opt && \
   #wget http://ccb.jhu.edu/software/stringtie/dl/stringtie-1.3.6.tar.gz && \
