@@ -122,7 +122,7 @@ RUN cd /opt && \
     rm v2.2.1.tar.gz && \
     mv hisat2-2.2.1 hisat2 && \
     cd hisat2 && \
-    make VERBOSE=1
+    make 
 
 #RUN cd /opt/ && \
  #   git clone --depth=1 https://github.com/infphilo/hisat2.git && \
