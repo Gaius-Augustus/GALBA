@@ -70,10 +70,10 @@ RUN cd /opt && \
     wget http://hgdownload.soe.ucsc.edu/admin/exe/linux.x86_64.v369/genePredToBigGenePred && \
     chmod u+x bedToBigBed genePredCheck faToTwoBit gtfToGenePred hgGcPercent ixIxx  twoBitInfo wigToBigWig genePredToBed genePredToBigGenePred make_hub.py
 
-RUN cd /opt/ && \
-    git clone --depth=1 https://github.com/infphilo/hisat2.git && \
-    cd hisat2 && \
-    make 
+#RUN cd /opt/ && \
+ #   git clone --depth=1 https://github.com/infphilo/hisat2.git && \
+  #  cd hisat2 && \
+   # make 
 
 #RUN ls -l /opt/hisat2
 
