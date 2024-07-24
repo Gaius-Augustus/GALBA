@@ -70,16 +70,6 @@ RUN cd /opt && \
     wget http://hgdownload.soe.ucsc.edu/admin/exe/linux.x86_64.v369/genePredToBigGenePred && \
     chmod u+x bedToBigBed genePredCheck faToTwoBit gtfToGenePred hgGcPercent ixIxx  twoBitInfo wigToBigWig genePredToBed genePredToBigGenePred make_hub.py
 
-RUN cd /opt && \
-    wget https://github.com/DaehwanKimLab/hisat2/archive/refs/tags/v2.2.1.tar.gz && \
-    tar -xf v2.2.1.tar.gz && \
-    rm v2.2.1.tar.gz && \
-    mv hisat2-2.2.1 hisat2 && \
-    cd hisat2 && \
-    make
-
-#ENV PATH=${PATH}:/opt/hisat2
-
 #miniprot
 RUN cd /opt && \
     git     clone --depth=1 https://github.com/lh3/miniprot && \
@@ -95,6 +85,14 @@ RUN cd /opt && \
 #miniprothint
 RUN cd /opt && \
     git clone   --depth=1 https://github.com/tomasbruna/miniprothint.git
+
+RUN cd /opt && \
+    wget https://github.com/DaehwanKimLab/hisat2/archive/refs/tags/v2.2.1.tar.gz && \
+    tar -xf v2.2.1.tar.gz && \
+    rm v2.2.1.tar.gz && \
+    mv hisat2-2.2.1 hisat2 && \
+    cd hisat2 && \
+    make
 
 # get AUGUSTUS compilation dependencies
 # Install required packages
