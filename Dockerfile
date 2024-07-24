@@ -172,14 +172,14 @@ ENV PATH=${PATH}:/opt/seqstats:/opt/cdbfasta:/opt/hisat2:/opt/diamond:/opt/TSEBR
 #ENV PATH=${PATH}:/opt/seqstats:/opt/cdbfasta:/opt/hisat2:/opt/stringtie:/opt/diamond:/opt/TSEBRA/bin:/opt/MakeHub:/opt/miniprot:/opt/GALBA/scripts:/opt/miniprot-boundary-scorer:/opt/miniprothint
 
 # AUGUSTUS does need several libraries that are now gone, re-install them:
-RUN apt-get update --yes && \
-    apt-get install -y libboost-iostreams-dev zlib1g-dev libboost-all-dev libboost-all-dev libbamtools-dev
+#RUN apt-get update --yes && \
+ #   apt-get install -y libboost-iostreams-dev zlib1g-dev libboost-all-dev libboost-all-dev libbamtools-dev
 
-ENV AUGUSTUS_CONFIG_PATH=/opt/Augustus/config/
+#ENV AUGUSTUS_CONFIG_PATH=/opt/Augustus/config/
 
 # augustus, install only in order to get the dependencies, will uninstall augustus later on
 RUN apt update && \ 
-    apt install -yq  augustus augustus-data augustus-doc \
+   # apt install -yq  augustus augustus-data augustus-doc \
     # for latex labels
     cm-super \
     dvipng \
