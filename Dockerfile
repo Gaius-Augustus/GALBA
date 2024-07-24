@@ -3,7 +3,7 @@
 ARG OWNER=jupyter
 ARG BASE_CONTAINER=$OWNER/minimal-notebook
 FROM $BASE_CONTAINER as base
-# 23.07. 15:06
+# 24.07. 11:52
 # Fix: https://github.com/hadolint/hadolint/wiki/DL4006
 # Fix: https://github.com/koalaman/shellcheck/wiki/SC3014
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
@@ -13,9 +13,6 @@ USER root
 RUN apt-get update --yes && \
     apt-get install --yes --no-install-recommends \
     build-essential && \
-    apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 3B4FE6ACC0B21F32 && \
-    apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 871920D1991BC93C && \
-    apt-get update --yes && \
     #curl && \ 
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
@@ -119,13 +116,13 @@ RUN cd /opt && \
     chmod a+x *.pl && \
     chmod a+x *.py
 
-RUN cd /opt && \
-    wget https://github.com/DaehwanKimLab/hisat2/archive/refs/tags/v2.2.1.tar.gz && \
-    tar -xf v2.2.1.tar.gz && \
-    rm v2.2.1.tar.gz && \
-    mv hisat2-2.2.1 hisat2 && \
-    cd hisat2 && \
-    make
+#RUN cd /opt && \
+ #   wget https://github.com/DaehwanKimLab/hisat2/archive/refs/tags/v2.2.1.tar.gz && \
+  #  tar -xf v2.2.1.tar.gz && \
+   # rm v2.2.1.tar.gz && \
+    #mv hisat2-2.2.1 hisat2 && \
+    #cd hisat2 && \
+    #make
 
 #RUN cd /opt/ && \
  #   git clone https://github.com/infphilo/hisat2.git && \
@@ -145,8 +142,8 @@ RUN cd /opt && \
 
 RUN cd /opt && \
     git clone https://github.com/gpertea/stringtie.git && \
-    cd stringtie 
-    #make release
+    cd stringtie &&\
+    make release
 
 ENV PATH="/opt/stringtie:${PATH}"
 #RUN cd /opt && \
