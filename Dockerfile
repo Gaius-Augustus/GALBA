@@ -140,10 +140,10 @@ ENV PATH=${PATH}:/opt/hisat2
   #make release 
   #cp stringtie /usr/local/bin
 
-#RUN cd /opt && \
- #   git clone https://github.com/gpertea/stringtie.git && \
-  #  cd stringtie && \
-   # make release
+RUN cd /opt && \
+    git clone --depth=1 https://github.com/gpertea/stringtie.git && \
+    cd stringtie && \
+    make 
 
 #ENV PATH=${PATH}:/opt/stringtie
 #ENV PATH="/opt/stringtie:${PATH}"
