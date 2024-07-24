@@ -86,14 +86,6 @@ RUN cd /opt && \
 RUN cd /opt && \
     git clone   --depth=1 https://github.com/tomasbruna/miniprothint.git
 
-RUN cd /opt && \
-    wget https://github.com/DaehwanKimLab/hisat2/archive/refs/tags/v2.2.1.tar.gz && \
-    tar -xf v2.2.1.tar.gz && \
-    rm v2.2.1.tar.gz && \
-    mv hisat2-2.2.1 hisat2 && \
-    cd hisat2 && \
-    make
-
 # get AUGUSTUS compilation dependencies
 # Install required packages
 RUN apt-get update
@@ -124,13 +116,13 @@ RUN cd /opt && \
     chmod a+x *.pl && \
     chmod a+x *.py
 
-#RUN cd /opt && \
- #   wget https://github.com/DaehwanKimLab/hisat2/archive/refs/tags/v2.2.1.tar.gz && \
-  #  tar -xf v2.2.1.tar.gz && \
-   # rm v2.2.1.tar.gz && \
-    #mv hisat2-2.2.1 hisat2 && \
-    #cd hisat2 && \
-    #make
+RUN cd /opt && \
+    wget https://github.com/DaehwanKimLab/hisat2/archive/refs/tags/v2.2.1.tar.gz && \
+    tar -xf v2.2.1.tar.gz && \
+    rm v2.2.1.tar.gz && \
+    mv hisat2-2.2.1 hisat2 && \
+    cd hisat2 && \
+    make VERBOSE=1
 
 #RUN cd /opt/ && \
  #   git clone --depth=1 https://github.com/infphilo/hisat2.git && \
