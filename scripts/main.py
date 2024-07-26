@@ -8,7 +8,6 @@ import os
 #VARIABLES 
 cores = 4
 
-
 #FUNCTIONS
 def check_input(genome_file, reads_file):
     if not os.path.isfile(genome_file):
@@ -19,9 +18,11 @@ def check_input(genome_file, reads_file):
         sys.exit(1)
     if file_format(reads_file) == "fastq":
         print("Input reads file is in fastq format")
+        print("Converting reads file to fasta format...")
         fastq_to_fasta(reads_file)
     if file_format(genome_file) == "fastq":
-        print("Input genome file is in fastq format")
+        print("Input genome file is in fastq format.")
+        print("Converting genome file to fasta format...")
         fastq_to_fasta(genome_file)
     if file_format(reads_file) == "unknown":
         sys.exit("Error Reads file: Unknown file format")
@@ -29,10 +30,9 @@ def check_input(genome_file, reads_file):
         sys.exit("Error Genome file: Unknown file format")
 
 def fastq_to_fasta(fastqFile):
-    seqtk_path = os.path.expanduser("/home/s-amknut/GALBA/tools/seqtk/./seqtk")
     try:
         seqtk_command = [
-            seqtk_path,
+            "/home/s-amknut/GALBA/tools/seqtk/seqtk",
             "seq",
             "-a",
             fastqFile,
@@ -50,15 +50,17 @@ def fastq_to_fasta(fastqFile):
         else:
             print("Error in converting .fastq to .fasta file: ")
             print(result.stderr)
-            #sys.exit(1)
+            sys.exit(1)
     
     except Exception:
         print("Could not run seqtk command.")
-       # sys.exit(1)
+        sys.exit(1)
 
 def file_format(file):
     with open(file, 'r') as f:
-        first_line = f.readline().strip()
+        #read and save first line in string & remove whitespaces with strip()
+        #every next call of .readline() will read the next line
+        first_line = f.readline().strip() 
         second_line = f.readline().strip()
         third_line = f.readline().strip()
 
@@ -73,10 +75,10 @@ def file_format(file):
             return format
 
 def indexing(genome_fasta, output):
-    hisat2_build_path = os.path.expanduser("/home/s-amknut/GALBA/tools/hisat2/hisat2-build")
+    #hisat2_build_path = os.path.expanduser("/opt/hisat2/hisat2-build")
     try:
         hisat2_build_command = [
-            hisat2_build_path, 
+            "/home/s-amknut/GALBA/tools/hisat2/hisat2-build", 
             "--quiet",
             "-p",
             str(cores),        
@@ -98,14 +100,14 @@ def indexing(genome_fasta, output):
         print("Could not run hisat2-build command.") 
 
 def mapping(output_indexing, reads_file, output_sam):
-    hisat2_path = os.path.expanduser("/opt/hisat2/hisat2")
+    #hisat2_path = os.path.expanduser("/opt/hisat2/hisat2")
     if file_format(reads_file) == "fastq":
         fastq_to_fasta(reads_file)
         reads_file = "reads.fa"
     try:
         #which Pfad finden
         hisat2_command = [
-            "hisat2",
+            "/home/s-amknut/GALBA/tools/hisat2/hisat2",
             "-f",                        
             "-x", output_indexing,            
             "-U", reads_file,            
@@ -124,7 +126,7 @@ def mapping(output_indexing, reads_file, output_sam):
             print(result.stderr)
     
     except Exception as e:
-        print("ERROR") 
+        print("Could not run hisat2 command.") 
 
 def sam_to_bam(samFile, output_bam):
     if not os.path.isfile(samFile):
@@ -160,7 +162,9 @@ def assembling(bamFile, output_gtf):
     try:
         print("Assembling the reads...")
         command = "/home/s-amknut/GALBA/tools/stringtie2/stringtie -p "+str(cores)+" -o "+output_gtf+" "+bamFile
-        result = os.system(command)
+        print("Running command:", command)
+        result = os.system(command) #Reminder: Didnt work with subprocess.run, maybe need a better solution?
+
         if result== 0:
             print("Assembled reads successfully")
 
@@ -170,13 +174,20 @@ def assembling(bamFile, output_gtf):
     except Exception:
         print("Could not run stringtie command.")
 
-def orfsearching(assembly_gtf, genome_fa):
+def orfsearching(assembly_gtf, genome_fa, output_fa):
     try:
+        gffread_command = [
+            "/home/s-amknut/GALBA/tools/gffread/gffread",
+            "-w",
+            output_fa,
+            "-g",
+            genome_fa,
+            assembly_gtf
+        ]
         print("Preparing Transcripts using gffread...")
-        gffread_command = "/home/s-amknut/GALBA/tools/gffread/./gffread " + assembly_gtf+" "+ genome_fa +" > transcripts.fasta"
-        print("Running command:", "".join(gffread_command))
-        result = os.system(gffread_command)
-        #result = subprocess.run(gffread_command, capture_output=True)
+        #print("Running command:", "".join(gffread_command))
+        result = subprocess.run(gffread_command, capture_output=True)
+
         if result.returncode == 0:
             print("Transcripts prepared successfully")
         else:
@@ -185,17 +196,40 @@ def orfsearching(assembly_gtf, genome_fa):
     
     except Exception:
         print("Could not run gffread command.")
+        sys.exit(1)
 
     try:
+        trans = "transcripts.fasta"
         print("Searching for ORFs...")
-        transdecoder_command = [
-            "/home/s-amknut/GALBA/tools/eviann/.TransDecoder.LongOrfs",
-            " -t transcripts.fasta"
+        longORF_command = [
+            "/home/s-amknut/GALBA/tools/eviann/TransDecoder.LongOrfs",
+            "-t",
+            trans
         ]
-
-        result= subprocess.run(transdecoder_command, capture_output=True)
+       
+        #print("Running command:", "".join(transdecoder_command))
+        result= subprocess.run(longORF_command, capture_output=True)
         if result.returncode == 0:
             print("ORFs found successfully")
+        else:
+            print("Error during ORF search")
+            print(result.stderr)
+    except Exception:
+        print("Could not run TransDecoder command.")
+
+    try:
+        trans = "transcripts.fa"
+        print("Searching for ORFs...")
+        predict_command = [
+            "/home/s-amknut/GALBA/tools/eviann/TransDecoder.Predict",
+            "-t",
+            trans
+        ]
+       
+        #print("Running command:", "".join(transdecoder_command))
+        result= subprocess.run(predict_command, capture_output=True)
+        if result.returncode == 0:
+            print("Predict successfully")
         else:
             print("Error during ORF search")
             print(result.stderr)
@@ -207,14 +241,18 @@ def orfsearching(assembly_gtf, genome_fa):
 parser = argparse.ArgumentParser()  
 parser.add_argument('-g', help='Genome file', required=True)
 parser.add_argument('-r', help='Reads file', required=True)
+parser.add_argument('-t', help='Number of threads', required=False)
 
 args = parser.parse_args()
 genome_file = args.g
 reads_file = args.r
+threads = args.t
 
-check_input(genome_file, reads_file)
-indexing(genome_file, "indexing")
-mapping("indexing", reads_file, "mapping.sam")
+#check_input(genome_file, reads_file) hier nochmal gut Lösung überlegen
+indexing(genome_file, "genome")
+mapping("genome", reads_file, "mapping.sam")
 sam_to_bam("mapping.sam", "mapping.bam") 
 assembling("mapping.bam", "assembly.gtf")
-orfsearching("assembly.gtf", genome_file)
+orfsearching("assembly.gtf", genome_file, "transcripts.fasta")
+
+
