@@ -12,7 +12,7 @@ USER root
 
 RUN apt-get update --yes && \
     apt-get install --yes --no-install-recommends \
-    build-essential && \
+    #build-essential && \
     #nächste Zeile von mir
     gnupg2 && \
     #curl && \ 
@@ -23,6 +23,7 @@ RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-keys $(apt-key list | gr
 
 RUN apt update && \
     apt-get install -y --no-install-recommends \
+    build-essential \
     man-db \
     g++ \
     less \
