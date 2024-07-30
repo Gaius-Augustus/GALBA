@@ -13,13 +13,8 @@ USER root
 RUN apt-get update --yes && \
     apt-get install --yes --no-install-recommends \
     #build-essential && \
-    #nächste Zeile von mir
-    gnupg2 && \
     #curl && \ 
     apt-get clean && rm -rf /var/lib/apt/lists/*
-
-#nächste Zeile von mir
-RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-keys $(apt-key list | grep 'pub' | awk '{print $2}') || apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys $(apt-key list | grep 'pub' | awk '{print $2}')
 
 RUN apt update && \
     apt-get install -y --no-install-recommends \
