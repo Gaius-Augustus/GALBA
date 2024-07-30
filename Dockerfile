@@ -13,7 +13,6 @@ USER root
 RUN apt-get update --yes && \
     apt-get install --yes --no-install-recommends \
     build-essential && \
-    #curl && \ 
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 RUN apt update && \
@@ -25,9 +24,12 @@ RUN apt update && \
     && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
+#RUN von Amrei 
 RUN apt-get install --yes && \
     cpan && \
-    cpan URI::Escape
+    cpan URI::Escape && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
 
 # out of my way
 RUN rm -rf /opt && mkdir /opt
