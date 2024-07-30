@@ -12,20 +12,23 @@ USER root
 
 RUN apt-get update --yes && \
     apt-get install --yes --no-install-recommends \
-    #build-essential && \
+    build-essential && \
     #curl && \ 
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 RUN apt update && \
     apt-get install -y --no-install-recommends \
-    build-essential \
     man-db \
     g++ \
     less \
     zlib1g-dev \
-    curl \
     && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
+
+RUN apt-get update --yes && \
+    apt-get install --yes --no-install-recommends \
+    cpanminus && \
+    cpan URI::Escape
 
 # out of my way
 RUN rm -rf /opt && mkdir /opt
