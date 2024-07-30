@@ -13,6 +13,8 @@ USER root
 RUN apt-get update --yes && \
     apt-get install --yes --no-install-recommends \
     build-essential && \
+    cpan && \
+    cpan URI::Escape && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 RUN apt update && \
@@ -251,7 +253,4 @@ USER ${NB_UID}
 
 WORKDIR "${HOME}"
 
-RUN apt install --yes && \
-    cpan && \
-    cpan URI::Escape && \
-    apt-get clean && rm -rf /var/lib/apt/lists/*
+
