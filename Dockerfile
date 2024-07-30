@@ -22,11 +22,16 @@ RUN apt update && \
     g++ \
     less \
     zlib1g-dev \
+    #nächsten zwei zeilen von mir
+    curl \      
+    cpanminus \
     && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # out of my way
 RUN rm -rf /opt && mkdir /opt
+
+RUN cpan URI::Escape
 
 RUN cd /opt && \ 
     git clone --recursive https://github.com/clwgg/seqstats && \
