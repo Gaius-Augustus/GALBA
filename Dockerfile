@@ -18,8 +18,9 @@ RUN apt-get update --yes && \
 RUN apt update && \
     apt-get install -y --no-install-recommends \
     man-db \
-    g++ \
     less \
+    g++ \
+    #less \
     zlib1g-dev \
     && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
