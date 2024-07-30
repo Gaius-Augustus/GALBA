@@ -12,18 +12,24 @@ USER root
 
 RUN apt-get update --yes && \
     apt-get install --yes --no-install-recommends \
-    build-essential && \
-    apt-get clean && rm -rf /var/lib/apt/lists/*
-
-RUN apt update && \
-    apt-get install -y --no-install-recommends \
+    #mit &&
+    build-essential \ 
     man-db \
     g++ \
-    make \
     less \
     zlib1g-dev \
-    && \
-    apt-get clean && rm -rf /var/lib/apt/lists/*
+    make \
+    #ohne &&
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+#RUN apt update && \
+ #   apt-get install -y --no-install-recommends \
+  #  man-db \
+   # g++ \
+    #less \
+    #zlib1g-dev \
+    #&& \
+    #apt-get clean && rm -rf /var/lib/apt/lists/*
 
 #RUN von Amrei 
 #RUN apt install --yes && \
