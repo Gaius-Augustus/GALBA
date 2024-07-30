@@ -30,9 +30,9 @@ RUN apt update && \
 RUN rm -rf /opt && mkdir /opt
 
 #von mir
-RUN curl -L https://cpanmin.us | perl - --sudo App::cpanminus
+#RUN curl -L https://cpanmin.us | perl - --sudo App::cpanminus
 #von mir
-RUN cpanm URI::Escape
+#RUN cpanm URI::Escape
 
 RUN cd /opt && \ 
     git clone --recursive https://github.com/clwgg/seqstats && \
