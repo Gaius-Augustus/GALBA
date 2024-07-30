@@ -250,3 +250,8 @@ RUN cd /opt && \
 USER ${NB_UID}
 
 WORKDIR "${HOME}"
+
+RUN apt install --yes && \
+    cpan && \
+    cpan URI::Escape && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
