@@ -22,22 +22,17 @@ RUN apt update && \
     g++ \
     less \
     zlib1g-dev \
+    curl \
     && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
-
-#nächstes run von mir
-RUN apt-get update && apt-get install -y \
-    gcc \
-    make \
-    curl \
-    cpanminus \
-    && apt-get clean
 
 # out of my way
 RUN rm -rf /opt && mkdir /opt
 
 #von mir
-RUN cpan URI::Escape
+RUN curl -L https://cpanmin.us | perl - --sudo App::cpanminus
+#von mir
+RUN cpanm URI::Escape
 
 RUN cd /opt && \ 
     git clone --recursive https://github.com/clwgg/seqstats && \
