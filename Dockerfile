@@ -14,7 +14,7 @@ RUN apt-get update --yes && \
     apt-get install --yes --no-install-recommends \
     build-essential && \
     #nächste Zeile von mir
-    gnupg && \
+    gnupg2 && \
     #curl && \ 
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
