@@ -25,8 +25,7 @@ RUN apt update && \
     && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
-RUN apt-get update --yes && \
-    apt-get install --yes --no-install-recommends \
+RUN apt-get install --yes && \
     cpan && \
     cpan URI::Escape
 
