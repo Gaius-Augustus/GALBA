@@ -18,7 +18,6 @@ RUN apt-get update --yes && \
     g++ \
     less \
     zlib1g-dev \
-    make \
     #ohne &&
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
