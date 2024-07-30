@@ -38,16 +38,16 @@ RUN rm -rf /opt && mkdir /opt
 #von mir
 #RUN cpanm URI::Escape
 
-RUN cd /opt && \ 
-    git clone --recursive https://github.com/clwgg/seqstats && \
-    cd seqstats && \
-    make 
+#RUN cd /opt && \ 
+ #   git clone --recursive https://github.com/clwgg/seqstats && \
+  #  cd seqstats && \
+   # make 
 
 # cdbfasta
-RUN cd /opt && \ 
-    git clone --depth=1 https://github.com/gpertea/cdbfasta.git && \
-    cd cdbfasta && \
-    make 
+#RUN cd /opt && \ 
+ #   git clone --depth=1 https://github.com/gpertea/cdbfasta.git && \
+  #  cd cdbfasta && \
+   # make 
 
 # diamond
 RUN cd /opt && \
