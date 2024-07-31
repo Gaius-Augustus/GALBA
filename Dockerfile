@@ -18,18 +18,17 @@ RUN apt-get update --yes && \
 RUN apt update && \
     apt-get install -y --no-install-recommends \
     man-db \
-    less \
     g++ \
-    #less \
+    less \
     zlib1g-dev \
     && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 #RUN von Amrei 
-#RUN apt install --yes && \
- #   cpan && \
-  #  cpan URI::Escape && \
-   # apt-get clean && rm -rf /var/lib/apt/lists/*
+RUN apt install --yes && \
+    cpan && \
+    cpan URI::Escape && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # out of my way
 RUN rm -rf /opt && mkdir /opt
