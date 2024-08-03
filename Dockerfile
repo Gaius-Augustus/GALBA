@@ -144,12 +144,12 @@ RUN cd /opt && \
 #ENV PATH=${PATH}:/opt/hisat2
 #ENV PATH="/opt/hisat2:${PATH}"
 RUN cd /opt && \
-  wget http://ccb.jhu.edu/software/stringtie/dl/stringtie-1.3.6.tar.gz && \
-  tar -zxvf stringtie-1.3.6.tar.gz && \
-  rm stringtie-1.3.6.tar.gz && \
-  mv stringtie-1.3.6 stringtie && \
-  cd stringtie && \
-  make release 
+    wget http://ccb.jhu.edu/software/stringtie/dl/stringtie-1.3.6.tar.gz && \
+    tar -zxvf stringtie-1.3.6.tar.gz && \
+    rm stringtie-1.3.6.tar.gz && \
+    mv stringtie-1.3.6 stringtie && \
+    cd stringtie && \
+    make release 
 
 #RUN cd /opt && \
  #   git clone --depth=1 https://github.com/gpertea/stringtie.git && \
@@ -177,8 +177,8 @@ USER root
 
 COPY --from=base /opt/ /opt/
 
-ENV PATH=${PATH}:/opt/seqstats:/opt/cdbfasta:/opt/hisat2:/opt/diamond:/opt/TSEBRA/bin:/opt/MakeHub:/opt/miniprot:/opt/GALBA/scripts:/opt/miniprot-boundary-scorer:/opt/miniprothint
-#ENV PATH=${PATH}:/opt/seqstats:/opt/cdbfasta:/opt/hisat2:/opt/stringtie:/opt/diamond:/opt/TSEBRA/bin:/opt/MakeHub:/opt/miniprot:/opt/GALBA/scripts:/opt/miniprot-boundary-scorer:/opt/miniprothint
+#ENV PATH=${PATH}:/opt/seqstats:/opt/cdbfasta:/opt/hisat2:/opt/diamond:/opt/TSEBRA/bin:/opt/MakeHub:/opt/miniprot:/opt/GALBA/scripts:/opt/miniprot-boundary-scorer:/opt/miniprothint
+ENV PATH=${PATH}:/opt/seqstats:/opt/cdbfasta:/opt/hisat2:/opt/stringtie:/opt/diamond:/opt/TSEBRA/bin:/opt/MakeHub:/opt/miniprot:/opt/GALBA/scripts:/opt/miniprot-boundary-scorer:/opt/miniprothint
 
 # AUGUSTUS does need several libraries that are now gone, re-install them:
 RUN apt-get update --yes && \
