@@ -192,7 +192,6 @@ RUN cd /opt && \
 
 RUN cd /opt && \
     git clone https://github.com/tomasbruna/miniprothint.git && \
-    cd miniprothint 
 
 FROM $BASE_CONTAINER
 
