@@ -75,10 +75,11 @@ def file_format(file):
             return format
 
 def indexing(genome_fasta, output):
-    #hisat2_build_path = os.path.expanduser("/opt/hisat2/hisat2-build")
+    hisat2_build_path = "/opt/hisat2/hisat2-build"
+    #hisat2_build_path = "/home/s-amknut/GALBA/tools/hisat2/hisat2-build"
     try:
         hisat2_build_command = [
-            "/home/s-amknut/GALBA/tools/hisat2/hisat2-build", 
+            hisat2_build_path, 
             "--quiet",
             "-p",
             str(cores),        
@@ -99,15 +100,16 @@ def indexing(genome_fasta, output):
     except Exception:
         print("Could not run hisat2-build command.") 
 
-def mapping(output_indexing, reads_file, output_sam):
-    #hisat2_path = os.path.expanduser("/opt/hisat2/hisat2")
+def mapping_short(output_indexing, reads_file, output_sam):
+    hisat2_path = "/opt/hisat2/hisat2"
+    #hisat2_path = "/home/s-amknut/GALBA/tools/hisat2/hisat2"
     if file_format(reads_file) == "fastq":
         fastq_to_fasta(reads_file)
         reads_file = "reads.fa"
     try:
         #which Pfad finden
         hisat2_command = [
-            "/home/s-amknut/GALBA/tools/hisat2/hisat2",
+            hisat2_path,
             "-f",                        
             "-x", output_indexing,            
             "-U", reads_file,            
@@ -127,6 +129,31 @@ def mapping(output_indexing, reads_file, output_sam):
     
     except Exception as e:
         print("Could not run hisat2 command.") 
+
+def mapping_long(genome, reads_long, output_sam):
+    try :
+        minimap2_command = [
+            "/home/s-amknut/GALBA/tools/minimap2/minimap2",
+            "-a",
+            genome,
+            reads_long,
+            ">",
+            output_sam
+        ]
+    
+        print("Mapping long reads to genome...")
+        print("Running command:", "".join(minimap2_command))
+
+        result = subprocess.run(minimap2_command, capture_output=True)
+
+        if result.returncode == 0:
+            print("Long read mapping completed successfully")
+        else:
+            print("Error during long read mapping:")
+            print(result.stderr)
+    
+    except Exception:
+        print("Could not run minimap2 command.")
 
 def sam_to_bam(samFile, output_bam):
     if not os.path.isfile(samFile):
@@ -161,7 +188,7 @@ def assembling(bamFile, output_gtf):
 
     try:
         print("Assembling the reads...")
-        command = "/home/s-amknut/GALBA/tools/stringtie2/stringtie -p "+str(cores)+" -o "+output_gtf+" "+bamFile
+        command = "stringtie -p "+str(cores)+" -o "+output_gtf+" "+bamFile
         print("Running command:", command)
         result = os.system(command) #Reminder: Didnt work with subprocess.run, maybe need a better solution?
 
@@ -173,6 +200,7 @@ def assembling(bamFile, output_gtf):
 
     except Exception:
         print("Could not run stringtie command.")
+
 
 def orfsearching(assembly_gtf, genome_fa, output_fa):
     try:
@@ -200,9 +228,10 @@ def orfsearching(assembly_gtf, genome_fa, output_fa):
 
     try:
         trans = "transcripts.fasta"
+        path = "/home/s-amknut/GALBA/tools/eviann/TransDecoder.LongOrfs"
         print("Searching for ORFs...")
         longORF_command = [
-            "/home/s-amknut/GALBA/tools/eviann/TransDecoder.LongOrfs",
+            "TransDecoder.LongOrfs",
             "-t",
             trans
         ]
@@ -218,7 +247,7 @@ def orfsearching(assembly_gtf, genome_fa, output_fa):
         print("Could not run TransDecoder command.")
 
     try:
-        trans = "transcripts.fa"
+        trans = "transcripts.fasta"
         print("Searching for ORFs...")
         predict_command = [
             "/home/s-amknut/GALBA/tools/eviann/TransDecoder.Predict",
@@ -234,25 +263,125 @@ def orfsearching(assembly_gtf, genome_fa, output_fa):
             print("Error during ORF search")
             print(result.stderr)
     except Exception:
-        print("Could not run TransDecoder command.")
+        print("Could not run TransDecoder command.") 
 
 
 #MAIN
 parser = argparse.ArgumentParser()  
 parser.add_argument('-g', help='Genome file', required=True)
-parser.add_argument('-r', help='Reads file', required=True)
+parser.add_argument('-s', help='Short reads file', required=False) #entweder/oder programmieren
+parser.add_argument('-l', help='Long reads file', required=False)
 parser.add_argument('-t', help='Number of threads', required=False)
 
 args = parser.parse_args()
-genome_file = args.g
-reads_file = args.r
+genome_file = args.g #50.000 von 1.985.779
+reads_short = args.s #100.000 von 87.429.668
+reads_long = args.l
 threads = args.t
 
 #check_input(genome_file, reads_file) hier nochmal gut Lösung überlegen
 indexing(genome_file, "genome")
-mapping("genome", reads_file, "mapping.sam")
-sam_to_bam("mapping.sam", "mapping.bam") 
-assembling("mapping.bam", "assembly.gtf")
-orfsearching("assembly.gtf", genome_file, "transcripts.fasta")
+mapping_short("genome", reads_short, "mapping_short.sam")
+mapping_long(genome_file, reads_long, "mapping_long.sam")
+#sam_to_bam("mapping.sam", "mapping.bam") 
+#assembling("mapping.bam", "assembly.gtf")
+#orfsearching("assembly.gtf", genome_file, "transcripts.fasta")
 
 
+'''
+def install_cpan():
+    if not os.path.isfile("/usr/bin/cpan"):
+        try:
+            result = os.system("echo yes | cpan")
+            if result.returncode == 0:
+               print("CPAN configuration set automatically")
+            else:
+               print("Error during CPAN configuration")
+               print(result.stderr)
+        except Exception:
+            print("Error with setting cpan configuration automatically.")
+            sys.exit(1)
+
+        try:
+            print("Installing URI::Escape...")
+            #result = subprocess.run(["install", "URI::Escape"], capture_output=True)
+            result = os.system("cpan URI::Escape")
+            result = os.system("sudo cpanm install URI::Escape")
+            if result.returncode == 0:
+                print("URI::Escape installed successfully")
+                #subprocess.run(["exit"], capture_output=True)
+            else:
+                print("Error during installation of URI::Escape")
+                print(result.stderr)
+
+        #result = os.system("perl -MCPAN -e shell")
+
+        #if result.returncode == 0:
+         #   print("CPAN interactive shell opened")
+        #else:
+         #   print("Error during opening of CPAN interactive shell")
+          #  print(result.stderr)
+       # print("Check if capnminus is installed...")
+        #result = os.system("which cpanm")
+        #if result.returncode != 0:
+         #   print("cpanm is not installed")
+          #  print("Installing cpanminus...")
+           # result = os.system("curl -L https://cpanmin.us | perl - --sudo App::cpanminus")
+            #if result.returncode != 0:
+             #   print("Error during installation of cpanminus")
+              #  print(result.stderr)
+            #else:
+             #   print("cpanminus installed successfully")
+        #result = subprocess.run(["perl", "-MURI::Escape", "-e", "print 'URI::Escape is installed'"], capture_output=True)
+        #result = subprocess.run(["perl", "-MCPAN", "-e", "shell"], capture_output=True)
+        #result = subprocess.run(["cpan", "App::cpanminus"], capture_output=True)
+        #result = os.system("cpan App::cpanminus")
+        except Exception:
+            print("Could not install cpan.")
+            sys.exit(1)
+    
+def install_URI_escape():
+    try:
+        if not os.path.isfile("/usr/bin/cpanm"):
+            print("cpanm is not installed")
+            print("Installing cpanminus...")
+            result = os.system("apt install cpanminus")
+            if result.returncode != 0:
+                print("Error during installation of cpanminus")
+                print(result.stderr)
+            else:
+                print("cpanminus installed successfully")
+        else:
+            print("cpanminus is already installed")
+            #if not
+        #result = os.system("echo yes | cpan")
+        #if result.returncode == 0:
+         #   print("CPAN configuration set automatically")
+        #else:
+         #   print("Error during CPAN configuration")
+          #  print(result.stderr)
+
+        #result = os.system("perl -MCPAN -e shell")
+
+        #if result.returncode == 0:
+         #   print("CPAN interactive shell opened")
+        #else:
+         #   print("Error during opening of CPAN interactive shell")
+          #  print(result.stderr)
+        
+    
+    
+        print("Installing URI::Escape...")
+        #result = subprocess.run(["install", "URI::Escape"], capture_output=True)
+        result = os.system("cpanm URI::Escape")
+        if result.returncode == 0:
+            print("URI::Escape installed successfully")
+            #subprocess.run(["exit"], capture_output=True)
+        else:
+            print("Error during installation of URI::Escape")
+            print(result.stderr)
+    
+    except Exception:
+        print("Could not install URI::Escape.")
+        sys.exit(1)
+'''
