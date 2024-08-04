@@ -170,15 +170,21 @@ RUN cd /opt && \
     #mv TransDecoder-TransDecoder-5.7.1 TransDecoder && \
     #cd TransDecoder && \
     #make
-
 RUN cd /opt && \
-    git clone https://github.com/alekseyzimin/eviann.git && \
-    cd eviann && \
+    wget https://github.com/alekseyzimin/eviann/releases/download/5.7.1/TransDecoder-v5.7.1.tar.gz && \
+    tar -xvzf TransDecoder-v5.7.1.tar.gz && \
+    rm TransDecoder-v5.7.1.tar.gz && \
+    mv TransDecoder-v5.7.1 TransDecoder && \
+    cd TransDecoder && \
+    make
+#RUN cd /opt && \
+ #   git clone https://github.com/alekseyzimin/eviann.git && \
+  #  cd eviann && \
     #tar -xf TransDecoder-v5.7.1.tar.gz && \
     #rm TransDecoder-v5.7.1.tar.gz && \
     #mv TransDecoder-v5.7.1 TransDecoder && \
     #cd TransDecoder && \
-    make
+   # make
 
 
 FROM $BASE_CONTAINER
@@ -188,7 +194,7 @@ USER root
 COPY --from=base /opt/ /opt/
 
 #ENV PATH=${PATH}:/opt/seqstats:/opt/cdbfasta:/opt/hisat2:/opt/diamond:/opt/TSEBRA/bin:/opt/MakeHub:/opt/miniprot:/opt/GALBA/scripts:/opt/miniprot-boundary-scorer:/opt/miniprothint
-ENV PATH=${PATH}:/opt/seqstats:/opt/cdbfasta:/opt/hisat2:/opt/stringtie:/opt/seqtk:/opt/eviann:/opt/diamond:/opt/TSEBRA/bin:/opt/MakeHub:/opt/miniprot:/opt/GALBA/scripts:/opt/miniprot-boundary-scorer:/opt/miniprothint
+ENV PATH=${PATH}:/opt/seqstats:/opt/cdbfasta:/opt/hisat2:/opt/stringtie:/opt/seqtk:/opt/TransDecoder:/opt/diamond:/opt/TSEBRA/bin:/opt/MakeHub:/opt/miniprot:/opt/GALBA/scripts:/opt/miniprot-boundary-scorer:/opt/miniprothint
 
 # AUGUSTUS does need several libraries that are now gone, re-install them:
 RUN apt-get update --yes && \
