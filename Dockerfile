@@ -182,6 +182,12 @@ RUN cd /opt && \
     git clone https://github.com/alekseyzimin/eviann.git && \
     cd eviann && \
     tar -xvzf TransDecoder-v5.7.1.tar.gz && \
+    rm TransDecoder-v5.7.1.tar.gz && \
+    make
+
+RUN cd /opt && \
+    git clone https://github.com/lh3/minimap2.git && \
+    cd minimap2 && \
     make
 
 FROM $BASE_CONTAINER
@@ -191,7 +197,7 @@ USER root
 COPY --from=base /opt/ /opt/
 
 #ENV PATH=${PATH}:/opt/seqstats:/opt/cdbfasta:/opt/hisat2:/opt/diamond:/opt/TSEBRA/bin:/opt/MakeHub:/opt/miniprot:/opt/GALBA/scripts:/opt/miniprot-boundary-scorer:/opt/miniprothint
-ENV PATH=${PATH}:/opt/seqstats:/opt/cdbfasta:/opt/hisat2:/opt/stringtie:/opt/seqtk:/opt/eviann:/opt/diamond:/opt/TSEBRA/bin:/opt/MakeHub:/opt/miniprot:/opt/GALBA/scripts:/opt/miniprot-boundary-scorer:/opt/miniprothint
+ENV PATH=${PATH}:/opt/seqstats:/opt/cdbfasta:/opt/hisat2:/opt/stringtie:/opt/seqtk:/opt/eviann:/opt/minimap2:/opt/diamond:/opt/TSEBRA/bin:/opt/MakeHub:/opt/miniprot:/opt/GALBA/scripts:/opt/miniprot-boundary-scorer:/opt/miniprothint
 
 # AUGUSTUS does need several libraries that are now gone, re-install them:
 RUN apt-get update --yes && \
