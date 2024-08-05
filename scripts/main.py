@@ -9,6 +9,7 @@ import os
 cores = 4
 
 #FUNCTIONS
+
 def check_input(genome_file, reads_file):
     if not os.path.isfile(genome_file):
         print("Error: Could not find the genome file.")
@@ -137,7 +138,7 @@ def mapping_long(genome, reads_long, output_sam):
             "-a",
             genome,
             reads_long,
-            ">",
+            "-o",
             output_sam
         ]
     
@@ -156,9 +157,6 @@ def mapping_long(genome, reads_long, output_sam):
         print("Could not run minimap2 command.")
 
 def sam_to_bam(samFile, output_bam):
-    if not os.path.isfile(samFile):
-        print("Error: The bamfile does not exist.")
-
     try:
         samtools_command = [
             "samtools",
@@ -182,13 +180,12 @@ def sam_to_bam(samFile, output_bam):
     except Exception:
         print("Could not run samtools command.")
 
-def assembling(bamFile, output_gtf):
-    if not os.path.isfile(bamFile):
-        print("Error: The bamfile does not exist.")
-
+def assembling(shortBamFile, longBamFile, output_gtf):
     try:
         print("Assembling the reads...")
-        command = "stringtie -p "+str(cores)+" -o "+output_gtf+" "+bamFile
+        #command = "stringtie -p "+str(cores)+" -o "+output_gtf+" "+bamFile
+        #command = "stringtie --mix -o " + output_gtf + " " + shortBamFile + " " + longBamFile
+        command = "stringtie " + shortBamFile + " " + longBamFile + " -o " + output_gtf
         print("Running command:", command)
         result = os.system(command) #Reminder: Didnt work with subprocess.run, maybe need a better solution?
 
@@ -282,106 +279,8 @@ threads = args.t
 #check_input(genome_file, reads_file) hier nochmal gut Lösung überlegen
 indexing(genome_file, "genome")
 mapping_short("genome", reads_short, "mapping_short.sam")
-mapping_long(genome_file, reads_long, "mapping_long.sam")
-#sam_to_bam("mapping.sam", "mapping.bam") 
-#assembling("mapping.bam", "assembly.gtf")
-#orfsearching("assembly.gtf", genome_file, "transcripts.fasta")
-
-
-'''
-def install_cpan():
-    if not os.path.isfile("/usr/bin/cpan"):
-        try:
-            result = os.system("echo yes | cpan")
-            if result.returncode == 0:
-               print("CPAN configuration set automatically")
-            else:
-               print("Error during CPAN configuration")
-               print(result.stderr)
-        except Exception:
-            print("Error with setting cpan configuration automatically.")
-            sys.exit(1)
-
-        try:
-            print("Installing URI::Escape...")
-            #result = subprocess.run(["install", "URI::Escape"], capture_output=True)
-            result = os.system("cpan URI::Escape")
-            result = os.system("sudo cpanm install URI::Escape")
-            if result.returncode == 0:
-                print("URI::Escape installed successfully")
-                #subprocess.run(["exit"], capture_output=True)
-            else:
-                print("Error during installation of URI::Escape")
-                print(result.stderr)
-
-        #result = os.system("perl -MCPAN -e shell")
-
-        #if result.returncode == 0:
-         #   print("CPAN interactive shell opened")
-        #else:
-         #   print("Error during opening of CPAN interactive shell")
-          #  print(result.stderr)
-       # print("Check if capnminus is installed...")
-        #result = os.system("which cpanm")
-        #if result.returncode != 0:
-         #   print("cpanm is not installed")
-          #  print("Installing cpanminus...")
-           # result = os.system("curl -L https://cpanmin.us | perl - --sudo App::cpanminus")
-            #if result.returncode != 0:
-             #   print("Error during installation of cpanminus")
-              #  print(result.stderr)
-            #else:
-             #   print("cpanminus installed successfully")
-        #result = subprocess.run(["perl", "-MURI::Escape", "-e", "print 'URI::Escape is installed'"], capture_output=True)
-        #result = subprocess.run(["perl", "-MCPAN", "-e", "shell"], capture_output=True)
-        #result = subprocess.run(["cpan", "App::cpanminus"], capture_output=True)
-        #result = os.system("cpan App::cpanminus")
-        except Exception:
-            print("Could not install cpan.")
-            sys.exit(1)
-    
-def install_URI_escape():
-    try:
-        if not os.path.isfile("/usr/bin/cpanm"):
-            print("cpanm is not installed")
-            print("Installing cpanminus...")
-            result = os.system("apt install cpanminus")
-            if result.returncode != 0:
-                print("Error during installation of cpanminus")
-                print(result.stderr)
-            else:
-                print("cpanminus installed successfully")
-        else:
-            print("cpanminus is already installed")
-            #if not
-        #result = os.system("echo yes | cpan")
-        #if result.returncode == 0:
-         #   print("CPAN configuration set automatically")
-        #else:
-         #   print("Error during CPAN configuration")
-          #  print(result.stderr)
-
-        #result = os.system("perl -MCPAN -e shell")
-
-        #if result.returncode == 0:
-         #   print("CPAN interactive shell opened")
-        #else:
-         #   print("Error during opening of CPAN interactive shell")
-          #  print(result.stderr)
-        
-    
-    
-        print("Installing URI::Escape...")
-        #result = subprocess.run(["install", "URI::Escape"], capture_output=True)
-        result = os.system("cpanm URI::Escape")
-        if result.returncode == 0:
-            print("URI::Escape installed successfully")
-            #subprocess.run(["exit"], capture_output=True)
-        else:
-            print("Error during installation of URI::Escape")
-            print(result.stderr)
-    
-    except Exception:
-        print("Could not install URI::Escape.")
-        sys.exit(1)
-'''
+mapping_long(genome_file, reads_long, "mapping_long.sam") #vielleicht auch hier erstmal ein indexing 
+sam_to_bam("mapping_short.sam", "mapping_short.bam") 
+sam_to_bam("mapping_long.sam", "mapping_long.bam")
+assembling("mapping_short.bam", "mapping_long.bam", "transcripts_merged.gtf")
+orfsearching("assembly.gtf", genome_file, "transcripts.fasta")
