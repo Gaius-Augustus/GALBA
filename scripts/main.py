@@ -4,6 +4,7 @@ import argparse
 import subprocess
 import sys
 import os
+import yaml
 
 #VARIABLES 
 cores = 4
@@ -262,13 +263,19 @@ def orfsearching(assembly_gtf, genome_fa, output_fa):
     except Exception:
         print("Could not run TransDecoder command.") 
 
+def load_config(config_file):
+    with open(config_file, "r") as config_file:
+        input_files = yaml.safe_load(config_file)
+        return input_files
+
 
 #MAIN
 parser = argparse.ArgumentParser()  
-parser.add_argument('-g', help='Genome file', required=True)
+parser.add_argument('-g', help='Genome file', required=False)
 parser.add_argument('-s', help='Short reads file', required=False) #entweder/oder programmieren
 parser.add_argument('-l', help='Long reads file', required=False)
 parser.add_argument('-t', help='Number of threads', required=False)
+parser.add_argument('-y', help='Config file input', required=False)
 
 args = parser.parse_args()
 genome_file = args.g #50.000 von 1.985.779
@@ -276,11 +283,13 @@ reads_short = args.s #100.000 von 87.429.668
 reads_long = args.l
 threads = args.t
 
+input_files = load_config(args.y)
+
 #check_input(genome_file, reads_file) hier nochmal gut Lösung überlegen
-indexing(genome_file, "genome")
-mapping_short("genome", reads_short, "mapping_short.sam")
-mapping_long(genome_file, reads_long, "mapping_long.sam") #vielleicht auch hier erstmal ein indexing 
-sam_to_bam("mapping_short.sam", "mapping_short.bam") 
-sam_to_bam("mapping_long.sam", "mapping_long.bam")
-assembling("mapping_short.bam", "mapping_long.bam", "transcripts_merged.gtf")
-orfsearching("assembly.gtf", genome_file, "transcripts.fasta")
+#indexing(genome_file, "genome")
+#mapping_short("genome", reads_short, "mapping_short.sam")
+#mapping_long(genome_file, reads_long, "mapping_long.sam") #vielleicht auch hier erstmal ein indexing 
+#sam_to_bam("mapping_short.sam", "mapping_short.bam") 
+#sam_to_bam("mapping_long.sam", "mapping_long.bam")
+#assembling("mapping_short.bam", "mapping_long.bam", "transcripts_merged.gtf")
+#orfsearching("assembly.gtf", genome_file, "transcripts.fasta")
