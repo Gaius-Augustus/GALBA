@@ -7,6 +7,8 @@ parser = argparse.ArgumentParser(
     description='Analyse gtf output file for GALBA (or BRAKER) with respect of CDS exons per transcript')
 parser.add_argument('-f', '--gtf_file', type=str, required=True,
                     help="Input gtf file (from GALBA or BRAKER)")
+parser.add_argument('-o', '--intron_out', type=str, required=False,
+                    help="output text file with number of introns per transcripts")
 args = parser.parse_args()
 
 # read gtf file into a dictionary that has transcript name as key and number of exons as value
@@ -64,3 +66,8 @@ print("50%:", q50)
 print("75%:", q75)
 print("Max:", max_exons)
 
+if args.intron_out:
+    with open(args.intron_out, 'w') as out_file:
+        for value in tx_dict.values():
+            out_file.write(str(int(value)-1) + "\n")
+        
