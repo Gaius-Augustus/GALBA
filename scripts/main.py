@@ -444,4 +444,5 @@ orfsearching("transcripts_merged.gtf", genome_file, "transcripts.fasta")
 #-Funktion die prüft ob files vorhanden wie CreateThis() von GeneMark 
 #-CheckInput Funktion anpassen und logisch machen 
 #-cwd integrieren
-#-verstehen was das --dta in hisat2 bedeutet
+#-verstehen was das --dta in hisat2 bedeutet 
+#tet
