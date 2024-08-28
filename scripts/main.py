@@ -7,7 +7,7 @@ import os
 import yaml
 
 #VARIABLES 
-cores = 4
+threads = 4
 cwd = os.getcwd()
 
 #FUNCTIONS
@@ -31,6 +31,7 @@ def check_input(genome_file, reads_file):
     if file_format(genome_file) == "unknown":
         sys.exit("Error Genome file: Unknown file format")
 
+#dont know if needed 
 def fastq_to_fasta(fastqFile):
     output_file = fastqFile.split(".")[0] + ".fasta"
     try:
@@ -83,7 +84,24 @@ def file_name(path):
     path = path.split("/")
     name_with_dot = path[-1]
     name = name_with_dot.split(".")
-    return name[0]
+    if name[0].endswith("_1"):
+        name = name[0].split("_1")
+        return name[0]
+    else:
+        return name[0]
+
+def file_name_paired(path):  #not used yet
+    path = path.split("/")
+    name_with_dot = path[-1]
+    name_with_number = name_with_dot.split(".")
+    if name_with_number.endswith("_1"):
+        name = name_with_number.split("_1")
+        return name_with_number[0]
+    elif name_with_number.endswith("_2"):
+        name = name_with_number.split("_2")
+        return name_with_number[0]
+    else:
+        return name[0]
 
 def file_name_and_format(path): #not used yet
     path = path.split("/")
@@ -98,16 +116,15 @@ def first_or_second(path):
     if name[0].endswith("2"):
         return "second"
 
-
-def indexing(genome_fasta, output):
+def indexing(genome_fasta):
     hisat2_build_path = "/opt/hisat2/hisat2-build"
-    #hisat2_build_path = "/home/s-amknut/GALBA/tools/hisat2/hisat2-build"
+    output = file_name(genome_fasta) 
     try:
         hisat2_build_command = [
             hisat2_build_path, 
             "--quiet",
             "-p",
-            str(cores),        
+            str(threads),        
             genome_fasta,           
             output         
         ]
@@ -125,70 +142,67 @@ def indexing(genome_fasta, output):
     except Exception:
         print("Could not run hisat2-build command.") 
 
-def mapping_short(indexed_genome, rnaseq_paired_sets, rnaseq_single_sets):
+def mapping_short(genome, rnaseq_single_sets, rnaseq_paired_sets):
+    genome = file_name(genome)
     hisat2_path = "/opt/hisat2/hisat2"
-    #hisat2_path = "/home/s-amknut/GALBA/tools/hisat2/hisat2"
-    if file_format(rnaseq_paired_sets[0]) == "fasta":
+    if file_format(rnaseq_single_sets[0]) == "fasta": #Muss ich hier beide sets testen?
         format_option = "-f"
-    if file_format(rnaseq_paired_sets[0]) == "fastq":
+    if file_format(rnaseq_single_sets[0]) == "fastq":
         format_option = ""
     try:
-        for set in rnaseq_single_sets: 
-            set_name = file_name(set) #-1 und -2 entfernen
+        for s in rnaseq_single_sets: 
+            set_name = file_name(s) #-1 und -2 entfernen
             output_sam = set_name + ".sam" #Samfile noch in current working directory speichern
             hisat2_command = [
                     hisat2_path, 
                     format_option,                       
-                    "-x", indexed_genome,            
-                    "-U", set,   
+                    "-x", genome,            
+                    "-U", s,
                     "--dta",
-                    "-p", str(cores),
+                    "-p", str(threads),
                     "-S", output_sam,                  
                 ]
-            print("Mapping set " + file_name(set) + " to genome...")
+            print("Mapping set " + file_name(s) + " to genome...")
             
             result = subprocess.run(hisat2_command, capture_output=True)
             
             if result.returncode == 0:
-                print("Mapping of set " + file_name(set) + " completed successfully")
+                print("Mapping of set " + file_name(s) + " completed successfully")
             else:
-                print("Error during mapping of set " + file_name(set) + ":")
+                print("Error during mapping of set " + file_name(s) + ":")
                 print(result.stderr)
 
-        for set in rnaseq_paired_sets: 
-            if first_or_second(set) == "first":
-                set1 = set
-                output_sam = file_name(set1) + ".sam"
+        for s in rnaseq_paired_sets: 
+            if first_or_second(s) == "first":
+                set1 = s
+                output_sam = file_name(s) + ".sam"
                 continue
-            if first_or_second(set) == "second":
-                set2 = set
-                output_sam = file_name(set2) + ".sam"
+            if first_or_second(s) == "second":
+                set2 = s
 
             hisat2_command = [
                     hisat2_path, 
                     format_option,                       
-                    "-x", indexed_genome,            
+                    "-x", genome,            
                     "-1", set1,
                     "-2", set2,   
                     "--dta",
-                    "-p", str(cores),
+                    "-p", str(threads),
                     "-S", output_sam,                  
                 ]
-            print("Mapping set " + file_name(set) + " to genome...")
+            print("Mapping set " + file_name(s) + " to genome...")
             
             result = subprocess.run(hisat2_command, capture_output=True)
             
             if result.returncode == 0:
-                print("Mapping of set " + file_name(set) + " completed successfully")
+                print("Mapping of set " + file_name(s) + " completed successfully")
             else:
-                print("Error during mapping of set " + file_name(set) + ":")
+                print("Error during mapping of set " + file_name(s) + ":")
                 print(result.stderr)
             
     except Exception as e:
-        print("Could not run hisat2 command for set: " + file_name(set)) 
+        print("Could not run hisat2 command for set: " + file_name(s)) 
         
-
-
     #if file_format(reads_file) == "fastq":
      #   fastq_to_fasta(reads_file)
       #  reads_file = "reads.fa"
@@ -218,37 +232,38 @@ def mapping_short(indexed_genome, rnaseq_paired_sets, rnaseq_single_sets):
 
 def mapping_long(genome, reads_long):
     try :
-        for set in reads_long:
-            set_name = file_name(set)
+        for s in reads_long:
+            set_name = file_name(s)
             output_sam = set_name + ".sam"
             minimap2_command = [
-                "/home/s-amknut/GALBA/tools/minimap2/minimap2",
-                "-a", #andere option 
+                "opt/minimap2/minimap2", 
+                "-a", #NICHT DOCH RICHTIG?
                 genome,
-                set,
+                s,
                 "-o",
                 output_sam
             ]
     
-        print("Mapping long reads to genome...")
-        print("Running command:", "".join(minimap2_command))
+            print("Mapping isoseq set: " + s +" to genome...")
+            #print("Running command:", "".join(minimap2_command))
 
-        result = subprocess.run(minimap2_command, capture_output=True)
+            result = subprocess.run(minimap2_command, capture_output=True)
 
-        if result.returncode == 0:
-            print("Long read mapping completed successfully")
-        else:
-            print("Error during long read mapping:")
-            print(result.stderr)
+            if result.returncode == 0:
+                print("Long read mapping of set " + set_name + " completed successfully")
+            else:
+                print("Error during long read mapping:")
+                print(result.stderr)
     
     except Exception:
         print("Could not run minimap2 command.")
 
 def sam_to_bam(rna_paired_sets, rna_single_sets, rna_long_sets):
-    try:
-        combined_lists = rna_paired_sets + rna_single_sets + rna_long_sets
-        for set in combined_lists:
-            set_name = file_name(set)
+    try:    
+        combined_lists = rna_paired_sets[0::2] + rna_single_sets + rna_long_sets 
+        bam_file_list = []
+        for s in combined_lists:
+            set_name = file_name(s)
             sam_file = set_name + ".sam"
             output_bam = set_name + ".bam"
             samtools_command = [
@@ -259,61 +274,88 @@ def sam_to_bam(rna_paired_sets, rna_single_sets, rna_long_sets):
                 output_bam
             ]
 
-            print("Converting .sam to .bam file...")
-            result = subprocess.run(samtools_command, capture_output=True)
+            print("Converting "+ set_name + ".sam to .bam file...")
+            #result = subprocess.run(samtools_command, capture_output=True)
 
-            if result.returncode == 0:
-                print("Conversion from .sam to .bam file completed successfully")
+            #if result.returncode == 0:
+            print("Conversion from .sam to .bam file completed successfully")
+            bam_file_list.append(output_bam)
 
-            else:
-                print("Error during conversion:")
-                print(result.stderr)
+            #else:
+             #   print("Error during conversion:")
+              #  print(result.stderr)
+        print (bam_file_list)
+        return bam_file_list
 
     except Exception:
         print("Could not run samtools command.")
 
-def assembling(shortBamFile, longBamFile, output_gtf):
-    try:
-        print("Assembling the reads...")
-        #command = "stringtie -p "+str(cores)+" -o "+output_gtf+" "+bamFile
+#def assembling(shortBamFile, longBamFile, output_gtf):
+ #   try:
+  #      print("Assembling the reads...")
+        #command = "stringtie -p "+str(threads)+" -o "+output_gtf+" "+bamFile
         #command = "stringtie --mix -o " + output_gtf + " " + shortBamFile + " " + longBamFile
-        command = "stringtie " + shortBamFile + " " + longBamFile + " -o " + output_gtf
-        print("Running command:", command)
-        result = os.system(command) #Reminder: Didnt work with subprocess.run, maybe need a better solution?
+   #     command = "stringtie " + shortBamFile + " " + longBamFile + " -o " + output_gtf
+    #    print("Running command:", command)
+     #   result = os.system(command) #Reminder: Didnt work with subprocess.run, maybe need a better solution?
 
-        if result== 0:
-            print("Assembled reads successfully")
+      #  if result== 0:
+       #     print("Assembled reads successfully")
+
+       # else:
+        #    print("Error during Assembly")
+
+    #except Exception:
+     #   print("Could not run stringtie command.")
+
+def mergeBamFiles(bam_file_list):
+    bam_string = ""
+    for file in bam_file_list:
+        bam_string = bam_string + " " + file
+    print(bam_string)
+    try:
+        print("Merging bam files...")
+        command = "samtools merge -o entireMapping.bam " + bam_string
+        #result = os.system(command)
+        result = subprocess.run(command, capture_output=True)
+
+        if result.returncode== 0:
+            print("Merged bam files successfully")
 
         else:
-            print("Error during Assembly")
+            print("Error during merging bam files")
 
     except Exception:
-        print("Could not run stringtie command.")
-    
+        print("Could not run samtools command.")
+
 def assembling(rnaseq_paired_sets, rnaseq_single_sets, isoseq_sets):
     try:
         print("Assembling the reads...")
         combined_lists = rnaseq_paired_sets + rnaseq_single_sets
-        for set in combined_lists:
-            set_name = file_name(set)
+        for s in combined_lists:
+            set_name = file_name(s)
             bam_file = set_name + ".bam"
             output_gtf = set_name + ".gtf"
-            command = "stringtie -p "+str(cores)+" -o " + output_gtf + " " + bam_file
+            command = "stringtie -p "+str(threads)+" -o " + output_gtf + " " + bam_file
 
             result = os.system(command) #Reminder: Didnt work with subprocess.run, maybe need a better solution?
 
-            if result== 0:
+            if result == 0:
                 gtf_list = gtf_list.append(output_gtf)
                 print("Assembled reads successfully")
 
-            else:
+            else:   
                 print("Error during Assembly")
 
-        for set in isoseq_sets:
-            set_name = file_name(set)
+    except Exception:
+        print("Could not run stringtie command for short reads.")
+    
+    try:
+        for s in isoseq_sets:
+            set_name = file_name(s)
             bam_file = set_name + ".bam"
             output_gtf = set_name + ".gtf"
-            command = "stringtie -L -p "+str(cores)+" -o " + output_gtf + " " + bam_file
+            command = "stringtie -L -p "+str(threads)+" -o " + output_gtf + " " + bam_file
         
             print("Running command:", command)
             result = os.system(command) #Reminder: Didnt work with subprocess.run, maybe need a better solution?
@@ -334,14 +376,13 @@ def assembling(rnaseq_paired_sets, rnaseq_single_sets, isoseq_sets):
             print("Error during merging transcripts")
 
     except Exception:
-        print("Could not run stringtie command.")
-
+        print("Could not run stringtie command for isoseq reads.")
 
 
 def orfsearching(assembly_gtf, genome_fa, output_fa):
     try:
         gffread_command = [
-            "/home/s-amknut/GALBA/tools/gffread/gffread",
+            "/opt/gffread/gffread",
             "-w",
             output_fa,
             "-g",
@@ -364,7 +405,6 @@ def orfsearching(assembly_gtf, genome_fa, output_fa):
 
     try:
         trans = "transcripts.fasta"
-        path = "/home/s-amknut/GALBA/tools/eviann/TransDecoder.LongOrfs"
         print("Searching for ORFs...")
         longORF_command = [
             "TransDecoder.LongOrfs",
@@ -386,7 +426,7 @@ def orfsearching(assembly_gtf, genome_fa, output_fa):
         trans = "transcripts.fasta"
         print("Searching for ORFs...")
         predict_command = [
-            "/home/s-amknut/GALBA/tools/eviann/TransDecoder.Predict",
+            "/opt/eviann/TransDecoder.Predict",
             "-t",
             trans
         ]
@@ -406,43 +446,45 @@ def load_config(config_file):
         input_files = yaml.safe_load(config_file)
         return input_files
 
-#def prepare_rnasets(input_files):
- #   for set in input_files["rnaseq_sets"]:
-  #      set.split("")
-
 #MAIN
 parser = argparse.ArgumentParser()  
-#parser.add_argument('-g', help='Genome file', required=False)
-#parser.add_argument('-s', help='Short reads file', required=False) #entweder/oder programmieren
-#parser.add_argument('-l', help='Long reads file', required=False)
 parser.add_argument('-t', help='Number of threads', required=False)
-parser.add_argument('-y', help='Config file input', required=False)
+parser.add_argument('-y', help='Config file input', required=True)
 
 args = parser.parse_args()
 #genome_file = args.g #50.000 von 1.985.779
 #reads_short = args.s #100.000 von 87.429.668
-#reads_long = args.l
 threads = args.t
 
 input_files = load_config(args.y)
-genome_file = input_files["genome_path"]
+genome_file = input_files["genome"]
 rnaseq_paired_sets = input_files["rnaseq_paired_sets"]
 rnaseq_single_sets = input_files["rnaseq_single_sets"]
 isoseq_sets = input_files["isoseq_sets"]
 
 #check_input(genome_file, reads_file) hier nochmal gut Lösung überlegen
-#indexing(genome_file, "genome")
-mapping_short("genome", rnaseq_paired_sets, rnaseq_single_sets)
-mapping_long(genome_file, isoseq_sets)  
-sam_to_bam(rnaseq_paired_sets, rnaseq_single_sets, isoseq_sets) 
-assembling(rnaseq_paired_sets, rnaseq_single_sets, isoseq_sets) #transcripts_merged.gtf not here!!
-orfsearching("transcripts_merged.gtf", genome_file, "transcripts.fasta")
+#indexing(genome_file)
+#print("Neu mergeBamFiles und subprocess.run")
+#mapping_short(genome_file, rnaseq_single_sets, rnaseq_paired_sets)
+#mapping_long(genome_file, isoseq_sets)  
+bam_file_list = sam_to_bam(rnaseq_paired_sets, rnaseq_single_sets, isoseq_sets) 
+#mergeBamFiles(bam_file_list)
+#assembling(rnaseq_paired_sets, rnaseq_single_sets, isoseq_sets) #transcripts_merged.gtf not here!!
+#orfsearching("transcripts_merged.gtf", genome_file, "transcripts.fasta")
 
 #TO DOs:
+#Ausgabe ändern
+#Viariablennamen von set ändern
+#submit.sh -B ändern
 #-Variablen und Funktionsnamen anpassen
 #-Nur input[isoseq] und co wenn diese "Kategorie" auch in der config file vorhanden ist
 #-Funktion die prüft ob files vorhanden wie CreateThis() von GeneMark 
 #-CheckInput Funktion anpassen und logisch machen 
 #-cwd integrieren
 #-verstehen was das --dta in hisat2 bedeutet 
-#tet
+#prints überarbeiten
+
+#FRAGEN:
+#-Vor jedem Aufruf alte files löschen?
+#-Genome Namen bei indexing beibehalten oder "genome" nennen?
+#Minimap2 option nicht doch richtig?
