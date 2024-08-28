@@ -1,0 +1,16 @@
+---
+species: Arabidopsis_thaliana
+genome: /home/s-amknut/GALBA/entireGenome.fasta
+rnaseq_paired_sets: [
+  /home/s-amknut/GALBA/entireRna896_1.fastq,
+  /home/s-amknut/GALBA/entireRna896_2.fastq,
+  /home/s-amknut/GALBA/entireRna664_1.fastq,
+  /home/s-amknut/GALBA/entireRna664_2.fastq
+] 
+rnaseq_single_sets: [
+  /home/s-amknut/GALBA/entireRna896_1.fastq
+]
+isoseq_sets: [
+  /home/s-amknut/GALBA/entireIsoseq815.fsa,
+  /home/s-amknut/GALBA/entireIsoseq436.fsa
+]
