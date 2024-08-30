@@ -7,7 +7,6 @@ import os
 import yaml
 
 #VARIABLES 
-threads = 4
 cwd = os.getcwd()
 
 #FUNCTIONS
@@ -116,17 +115,18 @@ def first_or_second(path):
     if name[0].endswith("2"):
         return "second"
 
-def indexing(genome_fasta):
+def indexing(genome_fasta, output):
     hisat2_build_path = "/opt/hisat2/hisat2-build"
-    output = file_name(genome_fasta) 
+    #hisat2_build_path = "home/s-amknut/GALBA/tools/hisat2/hisat2-build"
+    #output = file_name(genome_fasta) 
     try:
         hisat2_build_command = [
             hisat2_build_path, 
             "--quiet",
             "-p",
-            str(threads),        
+            "4",        
             genome_fasta,           
-            output         
+            output      
         ]
 
         print("Building genome index...")
@@ -143,7 +143,7 @@ def indexing(genome_fasta):
         print("Could not run hisat2-build command.") 
 
 def mapping_short(genome, rnaseq_single_sets, rnaseq_paired_sets):
-    genome = file_name(genome)
+    #genome = file_name(genome)
     hisat2_path = "/opt/hisat2/hisat2"
     if file_format(rnaseq_single_sets[0]) == "fasta": #Muss ich hier beide sets testen?
         format_option = "-f"
@@ -260,7 +260,8 @@ def mapping_long(genome, reads_long):
 
 def sam_to_bam(rna_paired_sets, rna_single_sets, rna_long_sets):
     try:    
-        combined_lists = rna_paired_sets[0::2] + rna_single_sets + rna_long_sets 
+        #combined_lists = rna_paired_sets[0::2] + rna_single_sets + rna_long_sets 
+        combined_lists = rna_paired_sets[0::2]
         bam_file_list = []
         for s in combined_lists:
             set_name = file_name(s)
@@ -290,36 +291,28 @@ def sam_to_bam(rna_paired_sets, rna_single_sets, rna_long_sets):
     except Exception:
         print("Could not run samtools command.")
 
-#def assembling(shortBamFile, longBamFile, output_gtf):
- #   try:
-  #      print("Assembling the reads...")
-        #command = "stringtie -p "+str(threads)+" -o "+output_gtf+" "+bamFile
-        #command = "stringtie --mix -o " + output_gtf + " " + shortBamFile + " " + longBamFile
-   #     command = "stringtie " + shortBamFile + " " + longBamFile + " -o " + output_gtf
-    #    print("Running command:", command)
-     #   result = os.system(command) #Reminder: Didnt work with subprocess.run, maybe need a better solution?
-
-      #  if result== 0:
-       #     print("Assembled reads successfully")
-
-       # else:
-        #    print("Error during Assembly")
-
-    #except Exception:
-     #   print("Could not run stringtie command.")
-
+#Input überarbeiten, sodass short und long einzeln eingegeben werden kann
 def mergeBamFiles(bam_file_list):
     bam_string = ""
     for file in bam_file_list:
-        bam_string = bam_string + " " + file
+        bam_string = bam_string + " " + file #Ein Leerzeichen am Anfang zu viel
     print(bam_string)
     try:
         print("Merging bam files...")
-        command = "samtools merge -o entireMapping.bam " + bam_string
-        #result = os.system(command)
-        result = subprocess.run(command, capture_output=True)
+        command = "samtools merge -f -o entireMapping.bam entireRna896_1.bam entireRna664_1.bam"
+        command1 = [
+            "samtools",
+            "merge",
+            "-f"
+            "-o",
+            "entireMapping.bam",
+            "entireRna896_1.bam",
+            "entireRna664_1.bam"
+        ]
+        result = os.system(command) #Reminder: Didnt work with subprocess.run, maybe need a better solution?
+        #result = subprocess.run(command1, capture_output=True) 
 
-        if result.returncode== 0:
+        if result== 0:
             print("Merged bam files successfully")
 
         else:
@@ -327,6 +320,24 @@ def mergeBamFiles(bam_file_list):
 
     except Exception:
         print("Could not run samtools command.")
+
+def assembling(shortBamFile, longBamFile, output_gtf):
+    try:
+        print("Assembling the reads...")
+        #command = "stringtie -p "+str(threads)+" -o "+output_gtf+" "+bamFile
+        command = "stringtie --mix -o " + output_gtf + " " + shortBamFile + " " + longBamFile
+        #command = "stringtie " + shortBamFile + " " + longBamFile + " -o " + output_gtf
+        print("Running command:", command)
+        result = os.system(command) #Reminder: Didnt work with subprocess.run, maybe need a better solution?
+
+      #  if result== 0:
+       #     print("Assembled reads successfully")
+
+       # else:
+        #    print("Error during Assembly")
+
+    except Exception:
+        print("Could not run stringtie command.")
 
 def assembling(rnaseq_paired_sets, rnaseq_single_sets, isoseq_sets):
     try:
@@ -448,7 +459,7 @@ def load_config(config_file):
 
 #MAIN
 parser = argparse.ArgumentParser()  
-parser.add_argument('-t', help='Number of threads', required=False)
+parser.add_argument('-t', default=4, help='Number of threads', required=False)
 parser.add_argument('-y', help='Config file input', required=True)
 
 args = parser.parse_args()
@@ -463,28 +474,28 @@ rnaseq_single_sets = input_files["rnaseq_single_sets"]
 isoseq_sets = input_files["isoseq_sets"]
 
 #check_input(genome_file, reads_file) hier nochmal gut Lösung überlegen
-#indexing(genome_file)
-#print("Neu mergeBamFiles und subprocess.run")
+indexing(genome_file, "genome")
+print("mapping_short bis mergeBamFiles")
 #mapping_short(genome_file, rnaseq_single_sets, rnaseq_paired_sets)
 #mapping_long(genome_file, isoseq_sets)  
-bam_file_list = sam_to_bam(rnaseq_paired_sets, rnaseq_single_sets, isoseq_sets) 
+#bam_file_list = sam_to_bam(rnaseq_paired_sets, rnaseq_single_sets, isoseq_sets) 
 #mergeBamFiles(bam_file_list)
 #assembling(rnaseq_paired_sets, rnaseq_single_sets, isoseq_sets) #transcripts_merged.gtf not here!!
 #orfsearching("transcripts_merged.gtf", genome_file, "transcripts.fasta")
 
 #TO DOs:
-#Ausgabe ändern
-#Viariablennamen von set ändern
-#submit.sh -B ändern
+#-submit.sh -B ändern
 #-Variablen und Funktionsnamen anpassen
 #-Nur input[isoseq] und co wenn diese "Kategorie" auch in der config file vorhanden ist
 #-Funktion die prüft ob files vorhanden wie CreateThis() von GeneMark 
 #-CheckInput Funktion anpassen und logisch machen 
 #-cwd integrieren
 #-verstehen was das --dta in hisat2 bedeutet 
-#prints überarbeiten
+#-prints überarbeiten
+#--Ausgaben für subprocess.run überarbeiten, bei error mehr ausprinten lassen.
 
 #FRAGEN:
 #-Vor jedem Aufruf alte files löschen?
 #-Genome Namen bei indexing beibehalten oder "genome" nennen?
-#Minimap2 option nicht doch richtig?
+#-Minimap2 option nicht doch richtig?
+#-Ablauf richtig: 2x mergen aufrufen für einmal short und einmal long und dann stringtie mit --mix aufrufen?
