@@ -5,6 +5,7 @@ import subprocess
 import sys
 import os
 import yaml
+import re
 
 #VARIABLES 
 cwd = os.getcwd()
@@ -80,14 +81,13 @@ def file_format(file):
             return format
 
 def file_name(path):
-    path = path.split("/")
-    name_with_dot = path[-1]
-    name = name_with_dot.split(".")
-    if name[0].endswith("_1"):
-        name = name[0].split("_1")
-        return name[0]
+    file = path.split("/")[-1]
+    name = file.split(".")[0]
+    if name.endswith("_1") or name.endswith("_2"):
+        prefix = name.split("_")[0]
+        return prefix
     else:
-        return name[0]
+        return name
 
 def file_name_paired(path):  #not used yet
     path = path.split("/")
@@ -115,18 +115,16 @@ def first_or_second(path):
     if name[0].endswith("2"):
         return "second"
 
-def indexing(genome_fasta, output):
-    hisat2_build_path = "/opt/hisat2/hisat2-build"
-    #hisat2_build_path = "home/s-amknut/GALBA/tools/hisat2/hisat2-build"
-    #output = file_name(genome_fasta) 
+def indexing(genome_fasta):
+    hisat2_build_path = "hisat2-build"
     try:
         hisat2_build_command = [
             hisat2_build_path, 
             "--quiet",
             "-p",
-            "4",        
+            str(threads),        
             genome_fasta,           
-            output      
+            "genome"     
         ]
 
         print("Building genome index...")
@@ -142,21 +140,79 @@ def indexing(genome_fasta, output):
     except Exception:
         print("Could not run hisat2-build command.") 
 
-def mapping_short(genome, rnaseq_single_sets, rnaseq_paired_sets):
-    #genome = file_name(genome)
-    hisat2_path = "/opt/hisat2/hisat2"
+def mapping_short(rnaseq_paired_sets, rnaseq_single_sets):
+    hisat2_path = "hisat2"
     if file_format(rnaseq_single_sets[0]) == "fasta": #Muss ich hier beide sets testen?
         format_option = "-f"
     if file_format(rnaseq_single_sets[0]) == "fastq":
         format_option = ""
     try:
-        for s in rnaseq_single_sets: 
+        string_with_sets = ",".join(rnaseq_single_sets)
+        output_sam = "mapped_single_rnaseq.sam"
+        hisat2_command = [
+                "hisat2",  
+                format_option,                       
+                "-x", "genome",            
+                "-U", string_with_sets,
+                "--dta",
+                "-p", str(threads),
+                "-S", output_sam,                  
+            ]
+        print("Mapping single-end RNAseq to genome...")
+        
+        result = subprocess.run(hisat2_command, capture_output=True)
+        
+        if result.returncode == 0:
+            print("Mapping of set of single-end RNASeq evidence completed successfully")
+        else:
+            print("Error during mapping:")
+            print(result.stderr)
+    
+    except Exception as e:
+        print("Could not run hisat2 command for single-end RNA-seq data.") 
+
+    try:
+        string_with_first = ",".join(rnaseq_paired_sets[0::2])
+        string_with_second = ",".join(rnaseq_paired_sets[1::2])
+        output_sam = "mapped_paired_rnaseq.sam"
+        hisat2_command = [
+                hisat2_path, 
+                format_option,                       
+                "-x", "genome",            
+                "-1", string_with_first,
+                "-2", string_with_second,   
+                "--dta",
+                "-p", str(threads),
+                "-S", output_sam,                  
+            ]
+        print("Mapping paired-end rnaseq data to genome...")
+        
+        result = subprocess.run(hisat2_command, capture_output=True)
+        
+        if result.returncode == 0:
+            print("Mapping of paired-end rnaseq data completed successfully")
+        else:
+            print("Error during mapping of paired-end rnaseq data:")
+            print(result.stderr)
+
+    except Exception as e:
+        print("Could not run hisat2 command for paired-end RNA-seq data.")
+
+'''
+def mapping_short(rnaseq_paired_sets, rnaseq_single_sets):
+    hisat2_path = "hisat2"
+    if file_format(rnaseq_single_sets[0]) == "fasta": #Muss ich hier beide sets testen?
+        format_option = "-f"
+    if file_format(rnaseq_single_sets[0]) == "fastq":
+        format_option = ""
+    try:
+        for s in rnaseq_single_sets: #Vielleicht in einem Aufruf ausführen 
             set_name = file_name(s) #-1 und -2 entfernen
             output_sam = set_name + ".sam" #Samfile noch in current working directory speichern
             hisat2_command = [
-                    hisat2_path, 
+                    hisat2_path,  
                     format_option,                       
-                    "-x", genome,            
+                    "-x", "genome",            
                     "-U", s,
                     "--dta",
                     "-p", str(threads),
@@ -183,7 +239,7 @@ def mapping_short(genome, rnaseq_single_sets, rnaseq_paired_sets):
             hisat2_command = [
                     hisat2_path, 
                     format_option,                       
-                    "-x", genome,            
+                    "-x", "genome",            
                     "-1", set1,
                     "-2", set2,   
                     "--dta",
@@ -202,7 +258,7 @@ def mapping_short(genome, rnaseq_single_sets, rnaseq_paired_sets):
             
     except Exception as e:
         print("Could not run hisat2 command for set: " + file_name(s)) 
-        
+'''
     #if file_format(reads_file) == "fastq":
      #   fastq_to_fasta(reads_file)
       #  reads_file = "reads.fa"
@@ -230,13 +286,46 @@ def mapping_short(genome, rnaseq_single_sets, rnaseq_paired_sets):
     #except Exception as e:
      #   print("Could not run hisat2 command.") 
 
+def mapping_long(genome, isoseq_sets):
+    try :
+        string_with_sets = " \ ".join(isoseq_sets)
+        output_sam = "mapped_isoseq_reads.sam"
+        minimap2_command = [
+                "minimap2", 
+                "-ax", 
+                #"map-pb", 
+                "splice",
+                "-uf",  #Threads noch hinzufügen
+                "-C5",
+                genome,
+                "/home/s-amknut/GALBA/entireIsoseq436.fsa \ /home/s-amknut/GALBA/entireIsoseq815.fsa",
+                "-o",
+                output_sam
+            ]
+    
+        print("Mapping isoseq sets to genome...")
+        print("Running command:", " ".join(minimap2_command))
+
+        result = subprocess.run(minimap2_command, capture_output=True)
+
+        if result.returncode == 0:
+            print("Mapping of isoseq reads completed successfully")
+        else:
+            print("Error during mapping of isoseq data:")
+            print(result.stderr)
+
+    except Exception:
+        print("Could not run minimap2 command.")
+    print(string_with_sets)
+
+'''
 def mapping_long(genome, reads_long):
     try :
         for s in reads_long:
             set_name = file_name(s)
             output_sam = set_name + ".sam"
             minimap2_command = [
-                "opt/minimap2/minimap2", 
+                "minimap2", 
                 "-a", #NICHT DOCH RICHTIG?
                 genome,
                 s,
@@ -244,7 +333,7 @@ def mapping_long(genome, reads_long):
                 output_sam
             ]
     
-            print("Mapping isoseq set: " + s +" to genome...")
+            print("Mapping isoseq set: " + file_name(s) +" to genome...")
             #print("Running command:", "".join(minimap2_command))
 
             result = subprocess.run(minimap2_command, capture_output=True)
@@ -257,12 +346,10 @@ def mapping_long(genome, reads_long):
     
     except Exception:
         print("Could not run minimap2 command.")
-
+'''
 def sam_to_bam(rna_paired_sets, rna_single_sets, rna_long_sets):
     try:    
-        #combined_lists = rna_paired_sets[0::2] + rna_single_sets + rna_long_sets 
-        combined_lists = rna_paired_sets[0::2]
-        bam_file_list = []
+        combined_lists = rna_paired_sets[0::2] + rna_single_sets + rna_long_sets 
         for s in combined_lists:
             set_name = file_name(s)
             sam_file = set_name + ".sam"
@@ -276,69 +363,97 @@ def sam_to_bam(rna_paired_sets, rna_single_sets, rna_long_sets):
             ]
 
             print("Converting "+ set_name + ".sam to .bam file...")
-            #result = subprocess.run(samtools_command, capture_output=True)
+            result = subprocess.run(samtools_command, capture_output=True)
 
-            #if result.returncode == 0:
-            print("Conversion from .sam to .bam file completed successfully")
-            bam_file_list.append(output_bam)
+            if result.returncode == 0:
+                print("Conversion from .sam to .bam file completed successfully")
 
-            #else:
-             #   print("Error during conversion:")
-              #  print(result.stderr)
-        print (bam_file_list)
-        return bam_file_list
+            else:
+                print("Error during conversion:")
+                print(result.stderr)
 
     except Exception:
         print("Could not run samtools command.")
 
 #Input überarbeiten, sodass short und long einzeln eingegeben werden kann
-def mergeBamFiles(bam_file_list):
-    bam_string = ""
-    for file in bam_file_list:
-        bam_string = bam_string + " " + file #Ein Leerzeichen am Anfang zu viel
-    print(bam_string)
+def merge_bam_files(rna_paired_sets, rna_single_sets, rna_long_sets): #MUSS NICHT MERGEN!!
+    bam_list_short = []
+    combined_list_short = rna_paired_sets[0::2] + rna_single_sets 
+    for file in combined_list_short:
+        bam_list_short.append(file_name(file) + ".bam")
+
+    bam_list_long = []
+    for file in rna_long_sets:
+        bam_list_long.append(file_name(file) + ".bam")
+
+    print("Merging bam files...")
     try:
-        print("Merging bam files...")
+        print("Merging short read bam files...")
         command = "samtools merge -f -o entireMapping.bam entireRna896_1.bam entireRna664_1.bam"
         command1 = [
             "samtools",
             "merge",
-            "-f"
+            "-f",
             "-o",
-            "entireMapping.bam",
-            "entireRna896_1.bam",
-            "entireRna664_1.bam"
-        ]
-        result = os.system(command) #Reminder: Didnt work with subprocess.run, maybe need a better solution?
-        #result = subprocess.run(command1, capture_output=True) 
+            "rnaseqMappingMerged.bam"
+        ] + bam_list_short
+        #result = os.system(command) #Reminder: Didnt work with subprocess.run, maybe need a better solution?
+        result = subprocess.run(command1, capture_output=True) 
+        #print(result.stdout)
+        #print(result.stderr)
+        #if result.returncode== 0:
+         #   print("Merged rnaseq bam files successfully")
+        #else:
+         #   print("Error during merging of rnaseq bam files")
+        
+        print("Merging long read bam files...")
+        command2 = [
+            "samtools",
+            "merge",
+            "-f",
+            "-o",
+            "isoseqMappingMerged.bam"
+        ] + bam_list_long
 
-        if result== 0:
-            print("Merged bam files successfully")
+        #result = subprocess.run(command2, capture_output=True)
 
-        else:
-            print("Error during merging bam files")
+        #if result.returncode== 0:
+         #   print("Merged isoseq bam files successfully")
+        #else:
+         #   print("Error during merging of isoseq bam files")
 
     except Exception:
         print("Could not run samtools command.")
 
-def assembling(shortBamFile, longBamFile, output_gtf):
+def assembling():
     try:
         print("Assembling the reads...")
         #command = "stringtie -p "+str(threads)+" -o "+output_gtf+" "+bamFile
-        command = "stringtie --mix -o " + output_gtf + " " + shortBamFile + " " + longBamFile
+        command = "stringtie -o transcripts.gtf --mix rnaseqMappingMerged.bam isoseqMappingMerged.bam" 
         #command = "stringtie " + shortBamFile + " " + longBamFile + " -o " + output_gtf
-        print("Running command:", command)
-        result = os.system(command) #Reminder: Didnt work with subprocess.run, maybe need a better solution?
+        command1 = [
+            "stringtie",
+            "--mix",
+            "-o",
+            "transcripts.gtf",
+            "rnaseqMappingMerged.bam",
+            "isoseqMappingMerged.bam"
+        ]
+        print("Running command: ", command)
+        #result = os.system(command) #Reminder: Didnt work with subprocess.run, maybe need a better solution?
+        result = subprocess.run(command1, capture_output=True)
+        #print("stdout gedruckt: ", result.stdout)
+        #print("stderr gedruckt: ", result.stderr)
+        if result == 0:
+            print("Assembled reads successfully")
 
-      #  if result== 0:
-       #     print("Assembled reads successfully")
-
-       # else:
-        #    print("Error during Assembly")
+        else:
+            print("Error during Assembly")
 
     except Exception:
         print("Could not run stringtie command.")
 
+'''
 def assembling(rnaseq_paired_sets, rnaseq_single_sets, isoseq_sets):
     try:
         print("Assembling the reads...")
@@ -388,7 +503,7 @@ def assembling(rnaseq_paired_sets, rnaseq_single_sets, isoseq_sets):
 
     except Exception:
         print("Could not run stringtie command for isoseq reads.")
-
+'''
 
 def orfsearching(assembly_gtf, genome_fa, output_fa):
     try:
@@ -460,7 +575,7 @@ def load_config(config_file):
 #MAIN
 parser = argparse.ArgumentParser()  
 parser.add_argument('-t', default=4, help='Number of threads', required=False)
-parser.add_argument('-y', help='Config file input', required=True)
+parser.add_argument('-y', help='Config file input', required=True) #required=True
 
 args = parser.parse_args()
 #genome_file = args.g #50.000 von 1.985.779
@@ -474,13 +589,13 @@ rnaseq_single_sets = input_files["rnaseq_single_sets"]
 isoseq_sets = input_files["isoseq_sets"]
 
 #check_input(genome_file, reads_file) hier nochmal gut Lösung überlegen
-indexing(genome_file, "genome")
-print("mapping_short bis mergeBamFiles")
-#mapping_short(genome_file, rnaseq_single_sets, rnaseq_paired_sets)
-#mapping_long(genome_file, isoseq_sets)  
-#bam_file_list = sam_to_bam(rnaseq_paired_sets, rnaseq_single_sets, isoseq_sets) 
-#mergeBamFiles(bam_file_list)
-#assembling(rnaseq_paired_sets, rnaseq_single_sets, isoseq_sets) #transcripts_merged.gtf not here!!
+print("Nur mapping_long, mit richtigem manuellem pfad")  
+#indexing(genome_file)
+#mapping_short(rnaseq_paired_sets, rnaseq_single_sets)
+mapping_long(genome_file, isoseq_sets)  
+#sam_to_bam(rnaseq_paired_sets, rnaseq_single_sets, isoseq_sets) 
+#merge_bam_files(rnaseq_paired_sets, rnaseq_single_sets, isoseq_sets)
+#assembling() 
 #orfsearching("transcripts_merged.gtf", genome_file, "transcripts.fasta")
 
 #TO DOs:
@@ -493,9 +608,15 @@ print("mapping_short bis mergeBamFiles")
 #-verstehen was das --dta in hisat2 bedeutet 
 #-prints überarbeiten
 #--Ausgaben für subprocess.run überarbeiten, bei error mehr ausprinten lassen.
+#-yaml-file prüfen, ob namen keine weiteren dots oder unterstriche enthalten sind. Alle Rnaseq files und alle isoseq files
+# müssen dasselbe Format haben (Also unter sich)
+#-Exception as e: print(e) einbauen
+#-Vielleicht noch Option einbauen, dass nur einmal Pfad angegeben werden muss und sonst nur Namen der Files
 
 #FRAGEN:
 #-Vor jedem Aufruf alte files löschen?
 #-Genome Namen bei indexing beibehalten oder "genome" nennen?
 #-Minimap2 option nicht doch richtig?
 #-Ablauf richtig: 2x mergen aufrufen für einmal short und einmal long und dann stringtie mit --mix aufrufen?
+#-Sollte ich mit -G die stringtie Option nutzen, eine Referenzannotation zu verwenden? --> Diese dann in die yaml file oder parser?
+
