@@ -80,6 +80,10 @@ def file_format(file):
             format = "unknown"
             return format
 
+def file_suffix(path):
+    file = path.split("/")[-1]
+    return file.split(".")[-1]
+
 def file_name(path):
     file = path.split("/")[-1]
     name = file.split(".")[0]
@@ -286,23 +290,28 @@ def mapping_short(rnaseq_paired_sets, rnaseq_single_sets):
     #except Exception as e:
      #   print("Could not run hisat2 command.") 
 
+def merge_files(list_of_sets, type):
+    suffix = file_suffix(list_of_sets[0])
+    output = "merged_" + type + "." + suffix
+    try:
+        print("Merging "+type+" files...")
+        cat_command = ["cat"] + list_of_sets + [">", output]
+        result = subprocess.run(cat_command, capture_output=True)
+        if result.returncode == 0:
+            print("Merged files successfully")
+        else:
+            print("Error during merging files")
+            print(result.stderr)
+    except Exception:   
+        print("Could not run cat command.")
+
 def mapping_long(genome, isoseq_sets):
     try :
-        string_with_sets = " \ ".join(isoseq_sets)
-        output_sam = "mapped_isoseq_reads.sam"
-        minimap2_command = [
-                "minimap2", 
-                "-ax", 
-                #"map-pb", 
-                "splice",
-                "-uf",  #Threads noch hinzufügen
-                "-C5",
-                genome,
-                "/home/s-amknut/GALBA/entireIsoseq436.fsa \ /home/s-amknut/GALBA/entireIsoseq815.fsa",
-                "-o",
-                output_sam
-            ]
-    
+        output_sam = "mapped_isoseq.sam"
+        minimap2_command = ["minimap2", "-ax", "splice", "-uf", "-C5", genome] + isoseq_sets + ["-o", output_sam]
+        #Threads noch hinzufügen
+        #We can use -C5 for reads with low error rates like isoseq 
+
         print("Mapping isoseq sets to genome...")
         print("Running command:", " ".join(minimap2_command))
 
@@ -316,7 +325,6 @@ def mapping_long(genome, isoseq_sets):
 
     except Exception:
         print("Could not run minimap2 command.")
-    print(string_with_sets)
 
 '''
 def mapping_long(genome, reads_long):
@@ -589,7 +597,7 @@ rnaseq_single_sets = input_files["rnaseq_single_sets"]
 isoseq_sets = input_files["isoseq_sets"]
 
 #check_input(genome_file, reads_file) hier nochmal gut Lösung überlegen
-print("Nur mapping_long, mit richtigem manuellem pfad")  
+print("Nur mapping_long, mit getrennten Argumenten")  
 #indexing(genome_file)
 #mapping_short(rnaseq_paired_sets, rnaseq_single_sets)
 mapping_long(genome_file, isoseq_sets)  
