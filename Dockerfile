@@ -24,7 +24,7 @@ RUN apt update && \
     && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
-#RUN von Amrei 
+#RUN von Amrei für Transdecoder
 RUN apt install --yes && \
     cpan && \
     cpan URI::Escape && \
@@ -138,23 +138,23 @@ RUN cd /opt && \
     #mv stringtie-1.3.6 stringtie && \
     #cd stringtie && \
     #make release 
-#RUN cd /opt && \
- #   git clone https://github.com/gpertea/stringtie.git && \
-  #  cd stringtie && \
-   # make release
-
 RUN cd /opt && \
-    wget https://github.com/gpertea/stringtie/archive/refs/tags/v2.2.3.tar.gz && \
-    tar -zxvf v2.2.3.tar.gz && \
-    rm v2.2.3.tar.gz && \
-    mv stringtie-2.2.3 stringtie && \
+    git clone https://github.com/gpertea/stringtie.git && \
     cd stringtie && \
-    make release 
+    make release
 
-RUN cd /opt && \
-    git clone https://github.com/lh3/seqtk.git && \
-    cd seqtk && \
-    make
+#RUN cd /opt && \
+ #   wget https://github.com/gpertea/stringtie/archive/refs/tags/v2.2.3.tar.gz && \
+  #  tar -zxvf v2.2.3.tar.gz && \
+   # rm v2.2.3.tar.gz && \
+    #mv stringtie-2.2.3 stringtie && \
+    #cd stringtie && \
+    #make release 
+
+#RUN cd /opt && \
+ #   git clone https://github.com/lh3/seqtk.git && \
+  #  cd seqtk && \ #seqtk auch aus ENV Path rausgenommen
+   # make
 
 RUN cd /opt && \
     git clone https://github.com/alekseyzimin/eviann.git && \
@@ -175,7 +175,7 @@ USER root
 COPY --from=base /opt/ /opt/
 
 #ENV PATH=${PATH}:/opt/seqstats:/opt/cdbfasta:/opt/hisat2:/opt/diamond:/opt/TSEBRA/bin:/opt/MakeHub:/opt/miniprot:/opt/GALBA/scripts:/opt/miniprot-boundary-scorer:/opt/miniprothint
-ENV PATH=${PATH}:/opt/seqstats:/opt/cdbfasta:/opt/hisat2:/opt/stringtie:/opt/seqtk:/opt/eviann:/opt/minimap2:/opt/diamond:/opt/TSEBRA/bin:/opt/MakeHub:/opt/miniprot:/opt/GALBA/scripts:/opt/miniprot-boundary-scorer:/opt/miniprothint
+ENV PATH=${PATH}:/opt/seqstats:/opt/cdbfasta:/opt/hisat2:/opt/stringtie:/opt/eviann:/opt/minimap2:/opt/diamond:/opt/TSEBRA/bin:/opt/MakeHub:/opt/miniprot:/opt/GALBA/scripts:/opt/miniprot-boundary-scorer:/opt/miniprothint
 
 # AUGUSTUS does need several libraries that are now gone, re-install them:
 RUN apt-get update --yes && \
