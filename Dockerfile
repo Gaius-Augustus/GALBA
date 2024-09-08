@@ -33,11 +33,6 @@ RUN apt install --yes && \
 # out of my way
 RUN rm -rf /opt && mkdir /opt
 
-#von mir
-#RUN curl -L https://cpanmin.us | perl - --sudo App::cpanminus
-#von mir
-#RUN cpanm URI::Escape
-
 RUN cd /opt && \ 
     git clone --recursive https://github.com/clwgg/seqstats && \
     cd seqstats && \
@@ -134,49 +129,24 @@ RUN cd /opt && \
     cd hisat2 && \
     make 
 
-#RUN cd /opt/ && \
- #   git clone --depth=1 https://github.com/infphilo/hisat2.git && \
-  #  cd hisat2 && \
-   # make 
-
-#RUN ls -l /opt/hisat2
-
 #ENV PATH=${PATH}:/opt/hisat2
-#ENV PATH="/opt/hisat2:${PATH}"
-RUN cd /opt && \
-    wget http://ccb.jhu.edu/software/stringtie/dl/stringtie-1.3.6.tar.gz && \
-    tar -zxvf stringtie-1.3.6.tar.gz && \
-    rm stringtie-1.3.6.tar.gz && \
-    mv stringtie-1.3.6 stringtie && \
-    cd stringtie && \
-    make release 
 
 #RUN cd /opt && \
- #   git clone --depth=1 https://github.com/gpertea/stringtie.git && \
-  #  cd stringtie && \
-   # make release
+ #   wget http://ccb.jhu.edu/software/stringtie/dl/stringtie-1.3.6.tar.gz && \
+  #  tar -zxvf stringtie-1.3.6.tar.gz && \
+   # rm stringtie-1.3.6.tar.gz && \
+    #mv stringtie-1.3.6 stringtie && \
+    #cd stringtie && \
+    #make release 
+RUN cd /opt && \
+    git clone https://github.com/gpertea/stringtie.git && \
+    cd stringtie && \
+    make release
 
-#ENV PATH=${PATH}:/opt/stringtie
-#ENV PATH="/opt/stringtie:${PATH}"
 RUN cd /opt && \
     git clone https://github.com/lh3/seqtk.git && \
     cd seqtk && \
     make
-
-#RUN cd /opt && \
- #   wget https://github.com/TransDecoder/TransDecoder/archive/refs/tags/TransDecoder-v5.7.1.tar.gz && \
-  #  tar -xf TransDecoder-TransDecoder-v5.7.1.tar.gz && \
-   # rm TransDecoder-TransDecoder-v5.7.1.tar.gz && \
-    #mv TransDecoder-TransDecoder-5.7.1 TransDecoder && \
-    #cd TransDecoder && \
-    #make
-#RUN cd /opt && \
- #   wget https://github.com/alekseyzimin/eviann/releases/download/5.7.1/TransDecoder-v5.7.1.tar.gz && \
-  #  tar -xvzf TransDecoder-v5.7.1.tar.gz && \
-   # rm TransDecoder-v5.7.1.tar.gz && \
-    #mv TransDecoder-v5.7.1 TransDecoder && \
-    #cd TransDecoder && \
-    #make
 
 RUN cd /opt && \
     git clone https://github.com/alekseyzimin/eviann.git && \
@@ -190,9 +160,6 @@ RUN cd /opt && \
     cd minimap2 && \
     make
 
-RUN cd /opt && \
-    git clone https://github.com/tomasbruna/miniprothint.git 
-
 FROM $BASE_CONTAINER
 
 USER root
@@ -200,7 +167,7 @@ USER root
 COPY --from=base /opt/ /opt/
 
 #ENV PATH=${PATH}:/opt/seqstats:/opt/cdbfasta:/opt/hisat2:/opt/diamond:/opt/TSEBRA/bin:/opt/MakeHub:/opt/miniprot:/opt/GALBA/scripts:/opt/miniprot-boundary-scorer:/opt/miniprothint
-ENV PATH=${PATH}:/opt/seqstats:/opt/cdbfasta:/opt/hisat2:/opt/stringtie:/opt/seqtk:/opt/eviann:/opt/minimap2:/opt/miniprothint:/opt/diamond:/opt/TSEBRA/bin:/opt/MakeHub:/opt/miniprot:/opt/GALBA/scripts:/opt/miniprot-boundary-scorer:/opt/miniprothint
+ENV PATH=${PATH}:/opt/seqstats:/opt/cdbfasta:/opt/hisat2:/opt/stringtie:/opt/seqtk:/opt/eviann:/opt/minimap2:/opt/diamond:/opt/TSEBRA/bin:/opt/MakeHub:/opt/miniprot:/opt/GALBA/scripts:/opt/miniprot-boundary-scorer:/opt/miniprothint
 
 # AUGUSTUS does need several libraries that are now gone, re-install them:
 RUN apt-get update --yes && \
@@ -234,7 +201,6 @@ RUn apt update && \
                     libthread-queue-perl \
                     libmath-utils-perl \
                     libscalar-list-utils-perl && \
-                  #  samtools && \
     apt clean all
 
 USER ${NB_UID}
@@ -251,6 +217,9 @@ RUN pip install pygustus && \
     fix-permissions "${CONDA_DIR}" && \
     fix-permissions "/home/${NB_USER}"
 
+#Amrei: Probably needed for yaml
+#RUN pip install pyyaml
+
 USER root
 
 RUN apt-get remove -y augustus augustus-data augustus-doc
@@ -265,8 +234,6 @@ RUN cd /opt && \
     git clone --depth=1 https://github.com/Gaius-Augustus/BRAKER.git && \
     cp  BRAKER/scripts/compute_accuracies.sh GALBA/scripts/compute_accuracies.sh && \
     cp  BRAKER/scripts/compare_intervals_exact.pl GALBA/scripts/compare_intervals_exact.pl
-
-#ENV PATH=${PATH}:/opt/hisat2
 
 USER ${NB_UID}
 
