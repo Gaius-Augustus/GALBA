@@ -131,17 +131,17 @@ RUN cd /opt && \
 
 #ENV PATH=${PATH}:/opt/hisat2
 
-#RUN cd /opt && \
- #   wget http://ccb.jhu.edu/software/stringtie/dl/stringtie-1.3.6.tar.gz && \
-  #  tar -zxvf stringtie-1.3.6.tar.gz && \
-   # rm stringtie-1.3.6.tar.gz && \
-    #mv stringtie-1.3.6 stringtie && \
-    #cd stringtie && \
-    #make release 
 RUN cd /opt && \
-    git clone https://github.com/gpertea/stringtie.git && \
+    wget http://ccb.jhu.edu/software/stringtie/dl/stringtie-1.3.6.tar.gz && \
+    tar -zxvf stringtie-1.3.6.tar.gz && \
+    rm stringtie-1.3.6.tar.gz && \
+    mv stringtie-1.3.6 stringtie && \
     cd stringtie && \
-    make release
+    make release 
+#RUN cd /opt && \
+ #   git clone https://github.com/gpertea/stringtie.git && \
+  #  cd stringtie && \
+   # make release
 
 #RUN cd /opt && \
  #   wget https://github.com/gpertea/stringtie/archive/refs/tags/v2.2.3.tar.gz && \
@@ -168,6 +168,11 @@ RUN cd /opt && \
     cd minimap2 && \
     make
 
+RUN cd /opt && \
+    git clone https://github.com/gpertea/gffread.git && \
+    cd gffread && \
+    make release
+
 FROM $BASE_CONTAINER
 
 USER root
@@ -175,7 +180,7 @@ USER root
 COPY --from=base /opt/ /opt/
 
 #ENV PATH=${PATH}:/opt/seqstats:/opt/cdbfasta:/opt/hisat2:/opt/diamond:/opt/TSEBRA/bin:/opt/MakeHub:/opt/miniprot:/opt/GALBA/scripts:/opt/miniprot-boundary-scorer:/opt/miniprothint
-ENV PATH=${PATH}:/opt/seqstats:/opt/cdbfasta:/opt/hisat2:/opt/stringtie:/opt/eviann:/opt/minimap2:/opt/diamond:/opt/TSEBRA/bin:/opt/MakeHub:/opt/miniprot:/opt/GALBA/scripts:/opt/miniprot-boundary-scorer:/opt/miniprothint
+ENV PATH=${PATH}:/opt/seqstats:/opt/cdbfasta:/opt/hisat2:/opt/stringtie:/opt/eviann:/opt/minimap2:/opt/gffread:/opt/diamond:/opt/TSEBRA/bin:/opt/MakeHub:/opt/miniprot:/opt/GALBA/scripts:/opt/miniprot-boundary-scorer:/opt/miniprothint
 
 # AUGUSTUS does need several libraries that are now gone, re-install them:
 RUN apt-get update --yes && \
