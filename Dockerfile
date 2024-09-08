@@ -145,9 +145,9 @@ RUN cd /opt && \
 
 RUN cd /opt && \
     wget https://github.com/gpertea/stringtie/archive/refs/tags/v2.2.3.tar.gz && \
-    tar -zxvf stringtie-1.3.6.tar.gz && \
-    rm stringtie-1.3.6.tar.gz && \
-    mv stringtie-1.3.6 stringtie && \
+    tar -zxvf v2.2.3.tar.gz && \
+    rm v2.2.3.tar.gz && \
+    mv stringtie-2.2.3 stringtie && \
     cd stringtie && \
     make release 
 
