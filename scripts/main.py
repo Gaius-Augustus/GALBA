@@ -126,7 +126,7 @@ def indexing(genome_fasta):
             hisat2_build_path, 
             "--quiet",
             "-p",
-            threads,        
+            str(threads),        
             genome_fasta,           
             "genome"     
         ]
@@ -145,28 +145,23 @@ def indexing(genome_fasta):
         print("Could not run hisat2-build command.") 
 
 def mapping_short(rnaseq_paired_sets, rnaseq_single_sets):
-    if not rnaseq_single_sets==[]:
-        if file_format(rnaseq_single_sets[0]) == "fasta": #Muss ich hier beide sets testen?
-            format_option = "-f"
-        if file_format(rnaseq_single_sets[0]) == "fastq":
-            format_option = ""
-    else:
-        if file_format(rnaseq_paired_sets[0]) == "fasta":
-            format_option = "-f"
-        if file_format(rnaseq_paired_sets[0]) == "fastq":
-            format_option = ""
+    alignments_list = []
     try:
         if not rnaseq_single_sets == []:
+            if file_format(rnaseq_single_sets[0]) == "fasta": #Muss ich hier beide sets testen?
+                format_option = "-f"
+            if file_format(rnaseq_single_sets[0]) == "fastq":
+                format_option = ""
             string_with_sets = ",".join(rnaseq_single_sets)
-            output_sam = "mapped_single_rnaseq.sam" #Better name maybe "alignment_single_rnaseq.sam"
+            output_1 = "alignment_single_rnaseq.sam" 
             hisat2_command = [
                     "hisat2",  
                     format_option,                       
                     "-x", "genome",            
                     "-U", string_with_sets,
                     "--dta",
-                    "-p", threads,
-                    "-S", output_sam,                  
+                    "-p", str(threads),
+                    "-S", output_1,                  
                 ]
             print("Mapping single-end RNAseq to genome...")
             
@@ -174,6 +169,8 @@ def mapping_short(rnaseq_paired_sets, rnaseq_single_sets):
             
             if result.returncode == 0:
                 print("Mapping of set of single-end RNASeq evidence completed successfully")
+                alignments_list.append(output_1)
+
             else:
                 print("Error during mapping of single-end rnaseq data:")
                 print(result.stderr)
@@ -184,9 +181,13 @@ def mapping_short(rnaseq_paired_sets, rnaseq_single_sets):
 
     try:
         if not rnaseq_paired_sets == []:
+            if file_format(rnaseq_paired_sets[0]) == "fasta":
+                format_option = "-f"
+            if file_format(rnaseq_paired_sets[0]) == "fastq":
+                format_option = ""
             string_with_first = ",".join(rnaseq_paired_sets[0::2])
             string_with_second = ",".join(rnaseq_paired_sets[1::2])
-            output_sam = "mapped_paired_rnaseq.sam" #Better name maybe "alignment_paired_rnaseq.sam"
+            output_2 = "alignment_paired_rnaseq.sam" 
             hisat2_command = [
                     "hisat2", 
                     format_option,                       
@@ -194,8 +195,8 @@ def mapping_short(rnaseq_paired_sets, rnaseq_single_sets):
                     "-1", string_with_first,
                     "-2", string_with_second,   
                     "--dta",
-                    "-p", threads,
-                    "-S", output_sam,                  
+                    "-p", str(threads),
+                    "-S", output_2,                  
                 ]
             print("Mapping paired-end rnaseq data to genome...")
             
@@ -203,6 +204,7 @@ def mapping_short(rnaseq_paired_sets, rnaseq_single_sets):
             
             if result.returncode == 0:
                 print("Mapping of paired-end rnaseq data completed successfully")
+                alignments_list.append(output_2)
             else:
                 print("Error during mapping of paired-end rnaseq data:")
                 print(result.stderr)
@@ -210,6 +212,7 @@ def mapping_short(rnaseq_paired_sets, rnaseq_single_sets):
     except Exception:
         print("Could not run hisat2 command for paired-end RNA-seq data.")
         exit(1)
+    return alignments_list
     
 '''
 def mapping_short(rnaseq_paired_sets, rnaseq_single_sets):
@@ -301,7 +304,7 @@ def mapping_short(rnaseq_paired_sets, rnaseq_single_sets):
 
 def mapping_long(genome, isoseq_sets):
     try :
-        output_sam = "mapped_isoseq.sam" #Better name maybe "alignment_isoseq.sam"
+        output_sam = "alignment_isoseq.sam" #Better name maybe "alignment_isoseq.sam"
         minimap2_command = ["minimap2", "-ax", "splice", "-uf", "-C5", genome] + isoseq_sets + ["-o", output_sam]
         #Threads noch hinzufügen
         #We can use -C5 for reads with low error rates like isoseq 
@@ -313,6 +316,7 @@ def mapping_long(genome, isoseq_sets):
 
         if result.returncode == 0:
             print("Mapping of isoseq reads completed successfully")
+            return output_sam
         else:
             print("Error during mapping of isoseq data:")
             print(result.stderr)
@@ -402,15 +406,16 @@ def sam_to_bam(rna_paired_sets, rna_single_sets, rna_long_sets):
     except Exception:
         print("Could not run samtools command.")
 '''
-def merge_bam_files(bamfile_1, bamfile_2): #MUSS NICHT MERGEN!!
+def merge_bam_files(bamfile_1, bamfile_2): 
     try:
         print("Merging bam files " + bamfile_1 + " and " + bamfile_2 + "...")
+        output_bam = "alignment_merged_rnaseq.bam"
         command1 = [
             "samtools",
             "merge",
             "-f", #-f is to override the output file if it already exists
             "-o",
-            "mapped_rnaseq.bam", #Better name maybe "alignment_rnaseq.bam"
+            output_bam,
             bamfile_1,
             bamfile_2
         ] 
@@ -419,6 +424,7 @@ def merge_bam_files(bamfile_1, bamfile_2): #MUSS NICHT MERGEN!!
         #print(result.stderr)
         if result.returncode== 0:
             print("Merged rnaseq bam files successfully")
+            return output_bam
         else:
             print("Error during merging of rnaseq bam files")
 
@@ -477,33 +483,77 @@ def merge_bam_files(rna_paired_sets, rna_single_sets, rna_long_sets): #MUSS NICH
         print("Could not run samtools command.")
 '''
 
-def assembling():
+def assembling(mode, alignment_rnaseq, alignment_isoseq):
     try:
         print("Assembling the reads...")
+        output_gtf = "transcripts.gtf"
         #command = "stringtie -p "+str(threads)+" -o "+output_gtf+" "+bamFile
-        command = "stringtie -o transcripts.gtf --mix rnaseqMappingMerged.bam isoseqMappingMerged.bam" 
+        #command = "stringtie -o transcripts.gtf --mix rnaseqMappingMerged.bam isoseqMappingMerged.bam" 
         #command = "stringtie " + shortBamFile + " " + longBamFile + " -o " + output_gtf
-        command1 = [
-            "stringtie",
-            "--mix",
-            "-o",
-            "transcripts.gtf",
-            "rnaseqMappingMerged.bam",
-            "isoseqMappingMerged.bam"
-        ]
-        print("Running command: ", command)
-        #result = os.system(command) #Reminder: Didnt work with subprocess.run, maybe need a better solution?
-        result = subprocess.run(command1, capture_output=True)
-        #print("stdout gedruckt: ", result.stdout)
-        #print("stderr gedruckt: ", result.stderr)
-        if result == 0:
-            print("Assembled reads successfully")
+        if mode == "mixed":
+            command_mixed = [  #-p str(threads) noch hinzufügen
+                "stringtie",
+                "--mix",
+                "-o",
+                output_gtf,
+                alignment_rnaseq,
+                alignment_isoseq
+            ]
+            #print("Running command: ", command)
+            #result = os.system(command) #Reminder: Didnt work with subprocess.run, maybe need a better solution?
+            result = subprocess.run(command_mixed, capture_output=True)
 
-        else:
-            print("Error during Assembly")
+            if result.returncode == 0:
+                print("Assembled rnaseq and isoseq reads successfully")
+
+            else:
+                print("Error during Assembly of rnaseq and isoseq reads")
+                os.system("stringtie --version")
+                print("stdout:", result.stdout.decode())
+                print("stderr:", result.stderr.decode())
+            if args.rnaseq:
+                print("In args.rnaseq von assmebling")
+            #if mode == "rnaseq":
+                command_rnaseq = [
+                    "stringtie",
+                    "-p",
+                    str(threads),
+                    "-o",
+                    output_gtf,
+                    alignment_rnaseq
+                ]
+                result = subprocess.run(command_rnaseq, capture_output=True)
+                print("stdout:", result.stdout.decode())
+                print("stderr:", result.stderr.decode())
+                if result.returncode == 0:
+                    print("Assembled rnaseq reads successfully")
+                else:
+                    print("Error during Assembly of rnaseq reads")
+                
+            if mode == "isoseq":
+                print("In isoseq von assembling")
+                command_isoseq = [
+                    "stringtie",
+                    "-L",
+                    "-p",
+                    str(threads),
+                    "-o",
+                    output_gtf,
+                    alignment_isoseq
+                ]
+
+                result = subprocess.run(command_isoseq, capture_output=True)
+                print("stdout:", result.stdout.decode())
+                print("stderr:", result.stderr.decode())
+                if result.returncode == 0:
+                    print("Assembled isoseq reads successfully")
+                else:
+                    print("Error during Assembly of isoseq reads")
 
     except Exception:
         print("Could not run stringtie command.")
+        print("stdout:", result.stdout.decode())
+        print("stderr:", result.stderr.decode())
 
 '''
 def assembling(rnaseq_paired_sets, rnaseq_single_sets, isoseq_sets):
@@ -555,7 +605,6 @@ def assembling(rnaseq_paired_sets, rnaseq_single_sets, isoseq_sets):
 
     except Exception:
         print("Could not run stringtie command for isoseq reads.")
-'''
 
 def orfsearching(assembly_gtf, genome_fa, output_fa):
     try:
@@ -600,6 +649,8 @@ def orfsearching(assembly_gtf, genome_fa, output_fa):
     except Exception:
         print("Could not run TransDecoder command.")
 
+    #Optional on Transdecoder paige: Predicting ORFs with homology to known proteins
+
     try:
         trans = "transcripts.fasta"
         print("Searching for ORFs...")
@@ -618,6 +669,93 @@ def orfsearching(assembly_gtf, genome_fa, output_fa):
             print(result.stderr)
     except Exception:
         print("Could not run TransDecoder command.") 
+'''
+def orfsearching(genome_fa, transcripts_gtf):
+    try:
+        output_fa = "transcripts.fasta" 
+        gffread_command = [
+            "/home/s-amknut/GALBA/tools/gffread/gffread",
+            "-w",
+            output_fa,
+            "-g",
+            genome_fa,
+            transcripts_gtf
+        ]
+        print("Construct a fasta file from the transcripts.gtf file given by Stringtie...")
+        #print("Running command:", "".join(gffread_command))
+        result = subprocess.run(gffread_command, capture_output=True)
+
+        if result.returncode == 0:
+            print("Transcripts prepared successfully")
+        else:
+            print("Error during preparing transcripts")
+            print(result.stderr)    
+    
+    except Exception:
+        print("Could not run gffread command.")
+        sys.exit(1)
+
+    try:
+        print("Extract the long open reading frames...")
+        longORF_command = [
+            "TransDecoder.LongOrfs",
+            "-t",
+            "transcripts.fasta"
+        ]
+       
+        #print("Running command:", "".join(transdecoder_command))
+        result= subprocess.run(longORF_command, capture_output=True)
+        if result.returncode == 0:
+            print("ORFs found successfully")
+        else:
+            print("Error during ORF search")
+            print(result.stderr)
+    except Exception:
+        print("Could not run TransDecoder command.")
+
+    #Optional on Transdecoder paige: Predicting ORFs with homology to known proteins
+
+    try:
+        print("Predict the likely coding regions...")
+        predict_command = [
+            "/opt/eviann/TransDecoder.Predict",
+            "-t",
+            "transcripts.fasta"
+        ]
+       
+        #print("Running command:", "".join(transdecoder_command))
+        result= subprocess.run(predict_command, capture_output=True)
+        if result.returncode == 0:
+            print("Predict successfully")
+        else:
+            print("Error during ORF search")
+            print(result.stderr)
+    except Exception:
+        print("Could not run TransDecoder command.") 
+
+def protein_aligning(genome, protein, alignment_scoring):
+    try: 
+        output_aln = "protein_alignment.aln"
+        command = [
+            "miniprot",
+            genome,
+            protein,
+            "--aln",
+            ">",
+            output_aln,
+        ]
+        print("Aligning protein to genome...")
+        result = subprocess.run(command, capture_output=True)
+
+        if result.returncode == 0:
+            print("Protein aligned successfully")
+        else:
+            print("Error during protein alignment")
+            print(result.stderr)
+    
+    except Exception:
+        print("Could not run miniprot command.")
+        sys.exit(1)
 
 def load_config(config_file):
     with open(config_file, "r") as config_file:
@@ -626,7 +764,7 @@ def load_config(config_file):
 
 #MAIN
 parser = argparse.ArgumentParser(description='Genome annotation with transcriptomic data like RNA-seq and Iso-seq data')  
-parser.add_argument('-t', '--threads', default=4, help='Number of threads (default=4)', type = str, required=False)
+parser.add_argument('-t', default=4, help='Number of threads (default=4)', required=False)
 parser.add_argument('-y', help='Config file input', metavar='<config.yaml>', required=True) #required=True
 
 parser.add_argument('--isoseq', action='store_true', help='Use this option if you want to process isoseq data only')
@@ -640,6 +778,7 @@ genome_file = input_files["genome"]
 rnaseq_paired_sets = input_files.get("rnaseq_paired_sets", []) #Wenn Liste nicht vorhanden, dann leere Liste
 rnaseq_single_sets = input_files.get("rnaseq_single_sets", [])
 isoseq_sets = input_files.get("isoseq_sets", [])
+protein_file = input_files["protein"] #optional?
 
 #Intercept if given data doesnt match the chosen option  
 if rnaseq_paired_sets == [] and rnaseq_single_sets == [] and isoseq_sets == []:
@@ -665,25 +804,37 @@ process_rnaseq = args.rnaseq or args.mixed
 process_isoseq = args.isoseq or args.mixed
 
 #check_input(genome_file, reads_file) hier nochmal gut Lösung überlegen
-print("Nur samtobam für short mit nur paired-sam.")
-
+print("Stringtie isoseq mit umfassenden output") 
+'''
 if process_rnaseq:
     indexing(genome_file)
-    mapping_short(rnaseq_paired_sets, rnaseq_single_sets)
-    if not rnaseq_single_sets==[] or not rnaseq_paired_sets==[]:
-        sam_file_list = ["mapped_single_rnaseq.sam","mapped_paired_rnaseq.sam"]
-    #sam_file_list = ["mapped_single_rnaseq.sam","mapped_paired_rnaseq.sam"]
-    sam_file_list = ["mapped_paired_rnaseq.sam"] #NUR, WENN AUCH BEIDE DATEN VORHANDEN WAREN!!!
-    sam_to_bam(sam_file_list)
-    #merge_bam_files("mapped_single_rnaseq.bam", "mapped_paired_rnaseq.bam")
+    alignments_list = mapping_short(rnaseq_paired_sets, rnaseq_single_sets)
+    sam_to_bam(alignments_list)
+    if len(alignments_list) > 1:
+        alignment_rnaseq = merge_bam_files(alignments_list[0], alignments_list[1])
+    else:
+        alignment_rnaseq = alignments_list[0]
 
 if process_isoseq:
-    mapping_long(genome_file, isoseq_sets)
-    sam_file_list = ["mapped_isoseq.sam"]
+    alignment_isoseq = mapping_long(genome_file, isoseq_sets)
+    sam_file_list = [alignment_isoseq]
     sam_to_bam(sam_file_list) 
+'''
 
-#if args.rnaseq
-#assembling()
+if args.rnaseq and not args.mixed:
+    assembling("rnaseq", "alignment_merged_rnaseq.bam", "") #Namen noch ersetzen zu alignment_rnaseq 
+
+if args.isoseq and not args.mixed:
+    assembling("isoseq", "", "alignment_isoseq.bam")
+
+if args.mixed:
+    #assembling("mixed", "alignment_merged_rnaseq", alignment_isoseq)    
+    assembling("mixed", "alignment_merged_rnaseq.bam", "alignment_isoseq.bam") 
+
+#orfsearching(genome_file, "transcripts.gtf") 
+
+#protein_aligning(genome_file, protein_file , "") 
+
 
 #mapping_long(genome_file, isoseq_sets)  
 #sam_file_list = ["mapped_single_rnaseq.sam","mapped_paired_rnaseq.sam","mapped_isoseq.sam"]
@@ -706,6 +857,7 @@ if process_isoseq:
 #-Exception as e: print(e) einbauen
 #-Vielleicht noch Option einbauen, dass nur einmal Pfad angegeben werden muss und sonst nur Namen der Files
 #-Abfangen, wenn keine files in config liegen/Unter dem falschen Listennamen
+#-Threads überall hinzufügen
 
 #FRAGEN:
 #-Vor jedem Aufruf alte files löschen?
@@ -716,3 +868,5 @@ if process_isoseq:
 #-Muss ich Pfad für tools weiter ausbauen oder mehr abfangen?
 #-Optionen in Ordnung oder noch Unterscheidung zwischen single und paired-end?
 #-Input: Wann -- und wann - und wann beides?
+#-Ist es richtig, dass man single-end und paired-end beide nutzt? Oder wird in der Regel nur eins davon genutzt?
+#-Soll die Übergabe von Proteinfiles optional sein?
