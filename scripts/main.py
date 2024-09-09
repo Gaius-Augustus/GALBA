@@ -307,16 +307,14 @@ def assembling(mode, alignment_rnaseq, alignment_isoseq):
                 alignment_isoseq
             ]
             #print("Running command: ", command)
-            result = os.system("stringtie --mix -o transcripts.gtf alignment_paired_rnaseq.bam alignment_isoseq.bam") #Reminder: Didnt work with subprocess.run, maybe need a better solution?
-            #result = subprocess.run(command_mixed, capture_output=True)
+            #result = os.system("stringtie --mix -o transcripts.gtf alignment_paired_rnaseq.bam alignment_isoseq.bam") #Reminder: Didnt work with subprocess.run, maybe need a better solution?
+            result = subprocess.run(command_mixed, capture_output=True)
 
-            if result == 0:
+            if result.returncode == 0:
                 print("Assembled rnaseq and isoseq reads successfully")
 
             else:
                 print("Error during Assembly of rnaseq and isoseq reads")
-                #print("stdout:", result.stdout.decode())
-                #print("stderr:", result.stderr.decode())
 
         if args.rnaseq:
         #if mode == "rnaseq":
@@ -330,8 +328,7 @@ def assembling(mode, alignment_rnaseq, alignment_isoseq):
                 alignment_rnaseq
             ]
             result = subprocess.run(command_rnaseq, capture_output=True)
-            print("stdout:", result.stdout.decode())
-            print("stderr:", result.stderr.decode())
+
             if result.returncode == 0:
                 print("Assembled rnaseq reads successfully")
             else:
@@ -350,8 +347,7 @@ def assembling(mode, alignment_rnaseq, alignment_isoseq):
             ]
 
             result = subprocess.run(command_isoseq, capture_output=True)
-            print("stdout:", result.stdout.decode())
-            print("stderr:", result.stderr.decode())
+
             if result.returncode == 0:
                 print("Assembled isoseq reads successfully")
             else:
@@ -427,7 +423,7 @@ def orfsearching(genome_fa, transcripts_gtf):
 
 def protein_aligning(genome, protein, alignment_scoring):
     try: 
-        output_aln = "protein_alignment.aln"
+        #output_aln = "protein_alignment.aln"
         command = [
             "miniprot",
             genome,
@@ -438,14 +434,14 @@ def protein_aligning(genome, protein, alignment_scoring):
         ]
         print("Aligning protein to genome...")
 
-        result = subprocess.run(command, capture_output=True)
+        with open("mini.aln", "w") as aln_file:
+            "Kein Problem"
+            result = subprocess.run(command, stdout=aln_file, capture_output=True)
 
         if result.returncode == 0:
             print("Proteins aligned successfully")
         else:
             print("Error during protein alignment with miniprot")
-            print("stdout:", result.stdout.decode())
-            print("stderr:", result.stderr.decode()) 
 
     except Exception:
         print("Could not run miniprot command.")
@@ -462,18 +458,19 @@ def protein_aligning(genome, protein, alignment_scoring):
             #"miniprot.aln"
         #]
         
-        print("Running command:", " ".join(command))
+        #print("Running command:", " ".join(command))
         print("Scoring the alignment...")
         #result = os.system("miniprot_boundary_scorer < miniprot.aln -o miniprot_parsed.gff -s /home/s-amknut/GALBA/tools/BLOSUM62_.csv")
-        with open("miniprot.aln", "r") as aln_file:
-            command = [
-                "miniprot_boundary_scorer",
-                "-o",
-                "miniprot_parsed.gff",
-                "-s",
-                alignment_scoring
-            ] 
-            result = subprocess.run(command, stdin=aln_file, capture_output=True)
+        command = [
+            "miniprot_boundary_scorer",
+            "-o",
+            "miniprot_parsed.gff",
+            "-s",
+            alignment_scoring
+        ] 
+        
+        #with open("miniprot.aln", "r") as aln_file:
+        result = subprocess.run(command, capture_output=True)
 
         if result.returncode == 0:
             print("Alignment scored successfully with miniprot_boundary_scorer!")
@@ -537,7 +534,7 @@ if (rnaseq_paired_sets == [] and rnaseq_single_sets == []) or (isoseq_sets == []
 process_rnaseq = args.rnaseq or args.mixed
 process_isoseq = args.isoseq or args.mixed
 
-print("Protein alignment mit stdin von subprocess.run")
+print("Protein alignment mit anderem command von website")
 '''
 if process_rnaseq:
     #indexing(genome_file)
@@ -552,20 +549,19 @@ if process_isoseq:
     alignment_isoseq = mapping_long(genome_file, isoseq_sets)
     sam_file_list = [alignment_isoseq]
     sam_to_bam(sam_file_list) 
-
+'''
 #if args.rnaseq and not args.mixed:
  #   assembling("rnaseq", "alignment_paired_rnaseq.bam", "") #Namen noch ersetzen zu alignment_rnaseq 
 
-if args.isoseq and not args.mixed:
-    assembling("isoseq", "", "alignment_isoseq.bam")
+#if args.isoseq and not args.mixed:
+ #   assembling("isoseq", "", "alignment_isoseq.bam")
 
-#if args.mixed: 
- #   assembling("mixed", "alignment_paired_rnaseq.bam", "alignment_isoseq.bam") 
-'''
+if args.mixed: 
+    assembling("mixed", "alignment_paired_rnaseq.bam", "alignment_isoseq.bam") 
+
 #assembling("", "", "")
 #orfsearching(genome_file, "transcripts.gtf") 
-
-protein_aligning("/home/s-amknut/GALBA/tools/genome.fasta", "/home/s-amknut/GALBA/tools/proteins.fasta" , "/home/s-amknut/GALBA/tools/BLOSUM62_.csv") 
+#protein_aligning("/home/s-amknut/GALBA/tools/genome.fasta", "/home/s-amknut/GALBA/tools/proteins.fasta" , "/home/s-amknut/GALBA/tools/BLOSUM62_.csv") 
 '''
 #TO DOs:
 #-Variablen und Funktionsnamen anpassen
