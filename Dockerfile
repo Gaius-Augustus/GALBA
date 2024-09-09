@@ -131,36 +131,24 @@ RUN cd /opt && \
 
 #ENV PATH=${PATH}:/opt/hisat2
 
-#RUN cd /opt && \
- #   wget http://ccb.jhu.edu/software/stringtie/dl/stringtie-1.3.6.tar.gz && \
-  #  tar -zxvf stringtie-1.3.6.tar.gz && \
-   # rm stringtie-1.3.6.tar.gz && \
-    #mv stringtie-1.3.6 stringtie && \
-    #cd stringtie && \
-    #make release 
 
 RUN cd /opt && \
     wget https://github.com/gpertea/stringtie/archive/refs/tags/v2.2.3.tar.gz && \
     tar -zxvf v2.2.3.tar.gz && \
     rm v2.2.3.tar.gz && \
-    mv stringtie-2.2.3 stringtie 
+    mv stringtie-2.2.3 stringtie    
 
 #RUN cd /opt && \
  #   git clone https://github.com/lh3/seqtk.git && \
   #  cd seqtk && \ #seqtk auch aus ENV Path rausgenommen
    # make
-   
-RUN cd /opt && \
-    git clone https://github.com/TransDecoder/TransDecoder.git && \
-    cd TransDecoder && \
-    make
 
-#RUN cd /opt && \ #Auch aus Pfad rausgenommen
- #   git clone https://github.com/alekseyzimin/eviann.git && \
-  #  cd eviann && \
-   # tar -xvzf TransDecoder-v5.7.1.tar.gz && \
-    #rm TransDecoder-v5.7.1.tar.gz && \
-    #make
+RUN cd /opt && \
+    git clone https://github.com/alekseyzimin/eviann.git && \
+    cd eviann && \
+    tar -xvzf TransDecoder-v5.7.1.tar.gz && \
+    rm TransDecoder-v5.7.1.tar.gz && \
+    make
 
 RUN cd /opt && \
     git clone https://github.com/lh3/minimap2.git && \
@@ -179,7 +167,7 @@ USER root
 COPY --from=base /opt/ /opt/
 
 #ENV PATH=${PATH}:/opt/seqstats:/opt/cdbfasta:/opt/hisat2:/opt/diamond:/opt/TSEBRA/bin:/opt/MakeHub:/opt/miniprot:/opt/GALBA/scripts:/opt/miniprot-boundary-scorer:/opt/miniprothint
-ENV PATH=${PATH}:/opt/seqstats:/opt/cdbfasta:/opt/hisat2:/opt/stringtie:/opt/minimap2:/opt/gffread:/opt/TransDecoder:/opt/diamond:/opt/TSEBRA/bin:/opt/MakeHub:/opt/miniprot:/opt/GALBA/scripts:/opt/miniprot-boundary-scorer:/opt/miniprothint
+ENV PATH=${PATH}:/opt/seqstats:/opt/cdbfasta:/opt/hisat2:/opt/stringtie:/opt/eviann:/opt/minimap2:/opt/gffread:/opt/diamond:/opt/TSEBRA/bin:/opt/MakeHub:/opt/miniprot:/opt/GALBA/scripts:/opt/miniprot-boundary-scorer:/opt/miniprothint
 
 # AUGUSTUS does need several libraries that are now gone, re-install them:
 RUN apt-get update --yes && \
@@ -250,5 +238,3 @@ RUN cd /opt && \
 USER ${NB_UID}
 
 WORKDIR "${HOME}"
-
-
