@@ -133,10 +133,11 @@ RUN cd /opt && \
 
 
 RUN cd /opt && \
-    wget https://github.com/gpertea/stringtie/archive/refs/tags/v2.2.3.tar.gz && \
-    tar -zxvf v2.2.3.tar.gz && \
-    rm v2.2.3.tar.gz && \
-    mv stringtie-2.2.3 stringtie    
+    wget https://github.com/gpertea/stringtie/releases/download/v2.2.3/stringtie-2.2.3.Linux_x86_64.tar.gz && \
+    tar -zxvf stringtie-2.2.3.Linux_x86_64.tar.gz && \
+    rm stringtie-2.2.3.Linux_x86_64.tar.gz && \
+    mv stringtie-2.2.3.Linux_x86_64 stringtie    
+    
 
 #RUN cd /opt && \
  #   git clone https://github.com/lh3/seqtk.git && \
