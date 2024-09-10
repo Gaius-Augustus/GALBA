@@ -1,16 +1,63 @@
 ---
 species: Arabidopsis_thaliana
 genome: /home/s-amknut/GALBA/entireGenome.fasta
+        #/home/nas-hs/projs/galba-isoseq/data/Arabidopsis_thaliana/genome/genome.fasta.masked
+
 rnaseq_paired_sets: [
-  /home/s-amknut/GALBA/entireRna896_1.fastq,
-  /home/s-amknut/GALBA/entireRna896_2.fastq,
-  /home/s-amknut/GALBA/entireRna664_1.fastq,
-  /home/s-amknut/GALBA/entireRna664_2.fastq
+  /home/nas-hs/projs/galba-isoseq/data/Arabidopsis_thaliana/rnaseq/SRR12076896_1.fastq,
+  /home/nas-hs/projs/galba-isoseq/data/Arabidopsis_thaliana/rnaseq/SRR12076896_2.fastq,
+  /home/nas-hs/projs/galba-isoseq/data/Arabidopsis_thaliana/rnaseq/SRR12547664_1.fastq,
+  /home/nas-hs/projs/galba-isoseq/data/Arabidopsis_thaliana/rnaseq/SRR12547664_2.fastq
+  #/home/nas-hs/projs/galba-isoseq/data/Arabidopsis_thaliana/rnaseq/SRR4010853_1.fastq,
+  #/home/nas-hs/projs/galba-isoseq/data/Arabidopsis_thaliana/rnaseq/SRR4010853_2.fastq,
+  #/home/nas-hs/projs/galba-isoseq/data/Arabidopsis_thaliana/rnaseq/SRR7289569_1.fastq,
+  #/home/nas-hs/projs/galba-isoseq/data/Arabidopsis_thaliana/rnaseq/SRR7289569_2.fastq,
+  #/home/nas-hs/projs/galba-isoseq/data/Arabidopsis_thaliana/rnaseq/SRR8714016_1.fastq,
+  #/home/nas-hs/projs/galba-isoseq/data/Arabidopsis_thaliana/rnaseq/SRR8714016_2.fastq,
+  #/home/nas-hs/projs/galba-isoseq/data/Arabidopsis_thaliana/rnaseq/SRR8759751_1.fastq,
+  #/home/nas-hs/projs/galba-isoseq/data/Arabidopsis_thaliana/rnaseq/SRR8759751_2.fastq
+  #/home/s-amknut/GALBA/entireRna896_1.fastq,
+  #/home/s-amknut/GALBA/entireRna896_2.fastq,
+  #/home/s-amknut/GALBA/entireRna664_1.fastq,
+  #/home/s-amknut/GALBA/entireRna664_2.fastq
 ] 
 rnaseq_single_sets: [
-  /home/s-amknut/GALBA/entireRna896_1.fastq
+  #/home/nas-hs/projs/galba-isoseq/data/Arabidopsis_thaliana/rnaseq/SRR4010853_1.fastq,
+  #/home/nas-hs/projs/galba-isoseq/data/Arabidopsis_thaliana/rnaseq/SRR12076896_2.fastq
+  #/home/s-amknut/GALBA/entireRna896_1.fastq
 ]
 isoseq_sets: [
-  /home/s-amknut/GALBA/entireIsoseq815.fsa,
-  /home/s-amknut/GALBA/entireIsoseq436.fsa
+  #/home/s-amknut/GALBA/entireIsoseq815.fsa,
+  #/home/s-amknut/GALBA/entireIsoseq436.fsa,
+  /home/nas-hs/projs/galba-isoseq/data/Arabidopsis_thaliana/isoseq/m54053_170316_122436_GeneBank.fsa,
+  /home/nas-hs/projs/galba-isoseq/data/Arabidopsis_thaliana/isoseq/m54053_170316_203815_GeneBank.fsa,
+ # /home/nas-hs/projs/galba-isoseq/data/Arabidopsis_thaliana/m54053_171220_013924_GeneBank.fsa,
+  #/home/nas-hs/projs/galba-isoseq/data/Arabidopsis_thaliana/m54053_171220_115907_GeneBank.fsa,
+  #/home/nas-hs/projs/galba-isoseq/data/Arabidopsis_thaliana/m54053_171220_221856_GeneBank.fsa,
+  #/home/nas-hs/projs/galba-isoseq/data/Arabidopsis_thaliana/m54053_171221_083846_GeneBank.fsa,
+  #/home/nas-hs/projs/galba-isoseq/data/Arabidopsis_thaliana/m54053_171221_185832_GeneBank.fsa,
+  #/home/nas-hs/projs/galba-isoseq/data/Arabidopsis_thaliana/m54053_171222_051814_GeneBank.fsa,
+  #/home/nas-hs/projs/galba-isoseq/data/Arabidopsis_thaliana/m54053_180119_094042_GeneBank.fsa,
+  #/home/nas-hs/projs/galba-isoseq/data/Arabidopsis_thaliana/m54053_180119_200026_GeneBank.fsa,
+  #/home/nas-hs/projs/galba-isoseq/data/Arabidopsis_thaliana/m54053_180120_062022_GeneBank.fsa,
+  #/home/nas-hs/projs/galba-isoseq/data/Arabidopsis_thaliana/m54053_180120_164010_GeneBank.fsa,
+  #/home/nas-hs/projs/galba-isoseq/data/Arabidopsis_thaliana/m54053_180317_171308_GeneBank.fsa,
+  #/home/nas-hs/projs/galba-isoseq/data/Arabidopsis_thaliana/m54053_180318_033248_GeneBank.fsa,
+  #/home/nas-hs/projs/galba-isoseq/data/Arabidopsis_thaliana/m54053_180318_135257_GeneBank.fsa,
+  #/home/nas-hs/projs/galba-isoseq/data/Arabidopsis_thaliana/m54053_180319_001251_GeneBank.fsa,
+  #/home/nas-hs/projs/galba-isoseq/data/Arabidopsis_thaliana/m54053_180319_103302_GeneBank.fsa,
+  #/home/nas-hs/projs/galba-isoseq/data/Arabidopsis_thaliana/m54053_180817_110941_GeneBank.fsa,
+  #/home/nas-hs/projs/galba-isoseq/data/Arabidopsis_thaliana/m54053_180817_214023_GeneBank.fsa,
+  #/home/nas-hs/projs/galba-isoseq/data/Arabidopsis_thaliana/m54053_190724_162631_GeneBank.fsa,
+  #/home/nas-hs/projs/galba-isoseq/data/Arabidopsis_thaliana/m54053_190725_024635_GeneBank.fsa,
+  #/home/nas-hs/projs/galba-isoseq/data/Arabidopsis_thaliana/m54053_190725_130728_GeneBank.fsa,
+  #/home/nas-hs/projs/galba-isoseq/data/Arabidopsis_thaliana/m54053_190725_232809_GeneBank.fsa,
+  #/home/nas-hs/projs/galba-isoseq/data/Arabidopsis_thaliana/m54053_190731_144356_GeneBank.fsa,
+  #/home/nas-hs/projs/galba-isoseq/data/Arabidopsis_thaliana/m54053_190801_010311_GeneBank.fsa,
+  #/home/nas-hs/projs/galba-isoseq/data/Arabidopsis_thaliana/m54053_190801_112235_GeneBank.fsa,
+  #/home/nas-hs/projs/galba-isoseq/data/Arabidopsis_thaliana/m54053_190801_214205_GeneBank.fsa
 ]
+protein: /home/s-amknut/GALBA/tools/proteins.fasta
+#protein: /home/s-amknut/GALBA/tools/entireArabProteins.txt
+#/home/nas-hs/projs/galba-isoseq/data/Arabidopsis_thaliana/proteins/proteins.fa
+#/home/nas-hs/projs/galba-isoseq/data/Arabidopsis_thaliana/proteins/make.doc
