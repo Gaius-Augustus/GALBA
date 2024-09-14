@@ -5,7 +5,7 @@ import subprocess
 import sys
 import os
 import yaml
-import re
+from Bio import SeqIO
 
 #VARIABLES 
 cwd = os.getcwd()
@@ -153,7 +153,7 @@ def mapping_short(rnaseq_paired_sets, rnaseq_single_sets):
             if file_format(rnaseq_single_sets[0]) == "fastq":
                 format_option = ""
             string_with_sets = ",".join(rnaseq_single_sets)
-            output_1 = "alignment_single_rnaseq.sam" 
+            output_1 = "alignment_single_rnaseq_test1.sam" 
             hisat2_command = [
                     "hisat2",  
                     format_option,                       
@@ -187,7 +187,7 @@ def mapping_short(rnaseq_paired_sets, rnaseq_single_sets):
                 format_option = ""
             string_with_first = ",".join(rnaseq_paired_sets[0::2])
             string_with_second = ",".join(rnaseq_paired_sets[1::2])
-            output_2 = "alignment_paired_rnaseq.sam" 
+            output_2 = "alignment_paired_rnaseq_test1.sam" 
             hisat2_command = [
                     "hisat2", 
                     format_option,                       
@@ -216,8 +216,8 @@ def mapping_short(rnaseq_paired_sets, rnaseq_single_sets):
 
 def mapping_long(genome, isoseq_sets):
     try :
-        output_sam = "alignment_isoseq.sam" 
-        minimap2_command = ["minimap2", "-ax", "splice", "-uf", "-C5", genome] + isoseq_sets + ["-o", output_sam]
+        output_sam = "alignment_isoseq_test1.sam" #threads neu prüfen
+        minimap2_command = ["minimap2", "-ax", "splice", "-uf", "-C5", genome, "-t", str(threads)] + isoseq_sets + ["-o", output_sam]
         #Threads noch hinzufügen
         #We can use -C5 for reads with low error rates like isoseq 
 
@@ -243,6 +243,8 @@ def sam_to_bam(sam_file_list):
             samtools_command = [
                 "samtools",
                 "sort",
+                "-@",
+                str(threads), #NEU THREADS HINZUGEFÜGT
                 samfile,
                 "-o",
                 output_bam
@@ -264,7 +266,7 @@ def sam_to_bam(sam_file_list):
 def merge_bam_files(bamfile_1, bamfile_2): 
     try:
         print("Merging bam files " + bamfile_1 + " and " + bamfile_2 + "...")
-        output_bam = "alignment_merged_rnaseq.bam"
+        output_bam = "alignment_merged_rnaseq_test1.bam"
         command1 = [
             "samtools",
             "merge",
@@ -273,7 +275,7 @@ def merge_bam_files(bamfile_1, bamfile_2):
             output_bam,
             bamfile_1,
             bamfile_2
-        ] 
+        ] #keine threads, denn sequenziell nicht parallel
         result = subprocess.run(command1, capture_output=True) 
         #print(result.stdout)
         #print(result.stderr)
@@ -286,28 +288,25 @@ def merge_bam_files(bamfile_1, bamfile_2):
     except Exception:
         print("Could not run samtools command.")
 
-def assembling(mode, alignment_rnaseq, alignment_isoseq):
+def assembling(alignment_rnaseq, alignment_isoseq):
     try:
         print("Assembling the reads...")
-        output_gtf = "transcripts.gtf"
-        alignment_rnaseq = "alignment_paired_rnaseq.bam"
-        alignment_isoseq = "alignment_isoseq.bam"
-        #command = "stringtie -p "+str(threads)+" -o "+output_gtf+" "+bamFile
-        #command = "stringtie -o transcripts.gtf --mix rnaseqMappingMerged.bam isoseqMappingMerged.bam" 
-        #command = "stringtie " + shortBamFile + " " + longBamFile + " -o " + output_gtf
-        #if mode == "mixed":
+        output_gtf = "transcripts_mixed_test1.gtf"
+        #alignment_rnaseq = "alignment_paired_rnaseq_test1.bam"
+        #alignment_isoseq = "alignment_isoseq.bam"
+
         if args.mixed:
-            "Hallo in args.mixed von assembling"
             command_mixed = [  #-p str(threads) noch hinzufügen
                 "stringtie",
+                "-p",
+                str(threads),
                 "-o",
                 output_gtf,
                 "--mix",
                 alignment_rnaseq,
                 alignment_isoseq
             ]
-            #print("Running command: ", command)
-            #result = os.system("stringtie --mix -o transcripts.gtf alignment_paired_rnaseq.bam alignment_isoseq.bam") #Reminder: Didnt work with subprocess.run, maybe need a better solution?
+
             result = subprocess.run(command_mixed, capture_output=True)
 
             if result.returncode == 0:
@@ -317,7 +316,6 @@ def assembling(mode, alignment_rnaseq, alignment_isoseq):
                 print("Error during Assembly of rnaseq and isoseq reads")
 
         if args.rnaseq:
-        #if mode == "rnaseq":
             print("In args.rnaseq von assmebling")
             command_rnaseq = [
                 "stringtie",
@@ -334,7 +332,6 @@ def assembling(mode, alignment_rnaseq, alignment_isoseq):
             else:
                 print("Error during Assembly of rnaseq reads")
             
-        #if mode == "isoseq":
         if args.isoseq:
             command_isoseq = [
                 "stringtie",
@@ -357,10 +354,9 @@ def assembling(mode, alignment_rnaseq, alignment_isoseq):
         print("Could not run stringtie command.")
 
 
-
 def orfsearching(genome_fa, transcripts_gtf):
     try:
-        output_fa = "transcripts.fasta" 
+        output_fa = "transcripts_test1.fasta" 
         gffread_command = [
             "gffread",
             "-w",
@@ -383,12 +379,13 @@ def orfsearching(genome_fa, transcripts_gtf):
         print("Could not run gffread command.")
         sys.exit(1)
 
+    #No threads option for Transdecoder (ChatGPT says option would be to split input files)
     try:
         print("Extract the long open reading frames...")
         longORF_command = [
             "TransDecoder.LongOrfs",
             "-t",
-            "transcripts.fasta"
+            output_fa
         ]
        
         #print("Running command:", "".join(transdecoder_command))
@@ -408,7 +405,7 @@ def orfsearching(genome_fa, transcripts_gtf):
         predict_command = [
             "TransDecoder.Predict",
             "-t",
-            "transcripts.fasta"
+            output_fa
         ]
        
         #print("Running command:", "".join(transdecoder_command))
@@ -426,51 +423,34 @@ def protein_aligning(genome, protein, alignment_scoring):
         #output_aln = "protein_alignment.aln"
         command = [
             "miniprot",
+            "-t",
+            str(threads),
             genome,
             protein,
             "--aln"
-            ">",
+            "-o",
             "miniprot.aln"
         ]
-        print("Aligning protein to genome...")
+        print("Aligning proteins to genome...")
 
-        with open("mini.aln", "w") as aln_file:
-            "Kein Problem"
-            result = subprocess.run(command, stdout=aln_file, capture_output=True)
-
+        result = subprocess.run(command, capture_output=True)
         if result.returncode == 0:
             print("Proteins aligned successfully")
         else:
             print("Error during protein alignment with miniprot")
+            print("stdout:", result.stdout.decode())
+            print("stderr:", result.stderr.decode())
 
     except Exception:
         print("Could not run miniprot command.")
         sys.exit(1)
 
     try: 
-        #command = [
-         #   "miniprot_boundary_scorer",
-          #  "-o",
-           # "miniprot_parsed.gff",
-            #"-s",
-            #alignment_scoring,
-            #"<",
-            #"miniprot.aln"
-        #]
-        
-        #print("Running command:", " ".join(command))
+        command = f"miniprot_boundary_scorer -o miniprot_parsed.gff -s {alignment_scoring} < miniprot.aln"
+        print("Running command:", command)
         print("Scoring the alignment...")
-        #result = os.system("miniprot_boundary_scorer < miniprot.aln -o miniprot_parsed.gff -s /home/s-amknut/GALBA/tools/BLOSUM62_.csv")
-        command = [
-            "miniprot_boundary_scorer",
-            "-o",
-            "miniprot_parsed.gff",
-            "-s",
-            alignment_scoring
-        ] 
         
-        #with open("miniprot.aln", "r") as aln_file:
-        result = subprocess.run(command, capture_output=True)
+        result = subprocess.run(command, shell=True, capture_output=True)
 
         if result.returncode == 0:
             print("Alignment scored successfully with miniprot_boundary_scorer!")
@@ -483,33 +463,127 @@ def protein_aligning(genome, protein, alignment_scoring):
         print("Could not run miniprot_boundary_scorer command.")
         sys.exit(1)
 
-    command = [
-        "miniprothint.py",
-        "miniprot_parsed.gff"
-    ]
+    try:
+        command = [
+            "miniprothint.py",
+            "miniprot_parsed.gff",
+            "--workdir",
+            "miniprothint"
+        ]
+
+        print("Creating hints for Augustus...")
+
+        result = subprocess.run(command, capture_output=True)
+
+        if result.returncode == 0:
+            print("Hints created successfully")
+        else:
+            print("Error during creating hints by miniprothint")
+            print("stdout:", result.stdout.decode())
+            print("stderr:", result.stderr.decode())
+            print(result.stderr)
+        
+    except Exception:
+        print("Could not run miniprothint command.")
+        sys.exit(1)
+    
+def correct_incomplete_Orfs(transdecoder_pep):
+    with open("compare_cds.fasta", "w") as output:
+        for record in SeqIO.parse(transdecoder_pep, "fasta"):
+            if "type:5prime_partial" in record.description or "type:internal" in record.description:
+                m_position = record.seq.find("M")
+                #print("First Methionine in record ", record.id, " is located at Position ", m_position)
+                if m_position == -1:
+                    record.description = record.description + " suggestion: none"
+                    SeqIO.write(record, output, "fasta")
+                else:
+                    description = record.description
+                    record.description = description + " suggestion: long"
+                    SeqIO.write(record, output, "fasta")
+                    record.seq = record.seq[m_position:]
+                    record.description = description + " suggestion: short"
+                    SeqIO.write(record, output, "fasta")
+            else:
+                record.description = record.description + " suggestion: none"
+                SeqIO.write(record, output, "fasta")
+
+def validating_ORFs(protein_file, transdecoder_file):
+    try:
+        command = [
+            "diamond",
+            "makedb",
+            "--in",
+            protein_file,
+            "-d",
+            "protein_db"
+        ]
+        result = subprocess.run(command, capture_output=True)
+
+        if result.returncode == 0:
+            print("Database created successfully")
+        else:
+            print("Error during creating database")
+            print(result.stderr)
+    
+    except Exception:
+        print("Could not run diamond makedb command.")
+        sys.exit(1)
+    
+    try:
+        command = [
+            "diamond",
+            "blastp",
+            "-d",
+            "protein_db",
+            "-q",
+            transdecoder_file,
+            "-o",
+            "transdecoder_blastp_results.tsv"
+        ]
+        result = subprocess.run(command, capture_output=True)
+
+        if result.returncode == 0:
+            print("Blastp search completed successfully")
+        else:
+            print("Error during blastp search")
+            print(result.stderr)
+    
+    except Exception:
+        print("Could not run diamond blastp command.")
+        sys.exit(1)
+
 
 def load_config(config_file):
     with open(config_file, "r") as config_file:
         input_files = yaml.safe_load(config_file)
         return input_files
 
+#def correct_incomplete_Orfs(transdecoder_pep):
+   # for record in SeqIO.parse(transdecoder_pep, "fasta"):
+    #    if "type:complete" in record.description:
+      #      continue
+       # if "type:5prime_partial" in record.description:
+        #    seq = record.seq
+            #for i in range(len(seq)-1, 2, -3):  
+
 #MAIN
 parser = argparse.ArgumentParser(description='Genome annotation with transcriptomic data like RNA-seq and Iso-seq data')  
-parser.add_argument('-t', default=4, help='Number of threads (default=4)', required=False)
-parser.add_argument('-y', help='Config file input', metavar='<config.yaml>', required=True) #required=True
+parser.add_argument('-t', '--threads', default=4, help='Number of threads (default=4)', required=False)
+parser.add_argument('-y', '--config', help='Config file input', metavar='<config.yaml>', required=False) #required=True
 
 parser.add_argument('--isoseq', action='store_true', help='Use this option if you want to process isoseq data only')
 parser.add_argument('--rnaseq', action='store_true', help='Use this option if you want to process rnaseq data only')
 parser.add_argument('--mixed', action='store_true', help='Use this option if you want to process both rnaseq and isoseq data')
 
 args = parser.parse_args()
-threads = args.t
-input_files = load_config(args.y)
+threads = args.threads
+input_files = load_config(args.config)
 genome_file = input_files["genome"]
 rnaseq_paired_sets = input_files.get("rnaseq_paired_sets", []) #Wenn Liste nicht vorhanden, dann leere Liste
 rnaseq_single_sets = input_files.get("rnaseq_single_sets", [])
 isoseq_sets = input_files.get("isoseq_sets", [])
 protein_file = input_files["protein"] #optional?
+
 
 #Intercept if given data doesnt match the chosen option  
 if rnaseq_paired_sets == [] and rnaseq_single_sets == [] and isoseq_sets == []:
@@ -534,35 +608,30 @@ if (rnaseq_paired_sets == [] and rnaseq_single_sets == []) or (isoseq_sets == []
 process_rnaseq = args.rnaseq or args.mixed
 process_isoseq = args.isoseq or args.mixed
 
-print("Protein alignment mit anderem command von website")
+#print("*********************************TESTPHASE1*****************************************")
+#print("Mixed, alle Daten, nur mapping und sam_to_bam")
+#print("Protein nur miniprothint")
 '''
 if process_rnaseq:
     #indexing(genome_file)
     alignments_list = mapping_short(rnaseq_paired_sets, rnaseq_single_sets)
-    sam_to_bam(alignments_list)
-    if len(alignments_list) > 1:
-        alignment_rnaseq = merge_bam_files(alignments_list[0], alignments_list[1])
+    sam_to_bam(alignments_list)    
+    if len(alignments_list) > 1:    #NOCHMAL PRÜFEN OB HIER WIRKLICH BAMFILES ÜBERGEBEN WERDEN
+        alignment_rnaseq = file_name(merge_bam_files(alignments_list[0], alignments_list[1])) + ".bam"
     else:
-        alignment_rnaseq = alignments_list[0]
+        alignment_rnaseq = file_name(alignments_list[0]) + ".bam"
 
 if process_isoseq:
     alignment_isoseq = mapping_long(genome_file, isoseq_sets)
     sam_file_list = [alignment_isoseq]
     sam_to_bam(sam_file_list) 
+    alignment_isoseq = file_name(alignment_isoseq) + ".bam"
 '''
-#if args.rnaseq and not args.mixed:
- #   assembling("rnaseq", "alignment_paired_rnaseq.bam", "") #Namen noch ersetzen zu alignment_rnaseq 
+#assembling(alignment_rnaseq, alignment_isoseq)  #Für alleine testen leer machen
+#orfsearching(genome_file, "transcripts_mixed_test1.gtf")  #Vielleicht eher Was returned wurde als input übergeben
+#protein_aligning(genome_file, protein_file, "/home/s-amknut/GALBA/tools/blosum62_1.csv") 
+validating_ORFs(protein_file, "compare_cds.fasta")
 
-#if args.isoseq and not args.mixed:
- #   assembling("isoseq", "", "alignment_isoseq.bam")
-
-if args.mixed: 
-    assembling("mixed", "alignment_paired_rnaseq.bam", "alignment_isoseq.bam") 
-
-#assembling("", "", "")
-#orfsearching(genome_file, "transcripts.gtf") 
-#protein_aligning("/home/s-amknut/GALBA/tools/genome.fasta", "/home/s-amknut/GALBA/tools/proteins.fasta" , "/home/s-amknut/GALBA/tools/BLOSUM62_.csv") 
-'''
 #TO DOs:
 #-Variablen und Funktionsnamen anpassen
 #-Funktion die prüft ob files vorhanden wie CreateThis() von GeneMark 
@@ -576,21 +645,34 @@ if args.mixed:
 #-Vielleicht noch Option einbauen, dass nur einmal Pfad angegeben werden muss und sonst nur Namen der Files
 #-Abfangen, wenn keine files in config liegen/Unter dem falschen Listennamen
 #-Threads überall hinzufügen
+#-f-strings da einfügen wo möglich
+#-überlegen, wo Scoring Matrix eingefügt werden soll (Eine vorgeben oder von Nutzer hinzufügen lassen?)
+#-Threads max. rausfinden und festlegen
 
 #FRAGEN:
 #-Sollte ich mit -G die stringtie Option nutzen, eine Referenzannotation zu verwenden? --> Diese dann in die yaml file oder parser?
 #-Optionen in Ordnung oder noch Unterscheidung zwischen single und paired-end?
-#-Input: Wann -- und wann - und wann beides?
 #-Ist es richtig, dass man single-end und paired-end beide nutzt? Oder wird in der Regel nur eins davon genutzt?
 #-Soll die Übergabe von Proteinfiles optional sein?
 #-Richtig, dass alle erstellten files in cwd gespeichert werden? Soll ich Funktion einfügen, dass man sich das aussuchen kann wohin?
-#-Abfangen, wenn Tools nicht gefunden werden trotz Dockerfile
+#-Scoring Matrix von Nutzer einfügen lassen oder selbst eine vorgeben?
 
+#-Gibt es eine Möglichkeit die ORFs zu verifizieren, also die .pep file an miniprot zu übergeben und die Ergebnisse zu prüfen?
+#-Training von AUGUSTUS auch in meiner Hand? Wenn ja, passiert das vorher?
 
-MINIPROT
-Aligning protein to genome...
-Error during protein alignment
-b'[M::mp_ntseq_read@0.039*0.84] read 3000000 bases in 1 contigs\n[M::mp_idx_build@0.039*0.84] 23438 blocks\n[M::mp_idx_build@0.133*1.63] collected syncmers\n[M::mp_idx_build@0.195*1.43] 1661344 kmer-block pairs\n[M::mp_idx_print_stat] 811093 distinct k-mers; mean occ of infrequent k-mers: 2.05; 0 frequent k-mers accounting for 0 occurrences\n[M::worker_pipeline::83.313*2.00] mapped 2755 sequences\n[M::worker_pipeline::171.820*2.00] mapped 2655 sequences\n[M::worker_pipeline::249.358*2.00] mapped 2753 sequences\n[M::worker_pipeline::256.960*2.00] mapped 200 sequences\n[M::main] 
-ERROR during mapping > (check files exists and are amino acid fastas)\n'
+#Plan:
+#-Transdecoder macht ORF prediction -> Davor intron hints von spliced rnaseq daten wie bei genemark?
+#-miniprot macht protein alignment
+#-Proteinalignment von miniprot mit dem von Transdecoder vergleichen -> Prediction ergänzen oder verwerfen???
+#-Mit miniprot trainingsgenen Augustus trainieren und hc hints an Augustus übergeben
 
-'''
+#Oder:
+#-Transdecoder macht ORF prediction -> Davor intron hints von spliced rnaseq daten wie bei genemark?
+#-Diamond nutzt .pep file von Transdecoder und sucht homologe Proteine 
+#-Spaln aligniert die homologen Proteine zurück ans Genom, um predictions genauer zu machen 
+
+#In GeneMark:
+#-3 Arten hints:
+#-Transcript + protein support (Bei mir vielleicht Diamond)
+#-Transcript + ab initio support (Bei mir vielleicht Augustus)
+#-Nur Protein support (Bei mir vielleicht miniprot)
