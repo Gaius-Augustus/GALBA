@@ -144,13 +144,6 @@ RUN cd /opt && \
   #  cd seqtk && \ #seqtk auch aus ENV Path rausgenommen
    # make
 
-#RUN cd /opt && \
- #   git clone https://github.com/alekseyzimin/eviann.git && \
-  #  cd eviann && \
-   # tar -xvzf TransDecoder-v5.7.1.tar.gz && \
-    #rm TransDecoder-v5.7.1.tar.gz && \
-    #make
-
 RUN cd /opt && \
     git clone https://github.com/TransDecoder/TransDecoder.git && \
     cd TransDecoder && \
@@ -223,6 +216,10 @@ RUN pip install pygustus && \
     fix-permissions "${CONDA_DIR}" && \
     fix-permissions "/home/${NB_USER}"
 
+#From Amrei:
+RUN pip install --no-cache-dir pandas && \
+    fix-permissions "${CONDA_DIR}" && \
+    fix-permissions "/home/${NB_USER}"
 #Amrei: Probably needed for yaml
 #RUN pip install pyyaml
 
