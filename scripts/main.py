@@ -5,6 +5,8 @@ import subprocess
 import sys
 import os
 import yaml
+import pandas as pd
+import math
 from Bio import SeqIO
 
 #VARIABLES 
@@ -487,26 +489,116 @@ def protein_aligning(genome, protein, alignment_scoring):
         print("Could not run miniprothint command.")
         sys.exit(1)
     
-def correct_incomplete_Orfs(transdecoder_pep):
-    with open("compare_cds.fasta", "w") as output:
-        for record in SeqIO.parse(transdecoder_pep, "fasta"):
-            if "type:5prime_partial" in record.description or "type:internal" in record.description:
-                m_position = record.seq.find("M")
-                #print("First Methionine in record ", record.id, " is located at Position ", m_position)
-                if m_position == -1:
-                    record.description = record.description + " suggestion: none"
-                    SeqIO.write(record, output, "fasta")
-                else:
-                    description = record.description
-                    record.description = description + " suggestion: long"
-                    SeqIO.write(record, output, "fasta")
-                    record.seq = record.seq[m_position:]
-                    record.description = description + " suggestion: short"
-                    SeqIO.write(record, output, "fasta")
-            else:
-                record.description = record.description + " suggestion: none"
-                SeqIO.write(record, output, "fasta")
+#def correct_incomplete_Orfs(transdecoder_pep):
+ #   try:
+  #      with open("compare_cds.fasta", "w") as output:
+   #         for record in SeqIO.parse(transdecoder_pep, "fasta"):
+    #            if "type:5prime_partial" in record.description or "type:internal" in record.description:
+     #               m_position = record.seq.find("M")
+      #              #print("First Methionine in record ", record.id, " is located at Position ", m_position)
+       #             if m_position == -1:
+        #                record.id = record.id + ":none"
+         #               SeqIO.write(record, output, "fasta")
+          #          else:
+           #             id = record.id
+            #            record.id = id + ":long"
+             #           SeqIO.write(record, output, "fasta")
+              #          record.seq = record.seq[m_position:]
+               #         record.id = id + ":short"
+                #        SeqIO.write(record, output, "fasta")
+               # else:
+                #    record.id = record.id + ":none"
+                 #   SeqIO.write(record, output, "fasta")
+    
+ #   except Exception:
+  #      print("Could not write input file for Diamond.")
+   #     sys.exit(1)
 
+def correct_incomplete_Orfs(transdecoder_pep):
+    try:
+        short_start_dict = {}
+        with open("shortened_candidates.pep", "w") as output:
+            for record in SeqIO.parse(transdecoder_pep, "fasta"):
+                if "type:5prime_partial" in record.description or "type:internal" in record.description:
+                    m_position = record.seq.find("M")
+                    if m_position != -1:
+                        record.seq = record.seq[m_position:]
+                        record.description = "Shortend sequence on from Position "+str(m_position) #NEU noch zu TESTEN (19.09.)
+                        SeqIO.write(record, output, "fasta")
+                        short_start_dict[record.id] = m_position
+        return short_start_dict
+    except Exception:
+        print("Could not write input file for Diamond.")
+        sys.exit(1)
+
+def validating_ORFs(protein_file, shortened_pep, normal_pep):
+    try:
+        command = [
+            "diamond",
+            "makedb",
+            "--in",
+            protein_file,
+            "-d",
+            "protein_db"
+        ]
+        result = subprocess.run(command, capture_output=True)
+
+        if result.returncode == 0:
+            print("Database created successfully")
+        else:
+            print("Error during creating database")
+            print(result.stderr)
+    
+    except Exception:
+        print("Could not run diamond makedb command.")
+        sys.exit(1)
+    
+    try:
+        command = [
+            "diamond",
+            "blastp",
+            "-d",
+            "protein_db",
+            "-q",
+            shortened_pep,
+            "-o",
+            "diamond_shortened.tsv"
+        ]
+        result = subprocess.run(command, capture_output=True)
+
+        if result.returncode == 0:
+            print("Blastp search completed successfully for complete CDS candidates")
+        else:
+            print("Error during blastp search for complete CDS candidates")
+            print(result.stderr)
+    
+    except Exception:
+        print("Could not run diamond blastp command for complete CDS candidates.")
+        sys.exit(1)
+
+    try:
+        command = [
+            "diamond",
+            "blastp",
+            "-d",
+            "protein_db",
+            "-q",
+            normal_pep,
+            "-o",
+            "diamond_normal.tsv"
+        ]
+       # result = subprocess.run(command, capture_output=True)
+
+        #if result.returncode == 0:
+         #   print("Blastp search completed successfully for incomplete CDS candidates")
+        #else:
+         #   print("Error during blastp search for incomplete CDS candidates")
+          #  print(result.stderr)
+    
+    except Exception:
+        print("Could not run diamond blastp command for incomplete CDS candidates.")
+        sys.exit(1)
+'''
 def validating_ORFs(protein_file, transdecoder_file):
     try:
         command = [
@@ -538,7 +630,7 @@ def validating_ORFs(protein_file, transdecoder_file):
             "-q",
             transdecoder_file,
             "-o",
-            "transdecoder_blastp_results.tsv"
+            "diamond_blastp_results.tsv"
         ]
         result = subprocess.run(command, capture_output=True)
 
@@ -551,20 +643,121 @@ def validating_ORFs(protein_file, transdecoder_file):
     except Exception:
         print("Could not run diamond blastp command.")
         sys.exit(1)
+'''
+def analysing_diamond_results(shortened_tsv, normal_tsv, short_start_dict):
+    header_list = ["cdsID", "proteinID", "percIdentMatches", "alignLength", "mismatches", "gapOpenings", "alignStart", "alignEnd", "proteinStart", "proteinEnd", "eValue", "bitScore"]
+    df_shortened = pd.read_csv(shortened_tsv, delimiter='\t', header=None, names=header_list)
+    df_normal = pd.read_csv(normal_tsv, delimiter='\t', header=None, names=header_list)
+    merged_df = pd.merge(df_shortened, df_normal, on=["cdsID", "proteinID"], suffixes=('_short', '_normal'))
+    merged_df = merged_df.drop(columns=["alignLength_short", "alignLength_normal", "mismatches_short", "mismatches_normal", "gapOpenings_short", "gapOpenings_normal", "alignEnd_short", "alignEnd_normal", "proteinEnd_short", "proteinEnd_normal", "eValue_short", "eValue_normal"])
+    merged_df["shortStart"] = merged_df["cdsID"].map(short_start_dict)
+    #Muss noch dran denken die cdsIDs von denen es keine shorts gibt zu berücksichtigen, die sind nicht in merged_df
+    #merged_df = merged_df.drop_duplicates(subset=["cdsID", "proteinID_short", "proteinID_normal"])
+    merged_df["supportScore"] = None
+    merged_df["classification"] = None
+    #test_df = merged_df[merged_df.index >2445]
+    count = 0
+    for i, cds in merged_df.iterrows():
+        q_incomplete_start = cds["proteinStart_normal"]
+        t_incomplete_start = cds["alignStart_normal"]
+        t_complete_start = cds["alignStart_short"] + cds["shortStart"] -1 #both 1-based so -1 to not count one position twice
+        aai_incomplete = cds["percIdentMatches_normal"]
+        aai_complete = cds["percIdentMatches_short"]
+        if aai_complete == 0:
+            aai_complete = 0.0001
+        if aai_incomplete == 0:
+            aai_incomplete = 0.0001
+        match_log = math.log(aai_incomplete/aai_complete)
+        #maybe betrag nehmen
+        support_score = (t_complete_start - t_incomplete_start) - (q_incomplete_start - 1) + match_log**1000
+        merged_df.at[i, "supportScore"] = support_score
+        #if support_score > 0:
+         #   count += 1
+    #print(count)
+    
+    merged_df["bitScore_max"] = merged_df[["bitScore_short", "bitScore_normal"]].max(axis=1)
+    top_25_df = pd.DataFrame()
+    grouped = merged_df.groupby("cdsID")
+    #from here on it takes a lot of runtime because of .append() and .iterrows()
+    for groupname, groupdata in grouped:
+        sorted_group = groupdata.sort_values(by="bitScore_max", ascending=False)
+        top_25_df = top_25_df.append(sorted_group.head(25)) #Select the best 25 alignments and add them to new dataframe
+
+    classifications = {}
+    for i, cds in top_25_df.iterrows():
+        if cds["supportScore"] > 0:
+            classifications[cds["cdsID"]] = "incomplete"
+        else:
+            classifications[cds["cdsID"]] = "complete"
+    print(classifications)
+    
+    #print(count) #Short better 2303 vs normal better 165
+    #print(top_25_per_cds)
+    #no_shortened_candidates = df_normal[~df_normal["cdsID"].isin(df_shortened["cdsID"])]
+    #no_shortened_candidates["classification"] = "complete"
+    #final_df = pd.concat([merged_df, no_shortened_candidates], ignore_index=True)
+
+    pd.set_option('display.max_columns', None)
+    #print(top_25_df)
+    #merged_df['bitScore_diff'] = merged_df['bitScore_short'] - merged_df['bitScore_normal']
+    #print(merged_df.head())
+    #print(final_df)
+
+'''
+Normal:
+STRG.10016.1.p1	prot521	56.0	125	55	0	1	125	187	311	7.82e-43	143
+STRG.10016.1.p1	prot853	35.8	123	70	4	8	125	159	277	2.29e-15	67.0
+STRG.10016.1.p1	prot852	36.8	117	65	5	8	119	143	255	5.01e-14	63.2
+STRG.10017.1.p2	prot660	29.4	68	42	2	1	64	61	126	6.42e-05	38.1
+STRG.10034.1.p1	prot1315	47.4	137	40	4	34	169	20	125	7.81e-26	103
+STRG.10039.1.p1	prot1288	56.7	127	49	4	40	162	28	152	1.66e-40	139
+STRG.10039.1.p1	prot837	35.6	132	79	2	37	162	21	152	8.57e-23	89.7
+STRG.10057.1.p1	prot1266	33.8	195	59	9	65	256	43	170	3.02e-18	76.3
+STRG.10090.1.p1	prot691	28.2	387	231	8	17	382	66	426	3.35e-39	143
+STRG.10101.1.p1	prot64	56.2	169	69	3	1	168	146	310	1.65e-54	175
+STRG.10101.1.p3	prot64	58.1	31	13	0	47	77	89	119	1.19e-04	35.8 
+
+Shortened:
+STRG.10016.1.p1	prot521	55.8	113	50	0	2	114	199	311	1.79e-37	128
+STRG.10016.1.p1	prot853	35.6	118	67	4	2	114	164	277	3.55e-14	63.2
+STRG.10016.1.p1	prot852	36.6	112	62	5	2	108	148	255	5.75e-13	59.7
+STRG.10039.1.p1	prot1288 56.7	127	49	4	29	151	28	152	1.14e-40	139
+STRG.10039.1.p1	prot837	35.6	132	79	2	26	151	21	152	6.26e-23	89.7
+STRG.10110.1.p1	prot1201 44.4	99	55	0	148	246	803	901	1.01e-22	92.8
+STRG.10174.1.p1	prot1095 40.7	216	124	3	28	242	316	528	7.82e-50	169
+STRG.10174.1.p1	prot446	31.4	242	162	3	1	242	609	846	9.54e-45	156
+STRG.10174.1.p1	prot447	31.4	242	162	3	1	242	609	846	9.54e-45	156
+STRG.10174.1.p1	prot448	31.4	242	162	3	1	242	609	846	9.54e-45	156
+'''
+
+
+    #calculate support score
+    #grouped = df_shortened.groupby("cdsID")
+    #for groupname, groupdata in grouped:
+        #none_version = group['cdsID'].str.contains(":long")
+        #df[none_version, "supScore"] = "hi"
+        #long_version = group[group['cdsID'].str.contains(":long")]
+        #short_version = group[group['cdsID'].str.contains(":short")]
+        # Print the group keys and indices
+
+        #print(f"Group: {groupname}")
+        #print(groupdata)
+        #print()  # For better readability
+    #for i, (group_name, group_data) in enumerate(grouped):
+     #   if i < 3:  # Only print the first 3 groups
+      #      print(f"Group: {group_name}")
+       #     print(group_data)
+        #    print()  # For readability
+        #else:
+         #   break
+
+    #print(df.head())
 
 
 def load_config(config_file):
     with open(config_file, "r") as config_file:
         input_files = yaml.safe_load(config_file)
         return input_files
-
-#def correct_incomplete_Orfs(transdecoder_pep):
-   # for record in SeqIO.parse(transdecoder_pep, "fasta"):
-    #    if "type:complete" in record.description:
-      #      continue
-       # if "type:5prime_partial" in record.description:
-        #    seq = record.seq
-            #for i in range(len(seq)-1, 2, -3):  
 
 #MAIN
 parser = argparse.ArgumentParser(description='Genome annotation with transcriptomic data like RNA-seq and Iso-seq data')  
@@ -630,7 +823,9 @@ if process_isoseq:
 #assembling(alignment_rnaseq, alignment_isoseq)  #Für alleine testen leer machen
 #orfsearching(genome_file, "transcripts_mixed_test1.gtf")  #Vielleicht eher Was returned wurde als input übergeben
 #protein_aligning(genome_file, protein_file, "/home/s-amknut/GALBA/tools/blosum62_1.csv") 
-validating_ORFs(protein_file, "compare_cds.fasta")
+short_start_dict = correct_incomplete_Orfs("transcripts.fasta.transdecoder.pep")
+#validating_ORFs(protein_file, "shortened_candidates.pep", "transcripts.fasta.transdecoder.pep")
+analysing_diamond_results("diamond_shortened.tsv", "diamond_normal.tsv", short_start_dict)
 
 #TO DOs:
 #-Variablen und Funktionsnamen anpassen
@@ -648,6 +843,7 @@ validating_ORFs(protein_file, "compare_cds.fasta")
 #-f-strings da einfügen wo möglich
 #-überlegen, wo Scoring Matrix eingefügt werden soll (Eine vorgeben oder von Nutzer hinzufügen lassen?)
 #-Threads max. rausfinden und festlegen
+#-Outputnamen vom Nutzer festlegen lassen und dann einzelne outputs an den Namen anpassen
 
 #FRAGEN:
 #-Sollte ich mit -G die stringtie Option nutzen, eine Referenzannotation zu verwenden? --> Diese dann in die yaml file oder parser?
