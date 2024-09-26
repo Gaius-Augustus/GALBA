@@ -4,6 +4,7 @@ import argparse
 import subprocess
 import sys
 import os
+import re
 import yaml
 import pandas as pd
 import math
@@ -598,53 +599,8 @@ def validating_ORFs(protein_file, shortened_pep, normal_pep):
     except Exception:
         print("Could not run diamond blastp command for incomplete CDS candidates.")
         sys.exit(1)
-'''
-def validating_ORFs(protein_file, transdecoder_file):
-    try:
-        command = [
-            "diamond",
-            "makedb",
-            "--in",
-            protein_file,
-            "-d",
-            "protein_db"
-        ]
-        result = subprocess.run(command, capture_output=True)
 
-        if result.returncode == 0:
-            print("Database created successfully")
-        else:
-            print("Error during creating database")
-            print(result.stderr)
-    
-    except Exception:
-        print("Could not run diamond makedb command.")
-        sys.exit(1)
-    
-    try:
-        command = [
-            "diamond",
-            "blastp",
-            "-d",
-            "protein_db",
-            "-q",
-            transdecoder_file,
-            "-o",
-            "diamond_blastp_results.tsv"
-        ]
-        result = subprocess.run(command, capture_output=True)
-
-        if result.returncode == 0:
-            print("Blastp search completed successfully")
-        else:
-            print("Error during blastp search")
-            print(result.stderr)
-    
-    except Exception:
-        print("Could not run diamond blastp command.")
-        sys.exit(1)
-'''
-def analysing_diamond_results(shortened_tsv, normal_tsv, short_start_dict):
+def get_cds_classification(shortened_tsv, normal_tsv, short_start_dict):
     header_list = ["cdsID", "proteinID", "percIdentMatches", "alignLength", "mismatches", "gapOpenings", "alignStart", "alignEnd", "proteinStart", "proteinEnd", "eValue", "bitScore"]
     df_shortened = pd.read_csv(shortened_tsv, delimiter='\t', header=None, names=header_list)
     df_normal = pd.read_csv(normal_tsv, delimiter='\t', header=None, names=header_list)
@@ -655,12 +611,13 @@ def analysing_diamond_results(shortened_tsv, normal_tsv, short_start_dict):
     #merged_df = merged_df.drop_duplicates(subset=["cdsID", "proteinID_short", "proteinID_normal"])
     merged_df["supportScore"] = None
     merged_df["classification"] = None
-    #test_df = merged_df[merged_df.index >2445]
+    #test_df = merged_df[merged_df.index<61]
     count = 0
     for i, cds in merged_df.iterrows():
+    #for i, cds in test_df.iterrows():
         q_incomplete_start = cds["proteinStart_normal"]
         t_incomplete_start = cds["alignStart_normal"]
-        t_complete_start = cds["alignStart_short"] + cds["shortStart"] -1 #both 1-based so -1 to not count one position twice
+        t_complete_start = cds["alignStart_short"] + cds["shortStart"]  #not -1 because alignmentstart is 1-based but Mposition not
         aai_incomplete = cds["percIdentMatches_normal"]
         aai_complete = cds["percIdentMatches_short"]
         if aai_complete == 0:
@@ -671,38 +628,109 @@ def analysing_diamond_results(shortened_tsv, normal_tsv, short_start_dict):
         #maybe betrag nehmen
         support_score = (t_complete_start - t_incomplete_start) - (q_incomplete_start - 1) + match_log**1000
         merged_df.at[i, "supportScore"] = support_score
-        #if support_score > 0:
-         #   count += 1
-    #print(count)
+        if t_complete_start < t_incomplete_start:
+            print("cdsID: ", cds["cdsID"] , "incomplete Start: ", t_incomplete_start, "complete Start: ", t_complete_start)
     
-    merged_df["bitScore_max"] = merged_df[["bitScore_short", "bitScore_normal"]].max(axis=1)
-    top_25_df = pd.DataFrame()
+    merged_df["bitScore_max"] = merged_df[["bitScore_short", "bitScore_normal"]].max(axis=1) #FRAGE: Hier richtig über bitscore das beste alignment zu finden?
     grouped = merged_df.groupby("cdsID")
     #from here on it takes a lot of runtime because of .append() and .iterrows()
+    classifications = {}
     for groupname, groupdata in grouped:
         sorted_group = groupdata.sort_values(by="bitScore_max", ascending=False)
-        top_25_df = top_25_df.append(sorted_group.head(25)) #Select the best 25 alignments and add them to new dataframe
-
-    classifications = {}
-    for i, cds in top_25_df.iterrows():
-        if cds["supportScore"] > 0:
-            classifications[cds["cdsID"]] = "incomplete"
+        incomplete = False
+        for i, cds in sorted_group.head(25).iterrows():
+            if cds["supportScore"] > 0:
+                incomplete = True
+                break
+        if incomplete:
+            classifications[cds["cdsID"]] = "incomplete" #112 13.8%
         else:
-            classifications[cds["cdsID"]] = "complete"
-    print(classifications)
-    
-    #print(count) #Short better 2303 vs normal better 165
-    #print(top_25_per_cds)
-    #no_shortened_candidates = df_normal[~df_normal["cdsID"].isin(df_shortened["cdsID"])]
-    #no_shortened_candidates["classification"] = "complete"
-    #final_df = pd.concat([merged_df, no_shortened_candidates], ignore_index=True)
+            classifications[cds["cdsID"]] = "complete" #699 86.2%
+            print("t_complete_start: ", cds["alignStart_normal"], "t_incomplete_start: ", cds["alignStart_short"] )
 
     pd.set_option('display.max_columns', None)
-    #print(top_25_df)
-    #merged_df['bitScore_diff'] = merged_df['bitScore_short'] - merged_df['bitScore_normal']
     #print(merged_df.head())
-    #print(final_df)
+    return classifications
 
+def from_transcript_to_genome_coords(stringtie_gtf, transdecoder_cds):
+    annotation_file = "annotation.gtf"
+    with open(transdecoder_cds, "r") as transdecoder, open(stringtie_gtf, "r") as stringtie, open(annotation_file, "w") as output:
+        for line in stringtie:
+            if line.startswith("#"):
+                continue
+            else:
+                output.write(line)
+                '''
+            part = line.strip().split('\t')
+            seqname = part[0]
+            source = part[1]
+            feature = part[2]
+            start = part[3]
+            end = part[4]
+            score = part[5]
+            strand = part[6]
+            frame = part[7]
+            attributes = part[8]
+            gene_id = re.search(r'gene_id "([^"]+)"', attributes)
+            gene_id = gene_id.group(1)
+            transcript_id = re.search(r'transcript_id "([^"]+)"', attributes)
+            transcript_id = transcript_id.group(1)
+
+            if feature == 'transcript':
+                output.write(f"{seqname}\t{source}\ttranscript\t{start}\t{end}\t{score}\t{strand}\t{frame}\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
+                result = subprocess.run(['grep', f'transcript_id "{transcript_id}"', transdecoder],
+                                capture_output=True, text=True, check=True)
+                #print(result.stdout)
+            
+            elif feature == 'exon':
+                exon = re.search(r'exon_number "([^"]+)"', attributes)
+                exon = exon.group(1)
+                output.write(f"{seqname}\t{source}\texon\t{start}\t{end}\t{score}\t{strand}\t{frame}\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\"; exon_number \"{exon}\";\n")
+             '''   
+
+
+
+'''
+Chr1	StringTie	transcript	3676	5861	1000	+	.	gene_id "STRG.1"; transcript_id "STRG.1.1"; cov "27.170204"; FPKM "4.147030"; TPM "5.471606";
+Chr1	StringTie	exon	3676	3913	1000	+	.	gene_id "STRG.1"; transcript_id "STRG.1.1"; exon_number "1"; cov "19.891108";
+'''
+    
+
+    
+
+#-Wann Incomplete CDS als HC bezeichnet?
+#-Wie kann ich aus Kategorisierung, also aus file mit neuen cds sequenzen, die GFF3/GTF Datei erstellen?
+
+'''
+Theorie:
+-High confidence CDS finden mit folgenden Kriterien:
+    Für complete:
+        > Wenn CDS mit irgendeinem Protein die Gleichung erfüllt wird CDS als HC kategorisiert
+    Für incomplete:
+        > Wenn irgendein Protein C-terminus (alignment Ende) abdeckt (Wie in Gleichung), wird CDS als HC kategorisiert
+        > Wenn das beste alignment nicht die Sequenz von Anfang an abdeckt, wird es gekürzt (?)
+    Ohne Protein support oder ohne Gleichung zu erfüllen:
+        > Betrachten nur die ohne Protein support
+        > Nur das längste CDS wird pro Gen ausgewählt für dieses muss gelten: (Nur längste ohne Protein support?)
+            > Länge >= 300 nucleotides 
+            > GMS-T log-odds score > 50,
+            > Complete
+            > InFrame Stop Codon in the 5' UTR
+            > No conflict with other gene prediction in same locus
+            > No overlap with other gene prediction in same locus
+                --> Mapping predicted gene to genome (?) and compare exon-intron structure with potentially conflicting MiniProthint prediction 
+            
+Plan:
+-In Kürzungsfunktion instant_complete_dictonary erstellen (Für complete und 3' partial) 
+-In Candidatesfunktion later_complete_dictonary mit gekürzte complete ORFS erstellen und incomplete_dictonary erstellen 
+-In normal.tsv Gleichung für instant_complete_ORFS berechnen und HC CDS in dictonary speichern (PARALELLISIEREN)
+-In short.tsv Gleichung für later_complete_ORFS berechnen und zu HC dictonary hinzufügen 
+-In normal.tsv für incomplete_dictonary prüfen, ob C-terminus abgedeckt ist und Gleichung erfüllt, dann zu HC dictonary hinzufügen 
+-
+-Neue Transdecoder.pep file mit neuen Ergebnissen 
+ODER alle complete durchgehen in bestehender pep file und bei incomplete
+    schauen ob gekürzt wurde. Wenn ja zum nächsten Element.
+'''
 '''
 Normal:
 STRG.10016.1.p1	prot521	56.0	125	55	0	1	125	187	311	7.82e-43	143
@@ -728,30 +756,95 @@ STRG.10174.1.p1	prot1095 40.7	216	124	3	28	242	316	528	7.82e-50	169
 STRG.10174.1.p1	prot446	31.4	242	162	3	1	242	609	846	9.54e-45	156
 STRG.10174.1.p1	prot447	31.4	242	162	3	1	242	609	846	9.54e-45	156
 STRG.10174.1.p1	prot448	31.4	242	162	3	1	242	609	846	9.54e-45	156
+
+STRINGTIE:
+Chr1	StringTie	transcript	3676	5861	1000	+	.	gene_id "STRG.1"; transcript_id "STRG.1.1"; cov "27.170204"; FPKM "4.147030"; TPM "5.471606";
+Chr1	StringTie	exon	3676	3913	1000	+	.	gene_id "STRG.1"; transcript_id "STRG.1.1"; exon_number "1"; cov "19.891108";
+Chr1	StringTie	exon	3996	4276	1000	+	.	gene_id "STRG.1"; transcript_id "STRG.1.1"; exon_number "2"; cov "15.570964";
+Chr1	StringTie	exon	4486	4605	1000	+	.	gene_id "STRG.1"; transcript_id "STRG.1.1"; exon_number "3"; cov "22.015558";
+Chr1	StringTie	exon	4706	5095	1000	+	.	gene_id "STRG.1"; transcript_id "STRG.1.1"; exon_number "4"; cov "31.399448";
+Chr1	StringTie	exon	5174	5326	1000	+	.	gene_id "STRG.1"; transcript_id "STRG.1.1"; exon_number "5"; cov "34.461781";
+Chr1	StringTie	exon	5439	5861	1000	+	.	gene_id "STRG.1"; transcript_id "STRG.1.1"; exon_number "6"; cov "33.396362";
+
+STRG.1.1	transdecoder	gene	1	1157	.	+	.	ID=GENE.STRG.1.1~~STRG.1.1.p1;Name="ORF type:5prime_partial (+),score=23.30"
+STRG.1.1	transdecoder	mRNA	1	1157	.	+	.	ID=STRG.1.1.p1;Parent=GENE.STRG.1.1~~STRG.1.1.p1;Name="ORF type:5prime_partial (+),score=23.30"
+STRG.1.1	transdecoder	exon	1	1157	.	+	.	ID=STRG.1.1.p1.exon1;Parent=STRG.1.1.p1
+STRG.1.1	transdecoder	CDS	3	461	.	+	0	ID=cds.STRG.1.1.p1;Parent=STRG.1.1.p1
+STRG.1.1	transdecoder	three_prime_UTR	462	1157	.	+	.	ID=STRG.1.1.p1.utr3p1;Parent=STRG.1.1.p1
+
+>STRG.1.1.p1 GENE.STRG.1.1~~STRG.1.1.p1  ORF type:5prime_partial (+),score=23.30 len:152 STRG.1.1:3-461(+)
+QSRQRNSGSYNTYSEYDSANHGQQFNENSNIMQQQPLQGSFNPLLEYDFANHGGQWLSDY
+
+Chr1	StringTie	transcript	6812	8720	1000	-	.	gene_id "STRG.2"; transcript_id "STRG.2.1"; cov "171.187973"; FPKM "5.001022"; TPM "7.711779";
+Chr1	StringTie	exon	6812	7069	1000	-	.	gene_id "STRG.2"; transcript_id "STRG.2.1"; exon_number "1"; cov "125.622360";
+Chr1	StringTie	exon	7157	7232	1000	-	.	gene_id "STRG.2"; transcript_id "STRG.2.1"; exon_number "2"; cov "230.052353";
+Chr1	StringTie	exon	7384	7450	1000	-	.	gene_id "STRG.2"; transcript_id "STRG.2.1"; exon_number "3"; cov "211.434280";
+Chr1	StringTie	exon	7564	7649	1000	-	.	gene_id "STRG.2"; transcript_id "STRG.2.1"; exon_number "4"; cov "219.834091";
+Chr1	StringTie	exon	7762	7835	1000	-	.	gene_id "STRG.2"; transcript_id "STRG.2.1"; exon_number "5"; cov "211.385376";
+Chr1	StringTie	exon	7942	7987	1000	-	.	gene_id "STRG.2"; transcript_id "STRG.2.1"; exon_number "6"; cov "209.836029";
+Chr1	StringTie	exon	8236	8325	1000	-	.	gene_id "STRG.2"; transcript_id "STRG.2.1"; exon_number "7"; cov "222.475906";
+Chr1	StringTie	exon	8417	8464	1000	-	.	gene_id "STRG.2"; transcript_id "STRG.2.1"; exon_number "8"; cov "227.134079";
+Chr1	StringTie	exon	8571	8720	1000	-	.	gene_id "STRG.2"; transcript_id "STRG.2.1"; exon_number "9"; cov "93.510895";
+
+STRG.9450.3	transdecoder	gene	1	1609	.	+	.	ID=GENE.STRG.9450.3~~STRG.9450.3.p1;Name="ORF type:complete (+),score=47.10"
+STRG.9450.3	transdecoder	mRNA	1	1609	.	+	.	ID=STRG.9450.3.p1;Parent=GENE.STRG.9450.3~~STRG.9450.3.p1;Name="ORF type:complete (+),score=47.10"
+STRG.9450.3	transdecoder	five_prime_UTR	1	840	.	+	.	ID=STRG.9450.3.p1.utr5p1;Parent=STRG.9450.3.p1
+STRG.9450.3	transdecoder	exon	1	1609	.	+	.	ID=STRG.9450.3.p1.exon1;Parent=STRG.9450.3.p1
+STRG.9450.3	transdecoder	CDS	841	1506	.	+	0	ID=cds.STRG.9450.3.p1;Parent=STRG.9450.3.p1
+STRG.9450.3	transdecoder	three_prime_UTR	1507	1609	.	+	.	ID=STRG.9450.3.p1.utr3p1;Parent=STRG.9450.3.p1
+
+ZIEL:
+Chr1    MAKER   gene            1000    5000    .       +       .       gene_id "gene1"; gene_name "Gene1"; 
+Chr1    MAKER   transcript      1000    5000    .       +       .       gene_id "gene1"; transcript_id "transcript1"; gene_name "Gene1"; 
+
+# Exons for the first transcript
+Chr1    MAKER   exon            1000    1200    .       +       .       gene_id "gene1"; transcript_id "transcript1"; exon_number "1"; 
+Chr1    MAKER   exon            2000    3000    .       +       .       gene_id "gene1"; transcript_id "transcript1"; exon_number "2"; 
+Chr1    MAKER   exon            4000    5000    .       +       .       gene_id "gene1"; transcript_id "transcript1"; exon_number "3"; 
+
+# Coding sequence (CDS) within these exons
+Chr1    MAKER   CDS             1050    1200    .       +       0       gene_id "gene1"; transcript_id "transcript1"; 
+Chr1    MAKER   CDS             2000    3000    .       +       2       gene_id "gene1"; transcript_id "transcript1"; 
+Chr1    MAKER   CDS             4000    4500    .       +       1       gene_id "gene1"; transcript_id "transcript1"; 
+
+# UTRs for completeness
+Chr1    MAKER   five_prime_UTR  1000    1049    .       +       .       gene_id "gene1"; transcript_id "transcript1"; 
+Chr1    MAKER   three_prime_UTR 4501    5000    .       +       .       gene_id "gene1"; transcript_id "transcript1"; 
+
+# A second transcript of the same gene with slightly different structure
+Chr1    MAKER   transcript      1000    4500    .       +       .       gene_id "gene1"; transcript_id "transcript2"; gene_name "Gene1"; 
+Chr1    MAKER   exon            1000    1500    .       +       .       gene_id "gene1"; transcript_id "transcript2"; exon_number "1"; 
+Chr1    MAKER   exon            2500    3500    .       +       .       gene_id "gene1"; transcript_id "transcript2"; exon_number "2"; 
+Chr1    MAKER   exon            4000    4500    .       +       .       gene_id "gene1"; transcript_id "transcript2"; exon_number "3"; 
+Chr1    MAKER   CDS             1100    1500    .       +       0       gene_id "gene1"; transcript_id "transcript2"; 
+Chr1    MAKER   CDS             2500    3500    .       +       2       gene_id "gene1"; transcript_id "transcript2"; 
+Chr1    MAKER   CDS             4000    4500    .       +       0       gene_id "gene1"; transcript_id "transcript2"; 
+Chr1    MAKER   five_prime_UTR  1000    1099    .       +       .       gene_id "gene1"; transcript_id "transcript2"; 
+Chr1    MAKER   three_prime_UTR 4501    4500    .       +       .       gene_id "gene1"; transcript_id "transcript2"; 
+
 '''
+def compare_annotation(transdecoder_gff3, example_gff3):
+    try:
+        command = [
+            "/home/s-amknut/GALBA/tools/gffcompare",
+            "-r",
+            example_gff3,
+            "-o comparison",
+            transdecoder_gff3
+        ]
+        result = subprocess.run(command, capture_output=True)
 
-
-    #calculate support score
-    #grouped = df_shortened.groupby("cdsID")
-    #for groupname, groupdata in grouped:
-        #none_version = group['cdsID'].str.contains(":long")
-        #df[none_version, "supScore"] = "hi"
-        #long_version = group[group['cdsID'].str.contains(":long")]
-        #short_version = group[group['cdsID'].str.contains(":short")]
-        # Print the group keys and indices
-
-        #print(f"Group: {groupname}")
-        #print(groupdata)
-        #print()  # For better readability
-    #for i, (group_name, group_data) in enumerate(grouped):
-     #   if i < 3:  # Only print the first 3 groups
-      #      print(f"Group: {group_name}")
-       #     print(group_data)
-        #    print()  # For readability
-        #else:
-         #   break
-
-    #print(df.head())
+        if result.returncode == 0:
+            print("Comparison completed successfully")
+        else:
+            print("Error during comparison")
+            print(result.stderr)
+    
+    except Exception:
+        print("Could not run gffcompare command.")
+        print(result.stderr)
+        print(result.stdout)
+        sys.exit(1)
 
 
 def load_config(config_file):
@@ -801,9 +894,6 @@ if (rnaseq_paired_sets == [] and rnaseq_single_sets == []) or (isoseq_sets == []
 process_rnaseq = args.rnaseq or args.mixed
 process_isoseq = args.isoseq or args.mixed
 
-#print("*********************************TESTPHASE1*****************************************")
-#print("Mixed, alle Daten, nur mapping und sam_to_bam")
-#print("Protein nur miniprothint")
 '''
 if process_rnaseq:
     #indexing(genome_file)
@@ -823,9 +913,13 @@ if process_isoseq:
 #assembling(alignment_rnaseq, alignment_isoseq)  #Für alleine testen leer machen
 #orfsearching(genome_file, "transcripts_mixed_test1.gtf")  #Vielleicht eher Was returned wurde als input übergeben
 #protein_aligning(genome_file, protein_file, "/home/s-amknut/GALBA/tools/blosum62_1.csv") 
-short_start_dict = correct_incomplete_Orfs("transcripts.fasta.transdecoder.pep")
+#short_start_dict = correct_incomplete_Orfs("transcripts.fasta.transdecoder.pep")
 #validating_ORFs(protein_file, "shortened_candidates.pep", "transcripts.fasta.transdecoder.pep")
-analysing_diamond_results("diamond_shortened.tsv", "diamond_normal.tsv", short_start_dict)
+#classifications_dict = get_cds_classification("diamond_shortened.tsv", "diamond_normal.tsv", short_start_dict)
+#annot = "/home/nas-hs/projs/galba-isoseq/data/Arabidopsis_thaliana/annot/pseudo.gff3"
+#compare_annotation("transdecoder.fasta.transdecoder.gff3", annot)
+from_transcript_to_genome_coords("transcripts.gtf", "transcripts.fasta.transdecoder.cds")
+
 
 #TO DOs:
 #-Variablen und Funktionsnamen anpassen
@@ -853,8 +947,10 @@ analysing_diamond_results("diamond_shortened.tsv", "diamond_normal.tsv", short_s
 #-Richtig, dass alle erstellten files in cwd gespeichert werden? Soll ich Funktion einfügen, dass man sich das aussuchen kann wohin?
 #-Scoring Matrix von Nutzer einfügen lassen oder selbst eine vorgeben?
 
-#-Gibt es eine Möglichkeit die ORFs zu verifizieren, also die .pep file an miniprot zu übergeben und die Ergebnisse zu prüfen?
+#-Wann Incomplete CDS als HC bezeichnet?
 #-Training von AUGUSTUS auch in meiner Hand? Wenn ja, passiert das vorher?
+#-Wieso steht in Doktorarbeit section 5.3.2.3 eine zweite Diamondsuche drin. Wir haben ja schon eine gemacht. 
+#-Wie vergleiche ich die Annotationen. Welche ist die finale, die von Transdecoder?
 
 #Plan:
 #-Transdecoder macht ORF prediction -> Davor intron hints von spliced rnaseq daten wie bei genemark?
