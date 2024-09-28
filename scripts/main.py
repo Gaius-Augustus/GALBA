@@ -652,51 +652,103 @@ def get_cds_classification(shortened_tsv, normal_tsv, short_start_dict):
     #print(merged_df.head())
     return classifications
 
-def from_transcript_to_genome_coords(stringtie_gtf, transdecoder_cds):
+def parse_transdecoder_file(transdecoder_pep):
+    transdecoder_id_dict = {}
+    for record in SeqIO.parse(transdecoder_pep, "fasta"):
+        id = record.id
+        #id = id.split(".p")[0]
+        #if id not in transdecoder_id_dict:
+        transdecoder_id_dict[id] = record.description.split(" ")
+    print(transdecoder_id_dict[id])
+    return transdecoder_id_dict
+ 
+def in_both_dicts(dict1, dict2):
+    not_in_dict1 = {}
+    count = 0
+    for key in dict1:
+        if key not in dict2:
+            not_in_dict1[key] = dict1[key]
+            count +=1
+            #print(key)
+    #print(not_in_dict1)
+    #print("Id in Trans but not in Stringtie: ", count)
+
+def from_transcript_to_genome_coords(stringtie_gtf, transdecoder_pep, transdecoder_id_dict):
     annotation_file = "annotation.gtf"
-    with open(transdecoder_cds, "r") as transdecoder, open(stringtie_gtf, "r") as stringtie, open(annotation_file, "w") as output:
+    with open(transdecoder_pep, "r") as transdecoder, open(stringtie_gtf, "r") as stringtie, open(annotation_file, "w") as output:
         for line in stringtie:
             if line.startswith("#"):
                 continue
             else:
-                output.write(line)
-                '''
-            part = line.strip().split('\t')
-            seqname = part[0]
-            source = part[1]
-            feature = part[2]
-            start = part[3]
-            end = part[4]
-            score = part[5]
-            strand = part[6]
-            frame = part[7]
-            attributes = part[8]
-            gene_id = re.search(r'gene_id "([^"]+)"', attributes)
-            gene_id = gene_id.group(1)
-            transcript_id = re.search(r'transcript_id "([^"]+)"', attributes)
-            transcript_id = transcript_id.group(1)
+                output.write(line)                 
+                part = line.strip().split('\t')
+                feature = part[2]
+                if feature == 'transcript':
+                    fields = line.strip().split('\t')
+                    seqname = fields[0]
+                    source = fields[1]
+                    feature = fields[2]
+                    start_genome = fields[3]
+                    stop_genome = fields[4]
+                    score = fields[5]
+                    strand = fields[6]
+                    frame = fields[7]
+                    attributes = fields[8]
+ 
+                    gene_id = re.search(r'gene_id "([^"]+)"', attributes)
+                    gene_id = gene_id.group(1)
+                    transcript_id = re.search(r'transcript_id "([^"]+)"', attributes)
+                    transcript_id = transcript_id.group(1)
+                    more_cds = True
+                    cds_number = 1
+                    while more_cds:
+                        transcript_id_transdecoder = transcript_id + ".p" + str(cds_number)
+                        #if cds_number == 1:
+                         #   transcript_length = 
+                        if transcript_id_transdecoder in transdecoder_id_dict:
+                            describtion = transdecoder_id_dict[transcript_id_transdecoder]
+                            start_cds_transcript = re.search(r":(\d+)-(\d+)\(\+\)", describtion[7])
+                            stop_cds_transcript = re.search(r":(\d+)-(\d+)\(\+\)", describtion[7])
+                            if start_cds_transcript and stop_cds_transcript:
+                                start_cds_transcript = start_cds_transcript.group(1)
+                                stop_cds_transcript = stop_cds_transcript.group(2)
+                                start_cds_genome = int(start_genome) + int(start_cds_transcript) - 1
+                                stop_cds_genome = int(start_genome) + int(stop_cds_transcript) - 1
+                                score_cds = re.search(r"score=([\d.]+)", describtion[7])
+                                output.write(f"{seqname}\ttransdecoder\tcds\t{start_cds_genome}\t{stop_cds_genome}\t{score}\t{strand}\t{frame}\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
+                            cds_number += 1
+                        else:
+                            more_cds = False 
 
-            if feature == 'transcript':
-                output.write(f"{seqname}\t{source}\ttranscript\t{start}\t{end}\t{score}\t{strand}\t{frame}\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
-                result = subprocess.run(['grep', f'transcript_id "{transcript_id}"', transdecoder],
-                                capture_output=True, text=True, check=True)
-                #print(result.stdout)
-            
-            elif feature == 'exon':
-                exon = re.search(r'exon_number "([^"]+)"', attributes)
-                exon = exon.group(1)
-                output.write(f"{seqname}\t{source}\texon\t{start}\t{end}\t{score}\t{strand}\t{frame}\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\"; exon_number \"{exon}\";\n")
-             '''   
-
-
-
+        #in_both_dicts(transdecoder_id_dict, stringtie_dict)         
 '''
 Chr1	StringTie	transcript	3676	5861	1000	+	.	gene_id "STRG.1"; transcript_id "STRG.1.1"; cov "27.170204"; FPKM "4.147030"; TPM "5.471606";
 Chr1	StringTie	exon	3676	3913	1000	+	.	gene_id "STRG.1"; transcript_id "STRG.1.1"; exon_number "1"; cov "19.891108";
-'''
-    
 
-    
+>STRG.1.1.p1 GENE.STRG.1.1~~STRG.1.1.p1  ORF type:5prime_partial (+),score=23.30 len:152 STRG.1.1:3-461(+)
+QSRQRNSGSYNTYSEYDSANHGQQFNENSNIMQQQPLQGSFNPLLEYDFANHGGQWLSDY
+
+Chr1    MAKER   transcript      1000    4500    .       +       .       gene_id "gene1"; transcript_id "transcript2"; gene_name "Gene1"; 
+Chr1    MAKER   exon            1000    1500    .       +       .       gene_id "gene1"; transcript_id "transcript2"; exon_number "1"; 
+Chr1    MAKER   exon            2500    3500    .       +       .       gene_id "gene1"; transcript_id "transcript2"; exon_number "2"; 
+Chr1    MAKER   exon            4000    4500    .       +       .       gene_id "gene1"; transcript_id "transcript2"; exon_number "3"; 
+Chr1    MAKER   CDS             1100    1500    .       +       0       gene_id "gene1"; transcript_id "transcript2"; 
+Chr1    MAKER   CDS             2500    3500    .       +       2       gene_id "gene1"; transcript_id "transcript2"; 
+Chr1    MAKER   CDS             4000    4500    .       +       0       gene_id "gene1"; transcript_id "transcript2"; 
+Chr1    MAKER   five_prime_UTR  1000    1099    .       +       .       gene_id "gene1"; transcript_id "transcript2"; 
+Chr1    MAKER   three_prime_UTR 4501    4500    .       +       .       gene_id "gene1"; transcript_id "transcript2"; 
+
+Chr1    Araport11       CDS     3760    3913    .       +       0       gene_id "AT1G01010"; transcript_id "AT1G01010.1"; cds_type "Initial"; count "1_6";
+Chr1    Araport11       CDS     3996    4276    .       +       2       gene_id "AT1G01010"; transcript_id "AT1G01010.1"; cds_type "Internal"; count "2_6";
+Chr1    Araport11       CDS     4486    4605    .       +       0       gene_id "AT1G01010"; transcript_id "AT1G01010.1"; cds_type "Internal"; count "3_6";
+Chr1    Araport11       CDS     4706    5095    .       +       0       gene_id "AT1G01010"; transcript_id "AT1G01010.1"; cds_type "Internal"; count "4_6";
+Chr1    Araport11       CDS     5174    5326    .       +       0       gene_id "AT1G01010"; transcript_id "AT1G01010.1"; cds_type "Internal"; count "5_6";
+Chr1    Araport11       CDS     5439    5630    .       +       0       gene_id "AT1G01010"; transcript_id "AT1G01010.1"; cds_type "Terminal"; count "6_6";
+Chr1    Araport11       intron  3914    3995    .       +       1       gene_id "AT1G01010"; transcript_id "AT1G01010.1"; count "1_5"; site_seq "GT_AG";
+Chr1    Araport11       intron  4277    4485    .       +       0       gene_id "AT1G01010"; transcript_id "AT1G01010.1"; count "2_5"; site_seq "GT_AG";
+Chr1    Araport11       intron  4606    4705    .       +       0       gene_id "AT1G01010"; transcript_id "AT1G01010.1"; count "3_5"; site_seq "GT_AG";
+Chr1    Araport11       intron  5096    5173    .       +       0       gene_id "AT1G01010"; transcript_id "AT1G01010.1"; count "4_5"; site_seq "GT_AG";
+'''
 
 #-Wann Incomplete CDS als HC bezeichnet?
 #-Wie kann ich aus Kategorisierung, also aus file mit neuen cds sequenzen, die GFF3/GTF Datei erstellen?
@@ -918,7 +970,12 @@ if process_isoseq:
 #classifications_dict = get_cds_classification("diamond_shortened.tsv", "diamond_normal.tsv", short_start_dict)
 #annot = "/home/nas-hs/projs/galba-isoseq/data/Arabidopsis_thaliana/annot/pseudo.gff3"
 #compare_annotation("transdecoder.fasta.transdecoder.gff3", annot)
-from_transcript_to_genome_coords("transcripts.gtf", "transcripts.fasta.transdecoder.cds")
+#transdecoder_id_dict = parse_transdecoder_file("transcripts.fasta.transdecoder.pep")
+#from_transcript_to_genome_coords("transcripts.gtf", "transcripts.fasta.transdecoder.cds", transdecoder_id_dict)
+transdecoder_id_dict = parse_transdecoder_file("transcripts_test1.fasta.transdecoder.pep")
+from_transcript_to_genome_coords("transcripts_mixed_test1.gtf", "transcripts_test1.fasta.transdecoder.pep", transdecoder_id_dict)
+
+
 
 
 #TO DOs:
