@@ -659,7 +659,7 @@ def parse_transdecoder_file(transdecoder_pep):
         #id = id.split(".p")[0]
         #if id not in transdecoder_id_dict:
         transdecoder_id_dict[id] = record.description.split(" ")
-    print(transdecoder_id_dict[id])
+    #print(transdecoder_id_dict)
     return transdecoder_id_dict
  
 def in_both_dicts(dict1, dict2):
@@ -679,46 +679,59 @@ def from_transcript_to_genome_coords(stringtie_gtf, transdecoder_pep, transdecod
         for line in stringtie:
             if line.startswith("#"):
                 continue
-            else:
-                output.write(line)                 
+            else:                
                 part = line.strip().split('\t')
+                seqname = part[0]
+                source = part[1]
                 feature = part[2]
+                start_genome = part[3]
+                stop_genome = part[4]
+                score = part[5]
+                strand = part[6]
+                frame = part[7]
+                attributes = part[8]
+
+                gene_id = re.search(r'gene_id "([^"]+)"', attributes)
+                gene_id = gene_id.group(1)
+                transcript_id = re.search(r'transcript_id "([^"]+)"', attributes)
+                transcript_id = transcript_id.group(1)
+                #Eventuell noch exon_number hinzufügen
+                #Soll score mit rein? Habs erstmal rausgenommen
                 if feature == 'transcript':
-                    fields = line.strip().split('\t')
-                    seqname = fields[0]
-                    source = fields[1]
-                    feature = fields[2]
-                    start_genome = fields[3]
-                    stop_genome = fields[4]
-                    score = fields[5]
-                    strand = fields[6]
-                    frame = fields[7]
-                    attributes = fields[8]
- 
-                    gene_id = re.search(r'gene_id "([^"]+)"', attributes)
-                    gene_id = gene_id.group(1)
-                    transcript_id = re.search(r'transcript_id "([^"]+)"', attributes)
-                    transcript_id = transcript_id.group(1)
+                    output.write(f"{seqname}\tPreGalba\tgenome\t{start_genome}\t{stop_genome}\t.\t{strand}\t{frame}\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
+                    output.write(f"{seqname}\tPreGalba\ttranscript\t{start_genome}\t{stop_genome}\t.\t{strand}\t{frame}\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
+
                     more_cds = True
                     cds_number = 1
                     while more_cds:
                         transcript_id_transdecoder = transcript_id + ".p" + str(cds_number)
-                        #if cds_number == 1:
-                         #   transcript_length = 
                         if transcript_id_transdecoder in transdecoder_id_dict:
                             describtion = transdecoder_id_dict[transcript_id_transdecoder]
-                            start_cds_transcript = re.search(r":(\d+)-(\d+)\(\+\)", describtion[7])
-                            stop_cds_transcript = re.search(r":(\d+)-(\d+)\(\+\)", describtion[7])
-                            if start_cds_transcript and stop_cds_transcript:
-                                start_cds_transcript = start_cds_transcript.group(1)
-                                stop_cds_transcript = stop_cds_transcript.group(2)
+                            cds_transcript_coords = re.search(r":(\d+)-(\d+)\(\+\)", describtion[7])
+                            if cds_transcript_coords:
+                                start_cds_transcript = cds_transcript_coords.group(1)
+                                stop_cds_transcript = cds_transcript_coords.group(2)
+                                print("ID: ", transcript_id_transdecoder, "Start in Transkript: ", start_cds_transcript, "Stop in Transkript: ", stop_cds_transcript)
                                 start_cds_genome = int(start_genome) + int(start_cds_transcript) - 1
                                 stop_cds_genome = int(start_genome) + int(stop_cds_transcript) - 1
-                                score_cds = re.search(r"score=([\d.]+)", describtion[7])
-                                output.write(f"{seqname}\ttransdecoder\tcds\t{start_cds_genome}\t{stop_cds_genome}\t{score}\t{strand}\t{frame}\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
+                                output.write(f"{seqname}\tPreGalba\tcds\t{start_cds_genome}\t{stop_cds_genome}\t.\t{strand}\t{frame}\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
                             cds_number += 1
                         else:
+                            #5'UTR und 3'UTR noch hinzufügen
                             more_cds = False 
+                if feature == 'exon':
+                    output.write(f"{seqname}\tPreGalba\texon\t{start_genome}\t{stop_genome}\t.\t{strand}\t{frame}\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
+                    exon_number = re.search(r'exon_number "([^"]+)"', attributes)
+                    exon_number = exon_number.group(1)
+                    if exon_number == "1":
+                        previous_exon_stop = stop_genome
+                    else:
+                        intron_start_genome = int(previous_exon_stop) + 1
+                        intron_stop_genome = int(start_genome) - 1
+                        previous_exon_stop = stop_genome
+                        output.write(f"{seqname}\tPreGalba\tintron\t{intron_start_genome}\t{intron_stop_genome}\t.\t{strand}\t{frame}\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
+
+
 
         #in_both_dicts(transdecoder_id_dict, stringtie_dict)         
 '''
@@ -821,7 +834,7 @@ Chr1	StringTie	exon	5439	5861	1000	+	.	gene_id "STRG.1"; transcript_id "STRG.1.1
 STRG.1.1	transdecoder	gene	1	1157	.	+	.	ID=GENE.STRG.1.1~~STRG.1.1.p1;Name="ORF type:5prime_partial (+),score=23.30"
 STRG.1.1	transdecoder	mRNA	1	1157	.	+	.	ID=STRG.1.1.p1;Parent=GENE.STRG.1.1~~STRG.1.1.p1;Name="ORF type:5prime_partial (+),score=23.30"
 STRG.1.1	transdecoder	exon	1	1157	.	+	.	ID=STRG.1.1.p1.exon1;Parent=STRG.1.1.p1
-STRG.1.1	transdecoder	CDS	3	461	.	+	0	ID=cds.STRG.1.1.p1;Parent=STRG.1.1.p1
+STRG.1.1	transdecoder	CDS   	3	461	    .	+	0	ID=cds.STRG.1.1.p1;Parent=STRG.1.1.p1
 STRG.1.1	transdecoder	three_prime_UTR	462	1157	.	+	.	ID=STRG.1.1.p1.utr3p1;Parent=STRG.1.1.p1
 
 >STRG.1.1.p1 GENE.STRG.1.1~~STRG.1.1.p1  ORF type:5prime_partial (+),score=23.30 len:152 STRG.1.1:3-461(+)
@@ -972,8 +985,10 @@ if process_isoseq:
 #compare_annotation("transdecoder.fasta.transdecoder.gff3", annot)
 #transdecoder_id_dict = parse_transdecoder_file("transcripts.fasta.transdecoder.pep")
 #from_transcript_to_genome_coords("transcripts.gtf", "transcripts.fasta.transdecoder.cds", transdecoder_id_dict)
-transdecoder_id_dict = parse_transdecoder_file("transcripts_test1.fasta.transdecoder.pep")
-from_transcript_to_genome_coords("transcripts_mixed_test1.gtf", "transcripts_test1.fasta.transdecoder.pep", transdecoder_id_dict)
+#transdecoder_id_dict = parse_transdecoder_file("transcripts_test1.fasta.transdecoder.pep")
+#from_transcript_to_genome_coords("transcripts_mixed_test1.gtf", "transcripts_test1.fasta.transdecoder.pep", transdecoder_id_dict)
+transdecoder_id_dict = parse_transdecoder_file("transcripts.fasta.transdecoder.pep")
+from_transcript_to_genome_coords("transcripts.gtf", "transcripts.fasta.transdecoder.pep", transdecoder_id_dict)
 
 
 
@@ -1003,6 +1018,7 @@ from_transcript_to_genome_coords("transcripts_mixed_test1.gtf", "transcripts_tes
 #-Soll die Übergabe von Proteinfiles optional sein?
 #-Richtig, dass alle erstellten files in cwd gespeichert werden? Soll ich Funktion einfügen, dass man sich das aussuchen kann wohin?
 #-Scoring Matrix von Nutzer einfügen lassen oder selbst eine vorgeben?
+#-Ist es richtig, dass ein Trankript nach dem splicing mehrere CDS haben kann? D.h. dass man UTR mittig hat?
 
 #-Wann Incomplete CDS als HC bezeichnet?
 #-Training von AUGUSTUS auch in meiner Hand? Wenn ja, passiert das vorher?
