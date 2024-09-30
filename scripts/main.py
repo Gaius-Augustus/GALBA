@@ -656,11 +656,43 @@ def parse_transdecoder_file(transdecoder_pep):
     transdecoder_id_dict = {}
     for record in SeqIO.parse(transdecoder_pep, "fasta"):
         id = record.id
-        #id = id.split(".p")[0]
+        id = id.split(".p")[0]
         #if id not in transdecoder_id_dict:
-        transdecoder_id_dict[id] = record.description.split(" ")
+        #transdecoder_id_dict[id] = record.description.split(" ")
+        describtion = record.description.split(" ")
+        cds_transcript_coords = re.search(r":(\d+)-(\d+)\(\+\)", describtion[7])
+        if cds_transcript_coords:
+            start_cds_transcript = cds_transcript_coords.group(1)
+            stop_cds_transcript = cds_transcript_coords.group(2)
+            cds_length = int(stop_cds_transcript) - int(start_cds_transcript) + 1
+            pair = (start_cds_transcript, stop_cds_transcript, cds_length)
+            if id not in transdecoder_id_dict:
+                transdecoder_id_dict[id] = [pair]
+            else:
+                transdecoder_id_dict[id].append(pair)
+
     #print(transdecoder_id_dict)
     return transdecoder_id_dict
+
+'''
+        more_cds = True
+        cds_number = 1
+        while more_cds:
+            transcript_id_transdecoder = transcript_id + ".p" + str(cds_number)
+            if transcript_id_transdecoder in transdecoder_id_dict:
+                describtion = transdecoder_id_dict[transcript_id_transdecoder]
+                cds_transcript_coords = re.search(r":(\d+)-(\d+)\(\+\)", describtion[7])
+                if cds_transcript_coords:
+                    start_cds_transcript = cds_transcript_coords.group(1)
+                    stop_cds_transcript = cds_transcript_coords.group(2)
+                    print("ID: ", transcript_id_transdecoder, "Start in Transkript: ", start_cds_transcript, "Stop in Transkript: ", stop_cds_transcript)
+                    start_cds_genome = int(start_genome) + int(start_cds_transcript) - 1
+                    stop_cds_genome = int(start_genome) + int(stop_cds_transcript) - 1
+                    output.write(f"{seqname}\tPreGalba\tcds\t{start_cds_genome}\t{stop_cds_genome}\t.\t{strand}\t{frame}\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
+                cds_number += 1
+        #print(transdecoder_id_dict)
+        return transdecoder_id_dict
+'''
  
 def in_both_dicts(dict1, dict2):
     not_in_dict1 = {}
@@ -675,7 +707,9 @@ def in_both_dicts(dict1, dict2):
 
 def from_transcript_to_genome_coords(stringtie_gtf, transdecoder_pep, transdecoder_id_dict):
     annotation_file = "annotation.gtf"
+    test = 0
     with open(transdecoder_pep, "r") as transdecoder, open(stringtie_gtf, "r") as stringtie, open(annotation_file, "w") as output:
+        exon_coords_list = []
         for line in stringtie:
             if line.startswith("#"):
                 continue
@@ -697,10 +731,48 @@ def from_transcript_to_genome_coords(stringtie_gtf, transdecoder_pep, transdecod
                 transcript_id = transcript_id.group(1)
                 #Eventuell noch exon_number hinzufügen
                 #Soll score mit rein? Habs erstmal rausgenommen
+                
                 if feature == 'transcript':
+                    #if test == 1:
+                     #   break
+                    #test = 1
+                    '''
+                    print("Listenlänge: ", len(exon_coords_list))
+                    if len(exon_coords_list) > 0:
+                        cds_index = 0
+                        exon_index = 0
+                        last_transcript_id = exon_coords_list[0][2]
+                        #Macht keinen sinn weil schon die transcript id vom nächsten Transkript genommen wird
+                        if last_transcript_id in transdecoder_id_dict:
+                            cds_list = transdecoder_id_dict[last_transcript_id]
+                            cds_start_transcript = cds_list[cds_index][0]
+                            cds_stop_transcript = cds_list[cds_index][1]
+                            cds_start_genome = int(start_genome) + int(cds_start_transcript) - 1
+                            cds_stop_genome = int(start_genome) + int(cds_stop_transcript) - 1
+                            five_prime_UTR_stop_transcript = int(cds_start_transcript) - 1
+                            five_prime_UTR_stop_genome = int(start_genome) + five_prime_UTR_stop_transcript - 1
+                            output.write(f"{seqname}\tPreGalba\tfive_prime_UTR\t{start_genome}\t{five_prime_UTR_stop_genome}\t.\t{strand}\t{frame}\tgene_id \"{gene_id}\"; transcript_id \"{last_transcript_id}\";\n")
+                            for exon in exon_coords_list:
+                                exon_start_genome = exon[0]
+                                exon_stop_genome = exon[1]
+                                if cds_stop_genome > int(exon_stop_genome):
+                                    cds_stop_genome = int(exon_stop_genome)
+                                    output.write(f"{seqname}\tPreGalba\tcds\t{cds_start_genome}\t{cds_stop_genome}\t.\t{strand}\t{frame}\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
+                                    cds_start_genome = cds_stop_genome + 1
+                                else:
+                                    output.write(f"{seqname}\tPreGalba\tcds\t{cds_start_genome}\t{cds_stop_genome}\t.\t{strand}\t{frame}\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
+                        exon_coords_list.clear()
+                    '''
+                        
                     output.write(f"{seqname}\tPreGalba\tgenome\t{start_genome}\t{stop_genome}\t.\t{strand}\t{frame}\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
                     output.write(f"{seqname}\tPreGalba\ttranscript\t{start_genome}\t{stop_genome}\t.\t{strand}\t{frame}\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
-
+                    if transcript_id in transdecoder_id_dict:
+                        cds_index = 0
+                        cds_current_length = 0
+                        new_cds = True
+                    else:
+                        new_cds = False
+                    '''
                     more_cds = True
                     cds_number = 1
                     while more_cds:
@@ -716,20 +788,88 @@ def from_transcript_to_genome_coords(stringtie_gtf, transdecoder_pep, transdecod
                                 stop_cds_genome = int(start_genome) + int(stop_cds_transcript) - 1
                                 output.write(f"{seqname}\tPreGalba\tcds\t{start_cds_genome}\t{stop_cds_genome}\t.\t{strand}\t{frame}\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
                             cds_number += 1
-                        else:
+                        #else:
                             #5'UTR und 3'UTR noch hinzufügen
-                            more_cds = False 
+                         #   more_cds = False 
+                '''
                 if feature == 'exon':
                     output.write(f"{seqname}\tPreGalba\texon\t{start_genome}\t{stop_genome}\t.\t{strand}\t{frame}\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
                     exon_number = re.search(r'exon_number "([^"]+)"', attributes)
                     exon_number = exon_number.group(1)
+                    #exon_coords_list.append((start_genome, stop_genome, transcript_id))
+                    
                     if exon_number == "1":
                         previous_exon_stop = stop_genome
+                       # exon_coords_list.append((start_genome, stop_genome, transcript_id))
+                        #new_cds = True
+                        #cds_index = 0
                     else:
                         intron_start_genome = int(previous_exon_stop) + 1
                         intron_stop_genome = int(start_genome) - 1
                         previous_exon_stop = stop_genome
                         output.write(f"{seqname}\tPreGalba\tintron\t{intron_start_genome}\t{intron_stop_genome}\t.\t{strand}\t{frame}\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
+        
+                            
+                    if transcript_id in transdecoder_id_dict:
+                        cds_list = transdecoder_id_dict[transcript_id]
+                        if new_cds == True:
+                            if len(cds_list) > cds_index:
+                                cds_start_transcript = cds_list[cds_index][0]
+                                cds_stop_transcript = cds_list[cds_index][1]
+                                cds_total_length = cds_list[cds_index][2]
+                                print("cds total length: ", cds_total_length)
+                                cds_start_genome = int(start_genome) + int(cds_start_transcript) - 1
+                                cds_stop_genome = int(start_genome) + int(cds_stop_transcript) - 1
+                                new_cds = False
+                            else:
+                                continue
+                       # else:
+                        #    cds_start_genome = cds_overstop + intron_stop_genome - intron_start_genome + 2
+                        print("cds_cuurent_length: ", cds_current_length)
+                        #if cds_stop_genome > int(stop_genome):
+                        if cds_current_length+int(stop_genome)-int(start_genome)+1<cds_total_length:
+                            print("hi")
+                            if cds_index != 0:
+                                print("CDS Index: ", cds_index)
+                                cds_start_genome = int(start_genome)
+                            output.write(f"{seqname}\tPreGalba\tcds\t{cds_start_genome}\t{stop_genome}\t.\t{strand}\t{frame}\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
+                            cds_current_length += int(stop_genome) - cds_start_genome + 1
+                            #cds_overstop = int(stop_genome)
+                        else:
+                           # output.write(f"{seqname}\tPreGalba\tcds\t{cds_start_genome}\t{cds_stop_genome}\t.\t{strand}\t{frame}\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
+                            #new_cds = True
+                            #cds_index += 1
+                            output.write(f"{seqname}\tPreGalba\tcds\t{start_genome}\t{cds_stop_genome}\t.\t{strand}\t{frame}\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
+                            new_cds = True
+                            cds_index += 1
+                        
+
+                        #Idee: In der Mitte einfach exon = cds und nur für erstes und letztes exon UTRs bestimmen
+
+                    '''
+                    if cds_index == 0:
+                        cds_list = transdecoder_id_dict[transcript_id]
+                        cds_start_transcript = cds_list[cds_index][0]
+                        cds_stop_transcript = cds_list[cds_index][1]
+                        five_prime_UTR_stop_transcript = int(cds_start_transcript) - 1
+                        five_prime_UTR_stop_genome = int(start_genome) + five_prime_UTR_stop_transcript - 1
+                        output.write(f"{seqname}\tPreGalba\tfive_prime_UTR\t{start_genome}\t{five_prime_UTR_stop_genome}\t.\t{strand}\t{frame}\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
+                        cds_start_genome = int(start_genome) + int(cds_start_transcript) - 1
+                        cds_stop_genome = int(start_genome) + int(cds_stop_transcript) - 1
+                        if cds_stop_genome > int(stop_genome):
+                            cds_stop_genome = int(stop_genome)
+                            output.write(f"{seqname}\tPreGalba\tcds\t{cds_start_genome}\t{cds_stop_genome}\t.\t{strand}\t{frame}\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
+                        else:
+                            output.write(f"{seqname}\tPreGalba\tcds\t{cds_start_genome}\t{cds_stop_genome}\t.\t{strand}\t{frame}\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
+                    '''
+
+                        #start_cds_genome = int(start_genome) + int(start_cds_transcript) - 1
+                        #stop_cds_genome = int(start_genome) + int(stop_cds_transcript) - 1
+                        #output.write(f"{seqname}\tPreGalba\tcds\t{start_cds_genome}\t{stop_cds_genome}\t.\t{strand}\t{frame}\tgene_id \"{gene_id}\"
+                        #cds_list = transdecoder_id_dict[transcript_id]
+                        #if cds_list[cds_index][0] 
+                        #print(cds_list)
+                    
 
 
 
