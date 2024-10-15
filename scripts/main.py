@@ -524,14 +524,65 @@ def correct_incomplete_Orfs(transdecoder_pep):
                     m_position = record.seq.find("M")
                     if m_position != -1:
                         record.seq = record.seq[m_position:]
-                        record.description = "Shortend sequence on from Position "+str(m_position) #NEU noch zu TESTEN (19.09.)
+                        description = record.description.split(" ")
+                        cds_transcript_coords = re.search(r":(\d+)-(\d+)\(\+\)", description[7])
+                        if cds_transcript_coords:
+                            start_cds_transcript = int(cds_transcript_coords.group(1)) + m_position - 1
+                            stop_cds_transcript = int(cds_transcript_coords.group(2))
+                        record.description = "Shortend sequence "+ str(start_cds_transcript) + "-" + str(stop_cds_transcript)
                         SeqIO.write(record, output, "fasta")
                         short_start_dict[record.id] = m_position
         return short_start_dict
     except Exception:
-        print("Could not write input file for Diamond.")
+        print("Error during writing shortened candidates .pep file.")
         sys.exit(1)
 
+def make_db_diamond(protein_file):
+    try:
+        command = [
+            "diamond",
+            "makedb",
+            "--in",
+            protein_file,
+            "-d",
+            "protein_db"
+        ]
+        result = subprocess.run(command, capture_output=True)
+
+        if result.returncode == 0:
+            print("Database created successfully")
+        else:
+            print("Error during creating database")
+            print(result.stderr)
+    
+    except Exception:
+        print("Could not run diamond makedb command.")
+        sys.exit(1)
+
+def validating_ORFs(transdecoder_pep, output_tsv):
+    try:
+        command = [
+            "diamond",
+            "blastp",
+            "-d",
+            "protein_db",
+            "-q",
+            transdecoder_pep,
+            "-o",
+            output_tsv
+        ]
+        result = subprocess.run(command, capture_output=True)
+
+        if result.returncode == 0:
+            print("Blastp search for completed successfully and ", output_tsv, " was created.")
+        else:
+            print("Error during blastp search for complete CDS candidates")
+            print(result.stderr)
+    
+    except Exception:
+        print("Could not run diamond blastp command for complete CDS candidates.")
+        sys.exit(1)
+'''
 def validating_ORFs(protein_file, shortened_pep, normal_pep):
     try:
         command = [
@@ -599,8 +650,9 @@ def validating_ORFs(protein_file, shortened_pep, normal_pep):
     except Exception:
         print("Could not run diamond blastp command for incomplete CDS candidates.")
         sys.exit(1)
-
+'''
 def get_cds_classification(shortened_tsv, normal_tsv, short_start_dict):
+    #Weil hier nach CDS-ID und nach Protein gemerged wird, werden einzelne herausgefiltert, die nicht in beiden vorkommen. 
     header_list = ["cdsID", "proteinID", "percIdentMatches", "alignLength", "mismatches", "gapOpenings", "alignStart", "alignEnd", "proteinStart", "proteinEnd", "eValue", "bitScore"]
     df_shortened = pd.read_csv(shortened_tsv, delimiter='\t', header=None, names=header_list)
     df_normal = pd.read_csv(normal_tsv, delimiter='\t', header=None, names=header_list)
@@ -608,13 +660,14 @@ def get_cds_classification(shortened_tsv, normal_tsv, short_start_dict):
     merged_df = merged_df.drop(columns=["alignLength_short", "alignLength_normal", "mismatches_short", "mismatches_normal", "gapOpenings_short", "gapOpenings_normal", "alignEnd_short", "alignEnd_normal", "proteinEnd_short", "proteinEnd_normal", "eValue_short", "eValue_normal"])
     merged_df["shortStart"] = merged_df["cdsID"].map(short_start_dict)
     #Muss noch dran denken die cdsIDs von denen es keine shorts gibt zu berücksichtigen, die sind nicht in merged_df
-    #merged_df = merged_df.drop_duplicates(subset=["cdsID", "proteinID_short", "proteinID_normal"])
     merged_df["supportScore"] = None
     merged_df["classification"] = None
     #test_df = merged_df[merged_df.index<61]
+
     count = 0
     for i, cds in merged_df.iterrows():
     #for i, cds in test_df.iterrows():
+        #count += 1
         q_incomplete_start = cds["proteinStart_normal"]
         t_incomplete_start = cds["alignStart_normal"]
         t_complete_start = cds["alignStart_short"] + cds["shortStart"]  #not -1 because alignmentstart is 1-based but Mposition not
@@ -628,8 +681,8 @@ def get_cds_classification(shortened_tsv, normal_tsv, short_start_dict):
         #maybe betrag nehmen
         support_score = (t_complete_start - t_incomplete_start) - (q_incomplete_start - 1) + match_log**1000
         merged_df.at[i, "supportScore"] = support_score
-        if t_complete_start < t_incomplete_start:
-            print("cdsID: ", cds["cdsID"] , "incomplete Start: ", t_incomplete_start, "complete Start: ", t_complete_start)
+        #if t_complete_start < t_incomplete_start:
+            #print("cdsID: ", cds["cdsID"] , "incomplete Start: ", t_incomplete_start, "complete Start: ", t_complete_start)
     
     merged_df["bitScore_max"] = merged_df[["bitScore_short", "bitScore_normal"]].max(axis=1) #FRAGE: Hier richtig über bitscore das beste alignment zu finden?
     grouped = merged_df.groupby("cdsID")
@@ -646,19 +699,57 @@ def get_cds_classification(shortened_tsv, normal_tsv, short_start_dict):
             classifications[cds["cdsID"]] = "incomplete" #112 13.8%
         else:
             classifications[cds["cdsID"]] = "complete" #699 86.2%
-            print("t_complete_start: ", cds["alignStart_normal"], "t_incomplete_start: ", cds["alignStart_short"] )
+            #print("t_complete_start: ", cds["alignStart_normal"], "t_incomplete_start: ", cds["alignStart_short"] )
 
     pd.set_option('display.max_columns', None)
     #print(merged_df.head())
+    #print(classifications)
+    #print(count)
     return classifications
+
+def get_optimized_pep_file(normal_pep, shortened_pep, classifications):
+    try:
+        with open("revised_candidates.pep", "w") as output:
+            shortened_pep_dict = {record.id: (record.seq, record.description) for record in SeqIO.parse(shortened_pep, "fasta")}
+            for record in SeqIO.parse(normal_pep, "fasta"):
+                if "type:5prime_partial" in record.description or "type:internal" in record.description:
+                    id = record.id
+                    if id in classifications:
+                        if classifications[id] == "incomplete":
+                            SeqIO.write(record, output, "fasta")
+                        else:
+                            seq = shortened_pep_dict[id][0]
+                            record.seq = seq
+                            if "type:5prime_partial" in record.description:
+                                description = record.description.replace("type:5prime_partial", "type:complete")
+                            else:
+                                description = record.description.replace("type:internal", "type:3prime_partial")
+                            record.description = description   
+                            SeqIO.write(record, output, "fasta")
+                    else:
+                        SeqIO.write(record, output, "fasta") #If there is no classification, there was no protein evidence found for the CDS 
+                                                            #(drüber nachdenken ob es sein kann, dass es nur für den normalen aber dafür für den kurzen evidenz gibt. Auch dann kommt cds in merged_df nicht vor)
+                else:
+                    SeqIO.write(record, output, "fasta")
+
+    except Exception:
+        print("Error during writing revised candidates .pep file.")
+        sys.exit(1)
+
+    #4691 sind in classifications nicht drin, aber in normal_pep als 5prime/ internal
+    #5502 sind in 5prime/internal in normal_pep
+    #310 sind in normal_pep als 5prime_partial oder internal, aber nicht in short_pep_dict, weil sie kein M enthalten!!!
+    #4682 sind in normal_pep als 5prime_partial oder internal, aber nicht in short_tsv
+    #820 elemente sind in short_tsv
+    #9 Elemente sind in short_tsv aber nicht in classifications -> Vermutung: Protein aligniert nur mit short oder nur mit normal und alignment taucht damit nicht in mergeddf auf
 
 def parse_transdecoder_file(transdecoder_pep):
     transdecoder_id_dict = {}
     for record in SeqIO.parse(transdecoder_pep, "fasta"):
         id = record.id
         id = id.split(".p")[0]
-        describtion = record.description.split(" ")
-        cds_transcript_coords = re.search(r":(\d+)-(\d+)\(\+\)", describtion[7])
+        description = record.description.split(" ")
+        cds_transcript_coords = re.search(r":(\d+)-(\d+)\(\+\)", description[7])
         if cds_transcript_coords:
             start_cds_transcript = int(cds_transcript_coords.group(1))
             stop_cds_transcript = int(cds_transcript_coords.group(2))
@@ -1055,7 +1146,6 @@ rnaseq_single_sets = input_files.get("rnaseq_single_sets", [])
 isoseq_sets = input_files.get("isoseq_sets", [])
 protein_file = input_files["protein"] #optional?
 
-
 #Intercept if given data doesnt match the chosen option  
 if rnaseq_paired_sets == [] and rnaseq_single_sets == [] and isoseq_sets == []:
     print("Error: No transcriptomic data found in config file. Please provide at least one set of RNA-seq or Iso-seq data.")
@@ -1098,20 +1188,21 @@ if process_isoseq:
 #assembling(alignment_rnaseq, alignment_isoseq)  #Für alleine testen leer machen
 #orfsearching(genome_file, "transcripts_mixed_test1.gtf")  #Vielleicht eher Was returned wurde als input übergeben
 #protein_aligning(genome_file, protein_file, "/home/s-amknut/GALBA/tools/blosum62_1.csv") 
-#short_start_dict = correct_incomplete_Orfs("transcripts.fasta.transdecoder.pep")
-#validating_ORFs(protein_file, "shortened_candidates.pep", "transcripts.fasta.transdecoder.pep")
-#classifications_dict = get_cds_classification("diamond_shortened.tsv", "diamond_normal.tsv", short_start_dict)
+short_start_dict = correct_incomplete_Orfs("transcripts.fasta.transdecoder.pep")
+make_db_diamond(protein_file)
+validating_ORFs("shortened_candidates.pep", "diamond_shortened.tsv")
+validating_ORFs("transcripts.fasta.transdecoder.pep", "diamond_normal.tsv")
+classifications_dict = get_cds_classification("diamond_shortened.tsv", "diamond_normal.tsv", short_start_dict)
+get_optimized_pep_file("transcripts.fasta.transdecoder.pep", "shortened_candidates.pep", classifications_dict)
+validating_ORFs("revised_candidates.pep", "diamond_revised.tsv")
 #annot = "/home/nas-hs/projs/galba-isoseq/data/Arabidopsis_thaliana/annot/pseudo.gff3"
 #compare_annotation("transdecoder.fasta.transdecoder.gff3", annot)
 #transdecoder_id_dict = parse_transdecoder_file("transcripts.fasta.transdecoder.pep")
 #from_transcript_to_genome_coords("transcripts.gtf", "transcripts.fasta.transdecoder.cds", transdecoder_id_dict)
 #transdecoder_id_dict = parse_transdecoder_file("transcripts_test1.fasta.transdecoder.pep")
 #from_transcript_to_genome_coords("transcripts_mixed_test1.gtf", "transcripts_test1.fasta.transdecoder.pep", transdecoder_id_dict)
-transdecoder_id_dict = parse_transdecoder_file("transcripts.fasta.transdecoder.pep")
-from_transcript_to_genome_coords("transcripts.gtf", "transcripts.fasta.transdecoder.pep", transdecoder_id_dict)
-
-
-
+#transdecoder_id_dict = parse_transdecoder_file("transcripts.fasta.transdecoder.pep")
+#from_transcript_to_genome_coords("transcripts.gtf", "transcripts.fasta.transdecoder.pep", transdecoder_id_dict)
 
 #TO DOs:
 #-Variablen und Funktionsnamen anpassen
@@ -1130,6 +1221,8 @@ from_transcript_to_genome_coords("transcripts.gtf", "transcripts.fasta.transdeco
 #-überlegen, wo Scoring Matrix eingefügt werden soll (Eine vorgeben oder von Nutzer hinzufügen lassen?)
 #-Threads max. rausfinden und festlegen
 #-Outputnamen vom Nutzer festlegen lassen und dann einzelne outputs an den Namen anpassen
+#-Nutze seqIO Funktion um pep file inhalt überall in dictionary zu speichern: shortened_pep_dict = SeqIO.to_dict(SeqIO.parse(shortened_pep, "fasta"))
+#-Optionen für einzelne Programe einführen, wie --genemark_path=/home/... oder --diamond_path=/home/...
 
 #FRAGEN:
 #-Sollte ich mit -G die stringtie Option nutzen, eine Referenzannotation zu verwenden? --> Diese dann in die yaml file oder parser?
