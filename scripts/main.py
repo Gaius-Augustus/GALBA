@@ -556,7 +556,7 @@ def validating_ORFs(transdecoder_pep, output_tsv):
         if result.returncode == 0:
             print("Blastp search for completed successfully and ", output_tsv, " was created.")
         else:
-            print("Error during blastp search for complete CDS candidates")
+            print("Error during diamond blastp search.")
             print(result.stderr)
     
     except Exception:
@@ -651,51 +651,53 @@ def get_hc_cds(diamond_tsv, classifications):
             if classifications[cdsID] == "3prime_partial" or classifications[cdsID] == "internal":
                 continue
     
-def get_optimized_pep_file(normal_pep, shortened_pep, classifications):
-    try:
-        with open("revised_candidates.pep", "w") as output:
-            shortened_pep_dict = {record.id: (record.seq, record.description) for record in SeqIO.parse(shortened_pep, "fasta")}
-            classifications_for_hc = {}
-    
-            for record in SeqIO.parse(normal_pep, "fasta"):
-                id = record.id
-                if "type:complete" in record.description:
-                    classification = "complete"
-                if "type:5prime_partial" in record.description:
-                    classification = "5prime_partial"
-                if "type:internal" in record.description:
-                    classification = "internal"
-                if "type:3prime_partial" in record.description:
-                    classification = "3prime_partial"
+def get_optimized_pep_file(normal_pep, shortened_pep, classifications, short_start_dict):
+    with open("revised_candidates.pep", "w") as output:
+        shortened_pep_dict = {record.id: (record.seq, record.description) for record in SeqIO.parse(shortened_pep, "fasta")}
+        classifications_for_hc = {}
+        for record in SeqIO.parse(normal_pep, "fasta"):
+            id = record.id
+            if "type:complete" in record.description:
+                classification = "complete"
+            if "type:5prime_partial" in record.description:
+                classification = "5prime_partial"
+            if "type:internal" in record.description:
+                classification = "internal"
+            if "type:3prime_partial" in record.description:
+                classification = "3prime_partial"
 
-                if classification == "5prime_partial" or classification == "internal":
-                    if id in classifications:
-                        if classifications[id] == "incomplete":
-                            SeqIO.write(record, output, "fasta")  
-                        else:
-                            seq = shortened_pep_dict[id][0]
-                            record.seq = seq
-                            if "type:5prime_partial" in record.description:
-                                description = record.description.replace("type:5prime_partial", "type:complete")
-                                classification = "complete"
-                            else:
-                                description = record.description.replace("type:internal", "type:3prime_partial")
-                                classification = "3prime_partial"
-                            record.description = description   
-                            SeqIO.write(record, output, "fasta")
+            if classification == "5prime_partial" or classification == "internal":
+                if id in classifications:
+                    if classifications[id] == "incomplete":
+                        SeqIO.write(record, output, "fasta")  
                     else:
-                        SeqIO.write(record, output, "fasta") #If there is no classification, there was no protein evidence found for the CDS 
-                        classifications[id] = "incomplete"   #(drüber nachdenken ob es sein kann, dass es nur für den normalen aber dafür für den kurzen evidenz gibt. Auch dann kommt cds in merged_df nicht vor)
+                        seq = shortened_pep_dict[id][0]
+                        record.seq = seq
+                        description = re.sub(r"len:\d+", f"len:{len(seq)-1}", record.description) #-1 damit * nicht gezählt wird
+                        coords = re.search(r":(\d+)-(\d+)\([\+\-]\)", description)
+                        start_normal = int(coords.group(1))
+                        start_short = start_normal + short_start_dict[id] * 3 #Nicht -1, denn m_position ist 0-based
+                        stop = int(coords.group(2))
+                        strand = coords.group(0)[-2]
+                        new_coords = f'{start_short}-{stop}({strand})'
+                        description = re.sub(r'(\d+-\d+\([\+\-]\))', new_coords, description)
+                        if "type:5prime_partial" in record.description:
+                            description = description.replace("type:5prime_partial", "type:complete")
+                            classification = "complete"
+                        else:
+                            description = description.replace("type:internal", "type:3prime_partial")
+                            classification = "3prime_partial"
+                        record.description = description   
+                        SeqIO.write(record, output, "fasta")
                 else:
-                    SeqIO.write(record, output, "fasta")
+                    SeqIO.write(record, output, "fasta") #If there is no classification, there was no protein evidence found for the CDS 
+                    classifications[id] = "incomplete"   #(drüber nachdenken ob es sein kann, dass es nur für den normalen aber dafür für den kurzen evidenz gibt. Auch dann kommt cds in merged_df nicht vor)
+            else:
+                SeqIO.write(record, output, "fasta")
 
-                classifications_for_hc[id] = classification
+            classifications_for_hc[id] = classification
 
         return classifications_for_hc
-                    
-    except Exception:
-        print("Error during writing revised candidates .pep file.")
-        sys.exit(1)
 
     #4691 sind in classifications nicht drin, aber in normal_pep als 5prime/ internal
     #5502 sind in 5prime/internal in normal_pep
@@ -710,17 +712,17 @@ def parse_transdecoder_file(transdecoder_pep):
         id = record.id
         id = id.split(".p")[0]
         description = record.description.split(" ")
-        cds_transcript_coords = re.search(r":(\d+)-(\d+)\(\+\)", description[7])
-        if cds_transcript_coords:
-            start_cds_transcript = int(cds_transcript_coords.group(1))
-            stop_cds_transcript = int(cds_transcript_coords.group(2))
-            cds_length = int(stop_cds_transcript) - int(start_cds_transcript) + 1
-            triple = (start_cds_transcript, stop_cds_transcript, cds_length)
-            if id not in transdecoder_id_dict:
-                transdecoder_id_dict[id] = [triple]
-            else:
-                transdecoder_id_dict[id].append(triple)
-            #transdecoder_id_dict[id].sort(key=lambda x: x[0])
+        cds_transcript_coords = re.search(r":(\d+)-(\d+)\((\+|\-)\)", description[7])
+        #if cds_transcript_coords:
+        start_cds_transcript = int(cds_transcript_coords.group(1))
+        stop_cds_transcript = int(cds_transcript_coords.group(2))
+        cds_length = int(stop_cds_transcript) - int(start_cds_transcript) + 1
+        triple = (start_cds_transcript, stop_cds_transcript, cds_length)
+        if id not in transdecoder_id_dict:
+            transdecoder_id_dict[id] = [triple]
+        else:
+            transdecoder_id_dict[id].append(triple)
+            
     filtered_dict = {id: val for id, val in transdecoder_id_dict.items() if len(val) == 1}
     return filtered_dict
 
@@ -768,7 +770,7 @@ def from_transcript_to_genome_coords(stringtie_gtf, transdecoder_id_dict): #bett
                             intron_stop = int(next_exon_start) - 1
                             print("Intron von: ", intron_start, "bis: ", intron_stop)
                             output.write(f"{seqname}\tPreGalba\tintron\t{intron_start}\t{intron_stop}\t.\t{strand}\t{frame}\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
-
+                    if len(exon_coords_list) > 0:
                         if transcript_id in transdecoder_id_dict:
                             cds_transcript_start = int(transdecoder_id_dict[transcript_id][0][0])
                             cds_transcript_stop = int(transdecoder_id_dict[transcript_id][0][1])
@@ -1008,24 +1010,22 @@ if process_isoseq:
 #assembling(alignment_rnaseq, alignment_isoseq)  #Für alleine testen leer machen
 #orfsearching(genome_file, "transcripts_mixed_test1.gtf")  #Vielleicht eher Was returned wurde als input übergeben
 #protein_aligning(genome_file, protein_file, "/home/s-amknut/GALBA/tools/blosum62_1.csv") 
-#short_start_dict = shorten_incomplete_Orfs("transcripts.fasta.transdecoder.pep")
-#print(short_start_dict)
+short_start_dict = shorten_incomplete_Orfs("transcripts_test1.fasta.transdecoder.pep")
 #make_diamond_db(protein_file)
 #validating_ORFs("shortened_candidates.pep", "diamond_shortened.tsv")
-#validating_ORFs("transcripts.fasta.transdecoder.pep", "diamond_normal.tsv")
-#classifications_dict = get_cds_classification("diamond_normal.tsv", "diamond_shortened.tsv", short_start_dict)
-#classifications_hc_dict = get_optimized_pep_file("transcripts.fasta.transdecoder.pep", "shortened_candidates.pep", classifications_dict)
+#make_diamond_db(protein_file)
+#validating_ORFs("transcripts_test1.fasta.transdecoder.pep", "diamond_normal.tsv")
+classifications_dict = get_cds_classification("diamond_normal.tsv", "diamond_shortened.tsv", short_start_dict)
+classifications_hc_dict = get_optimized_pep_file("transcripts_test1.fasta.transdecoder.pep", "shortened_candidates.pep", classifications_dict, short_start_dict)
+
+    
+
+#make_diamond_db(protein_file)
 #validating_ORFs("revised_candidates.pep", "diamond_revised.tsv")
 #get_hc_cds("diamond_revised.tsv", classifications_hc_dict)
 
-#annot = "/home/nas-hs/projs/galba-isoseq/data/Arabidopsis_thaliana/annot/pseudo.gff3"
-#compare_annotation("transdecoder.fasta.transdecoder.gff3", annot)
-transdecoder_id_dict = parse_transdecoder_file("transcripts_test1.fasta.transdecoder.pep")
-from_transcript_to_genome_coords("transcripts_mixed_test1.gtf", transdecoder_id_dict)
-#transdecoder_id_dict = parse_transdecoder_file("transcripts_test1.fasta.transdecoder.pep")
-#from_transcript_to_genome_coords("transcripts_mixed_test1.gtf", "transcripts_test1.fasta.transdecoder.pep", transdecoder_id_dict)
-#transdecoder_id_dict = parse_transdecoder_file("transcripts.fasta.transdecoder.pep")
-#from_transcript_to_genome_coords("transcripts.gtf", "transcripts.fasta.transdecoder.pep", transdecoder_id_dict)
+#transdecoder_id_dict = parse_transdecoder_file("revised_candidates.pep")
+#from_transcript_to_genome_coords("transcripts_mixed_test1.gtf", transdecoder_id_dict)
 
 #TO DOs:
 #-Variablen und Funktionsnamen anpassen
@@ -1097,4 +1097,18 @@ main.py mit allen rnaseq und isoseq Daten, nur bis transdecoder Aufruf (ohne Kat
 Intron chain level:    47.2     |    41.1    |
   Transcript level:    42.0     |    40.0    |
        Locus level:    55.5     |    65.9    |
+
+main.py mit allen rnaseq und isoseq Daten, nur bis transdecoder Aufruf (ohne Kategorisierung und ohne hc Filter):
+AUCH CDS VORHERGESAGT WENN NUR EIN EXON PRO TRANSCRIPT VORHANDEN
+
+#-----------------| Sensitivity | Precision  |
+        Base level:    83.2     |    65.3    |
+        Exon level:    60.7     |    56.8    |
+      Intron level:    86.8     |    82.5    |
+Intron chain level:    42.5     |    36.6    |
+  Transcript level:    37.5     |    35.7    |
+       Locus level:    49.6     |    63.1    |
+
+main.py mit allen rnaseq und isoseq Daten, nur bis transdecoder Aufruf (mit Kategorisierung und ohne hc Filter):
+
 '''
