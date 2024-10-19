@@ -773,10 +773,11 @@ def from_transcript_to_genome_coords(stringtie_gtf, transdecoder_id_dict): #bett
                             cds_transcript_start = int(transdecoder_id_dict[transcript_id][0][0])
                             cds_transcript_stop = int(transdecoder_id_dict[transcript_id][0][1])
                             cds_total_length = int(transdecoder_id_dict[transcript_id][0][2])
+                            print("CDS ist insgesamt so lang: ", cds_total_length)
                             print("CDS Koordinaten in Transkript: ", cds_transcript_start, cds_transcript_stop)
                             curr_transcript_length = 0
                             cds_current_length = 0
-                            for i in range(len(exon_coords_list)-1):
+                            for i in range(len(exon_coords_list)):
                                 curr_exon_start = int(exon_coords_list[i][0]) 
                                 curr_exon_stop = int(exon_coords_list[i][1])
                                 print("Exonkoordinaten vom aktuellen Exon: ", curr_exon_start, curr_exon_stop)
@@ -788,51 +789,73 @@ def from_transcript_to_genome_coords(stringtie_gtf, transdecoder_id_dict): #bett
                                     if curr_exon_start - curr_transcript_length + cds_transcript_start - 1 > curr_exon_stop: #GEÄNDERT
                                         x = curr_exon_start + cds_transcript_start - 1 #nochmal genau bestimmen GEÄNDERT
                                         print("CDS Startpunkt:", x , " liegt hinter Exonstoppunkt: ", curr_exon_stop, "Also zu nächstem Exon springen")
+                                        fivePrimeUTR_start = curr_exon_start
+                                        fivePrimeUTR_stop = curr_exon_stop
+                                        if strand == "+":
+                                            output.write(f"{seqname}\tPreGalba\tfive_prime_UTR\t{fivePrimeUTR_start}\t{fivePrimeUTR_stop}\t.\t{strand}\t{frame}\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
+                                        else:
+                                            output.write(f"{seqname}\tPreGalba\tthree_prime_UTR\t{fivePrimeUTR_start}\t{fivePrimeUTR_stop}\t.\t{strand}\t{frame}\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
                                         continue
                                     else: 
                                         cds_start_genome = curr_exon_start + int(cds_transcript_start) - curr_transcript_length - 1
                                         print("CDS Startpunkt liegt innerhalb des Exons bei: ", cds_start_genome)
                                         if cds_start_genome + cds_total_length - cds_current_length - 1 > curr_exon_stop: #GEÄNDERT
-                                        #if cds_current_length+curr_exon_stop-curr_exon_start+1<cds_total_length:
                                             print("CDS geht bis Exongrenze...")
                                             output.write(f"{seqname}\tPreGalba\tCDS\t{cds_start_genome}\t{curr_exon_stop}\t.\t{strand}\t{frame}\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
                                             print("CDS von: ", cds_start_genome, "bis: ", curr_exon_stop, "hinzugefügt")
                                             cds_current_length = curr_exon_stop - cds_start_genome + 1
                                             print("CDS aktuelle Länge: ", cds_current_length)
-                                            fivePrimeUTR_start = exon_coords_list[0][0]
+                                            fivePrimeUTR_start = curr_exon_start
                                             fivePrimeUTR_stop = cds_start_genome - 1
-                                            output.write(f"{seqname}\tPreGalba\tfive_prime_UTR\t{fivePrimeUTR_start}\t{fivePrimeUTR_stop}\t.\t{strand}\t{frame}\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
                                             start_codon_plus_start = cds_start_genome
                                             start_codon_plus_stop = cds_start_genome + 2
                                             if strand == "+":
                                                 output.write(f"{seqname}\tPreGalba\tstart_codon\t{start_codon_plus_start}\t{start_codon_plus_stop}\t.\t{strand}\t{frame}\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
+                                                if curr_exon_start != cds_start_genome:
+                                                    output.write(f"{seqname}\tPreGalba\tfive_prime_UTR\t{fivePrimeUTR_start}\t{fivePrimeUTR_stop}\t.\t{strand}\t{frame}\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
                                             else:
                                                 output.write(f"{seqname}\tPreGalba\tstop_codon\t{start_codon_plus_start}\t{start_codon_plus_stop}\t.\t{strand}\t{frame}\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
+                                                if curr_exon_start != cds_start_genome:
+                                                    output.write(f"{seqname}\tPreGalba\tthree_prime_UTR\t{fivePrimeUTR_start}\t{fivePrimeUTR_stop}\t.\t{strand}\t{frame}\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
 
                                         else:
                                             print("CDS innerhalb des Exons beendet...")
-                                            cds_stop_genome = int(curr_exon_start)+cds_total_length-cds_current_length - 1
+                                            cds_stop_genome = cds_start_genome + cds_total_length - 1
+                                            cds_current_length = cds_total_length
                                             print("Aktueller Exonstoppunkt: ", stop_genome)
                                             print("CDS Stoppunkt: ", cds_stop_genome)
                                             output.write(f"{seqname}\tPreGalba\tCDS\t{cds_start_genome}\t{cds_stop_genome}\t.\t{strand}\t{frame}\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
                                             fivePrimeUTR_start = curr_exon_start
                                             fivePrimeUTR_stop = cds_start_genome - 1
-                                            output.write(f"{seqname}\tPreGalba\tfive_prime_UTR\t{fivePrimeUTR_start}\t{fivePrimeUTR_stop}\t.\t{strand}\t{frame}\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
                                             threePrimeUTR_start = cds_stop_genome + 1
                                             threePrimeUTR_stop = curr_exon_stop
-                                            output.write(f"{seqname}\tPreGalba\tthree_prime_UTR\t{threePrimeUTR_start}\t{threePrimeUTR_stop}\t.\t{strand}\t{frame}\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
                                             print("CDS von: ", cds_start_genome, "bis: ", cds_stop_genome, "hinzugefügt")
                                             start_codon_plus_start = cds_start_genome
                                             start_codon_plus_stop = cds_start_genome + 2
                                             stop_codon_plus_start = cds_stop_genome - 2
                                             stop_codon_plus_stop = cds_stop_genome
                                             if strand == "+":
+                                                if curr_exon_start != cds_start_genome:
+                                                    output.write(f"{seqname}\tPreGalba\tfive_prime_UTR\t{fivePrimeUTR_start}\t{fivePrimeUTR_stop}\t.\t{strand}\t{frame}\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
+                                                if curr_exon_stop != cds_stop_genome:
+                                                    output.write(f"{seqname}\tPreGalba\tthree_prime_UTR\t{threePrimeUTR_start}\t{threePrimeUTR_stop}\t.\t{strand}\t{frame}\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
                                                 output.write(f"{seqname}\tPreGalba\tstart_codon\t{start_codon_plus_start}\t{start_codon_plus_stop}\t.\t{strand}\t{frame}\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
                                                 output.write(f"{seqname}\tPreGalba\tstop_codon\t{stop_codon_plus_start}\t{stop_codon_plus_stop}\t.\t{strand}\t{frame}\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
                                             else:
+                                                if curr_exon_start != cds_start_genome:
+                                                    output.write(f"{seqname}\tPreGalba\tthree_prime_UTR\t{fivePrimeUTR_start}\t{fivePrimeUTR_stop}\t.\t{strand}\t{frame}\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
+                                                if curr_exon_stop != cds_stop_genome:
+                                                    output.write(f"{seqname}\tPreGalba\tfive_prime_UTR\t{threePrimeUTR_start}\t{threePrimeUTR_stop}\t.\t{strand}\t{frame}\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
                                                 output.write(f"{seqname}\tPreGalba\tstop_codon\t{start_codon_plus_start}\t{start_codon_plus_stop}\t.\t{strand}\t{frame}\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
                                                 output.write(f"{seqname}\tPreGalba\tstart_codon\t{stop_codon_plus_start}\t{stop_codon_plus_stop}\t.\t{strand}\t{frame}\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
-                                            break
+                                            continue
+                                        
+                                elif cds_current_length == cds_total_length:
+                                    print("CDS bereits beendet. Rest der exons wird zu UTR")
+                                    if strand == "+":
+                                        output.write(f"{seqname}\tPreGalba\tthree_prime_UTR\t{curr_exon_start}\t{curr_exon_stop}\t.\t{strand}\t{frame}\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
+                                    else:
+                                        output.write(f"{seqname}\tPreGalba\tfive_prime_UTR\t{curr_exon_start}\t{curr_exon_stop}\t.\t{strand}\t{frame}\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
                                 else:
                                     cds_start_genome = curr_exon_start
                                     if cds_current_length+int(curr_exon_stop)-int(curr_exon_start)+1<cds_total_length:
@@ -849,15 +872,19 @@ def from_transcript_to_genome_coords(stringtie_gtf, transdecoder_id_dict): #bett
                                         print("CDS Stoppunkt: ", cds_stop_genome)
                                         output.write(f"{seqname}\tPreGalba\tCDS\t{cds_start_genome}\t{cds_stop_genome}\t.\t{strand}\t{frame}\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
                                         threePrimeUTR_start = cds_stop_genome + 1
-                                        threePrimeUTR_stop = exon_coords_list[-1][1]
-                                        output.write(f"{seqname}\tPreGalba\tthree_prime_UTR\t{threePrimeUTR_start}\t{threePrimeUTR_stop}\t.\t{strand}\t{frame}\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
+                                        threePrimeUTR_stop = curr_exon_stop
                                         stop_codon_plus_start = cds_stop_genome - 2
                                         stop_codon_plus_stop = cds_stop_genome
                                         if strand == "+":
                                             output.write(f"{seqname}\tPreGalba\tstop_codon\t{stop_codon_plus_start}\t{stop_codon_plus_stop}\t.\t{strand}\t{frame}\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
+                                            if curr_exon_stop != cds_stop_genome:
+                                                output.write(f"{seqname}\tPreGalba\tthree_prime_UTR\t{threePrimeUTR_start}\t{threePrimeUTR_stop}\t.\t{strand}\t{frame}\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
                                         else:
                                             output.write(f"{seqname}\tPreGalba\tstart_codon\t{stop_codon_plus_start}\t{stop_codon_plus_stop}\t.\t{strand}\t{frame}\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
-                                        break
+                                            if curr_exon_stop != cds_stop_genome:
+                                                output.write(f"{seqname}\tPreGalba\tfive_prime_UTR\t{threePrimeUTR_start}\t{threePrimeUTR_stop}\t.\t{strand}\t{frame}\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
+                                        continue
+                                        
                     exon_coords_list.clear()
                         
                 if feature == 'exon':
@@ -877,33 +904,7 @@ def from_transcript_to_genome_coords(stringtie_gtf, transdecoder_id_dict): #bett
     ]
     subprocess.run(command)
 '''
-'''
-Chr1	PreGalba	cds	25674	25743	.	+	.	gene_id "STRG.3"; transcript_id "STRG.3.1";
-Chr1	PreGalba	cds	25825	25997	.	+	.	gene_id "STRG.3"; transcript_id "STRG.3.1";
-Chr1	PreGalba	cds	26081	26189	.	+	.	gene_id "STRG.3"; transcript_id "STRG.3.1";
-Chr1	PreGalba	cds	27499	27533	.	+	.	gene_id "STRG.3"; transcript_id "STRG.3.1";
-Chr1	PreGalba	cds	27618	27713	.	+	.	gene_id "STRG.3"; transcript_id "STRG.3.1";
-Chr1	PreGalba	cds	27803	28431	.	+	.	gene_id "STRG.3"; transcript_id "STRG.3.1";
-Chr1	PreGalba	cds	28708	28805	.	+	.	gene_id "STRG.3"; transcript_id "STRG.3.1";
-Chr1	PreGalba	cds	28890	29046	.	+	.	gene_id "STRG.3"; transcript_id "STRG.3.1";
-Chr1	PreGalba	cds	29199	29586	.	+	.	gene_id "STRG.3"; transcript_id "STRG.3.1";
-Chr1	PreGalba	exon	25672	25743	.	+	.	gene_id "STRG.3"; transcript_id "STRG.3.1";
-Chr1	PreGalba	exon	25825	25997	.	+	.	gene_id "STRG.3"; transcript_id "STRG.3.1";
-Chr1	PreGalba	exon	26081	26203	.	+	.	gene_id "STRG.3"; transcript_id "STRG.3.1";
-Chr1	PreGalba	exon	26292	26452	.	+	.	gene_id "STRG.3"; transcript_id "STRG.3.1";
-Chr1	PreGalba	exon	26543	26776	.	+	.	gene_id "STRG.3"; transcript_id "STRG.3.1";
-Chr1	PreGalba	exon	26862	27012	.	+	.	gene_id "STRG.3"; transcript_id "STRG.3.1";
-Chr1	PreGalba	exon	27099	27281	.	+	.	gene_id "STRG.3"; transcript_id "STRG.3.1";
-Chr1	PreGalba	exon	27372	27533	.	+	.	gene_id "STRG.3"; transcript_id "STRG.3.1";
-Chr1	PreGalba	exon	27618	27713	.	+	.	gene_id "STRG.3"; transcript_id "STRG.3.1";
-Chr1	PreGalba	exon	27803	28431	.	+	.	gene_id "STRG.3"; transcript_id "STRG.3.1";
-Chr1	PreGalba	exon	28708	28805	.	+	.	gene_id "STRG.3"; transcript_id "STRG.3.1";
-Chr1	PreGalba	exon	28890	29080	.	+	.	gene_id "STRG.3"; transcript_id "STRG.3.1";
-Chr1	PreGalba	exon	29160	30065	.	+	.	gene_id "STRG.3"; transcript_id "STRG.3.1";
-Chr1	PreGalba	exon	30147	30311	.	+	.	gene_id "STRG.3"; transcript_id "STRG.3.1";
-Chr1	PreGalba	exon	30410	30816	.	+	.	gene_id "STRG.3"; transcript_id "STRG.3.1";
-Chr1	PreGalba	exon	30902	31122	.	+	.	gene_id "STRG.3"; transcript_id "STRG.3.1";
-'''
+
 #(Zwischen cds im selben transkript liegen Utrs? Im selben Exon hört ein cds auf und anderes beginnt?)
 #--> Schreibt man die mit auf?
 #-Wie verwende ich die overlap.pl Datei? Ich muss ja eigentlich sagen können, wann zwei sets als gleich bezeichnet werden. key error
@@ -911,36 +912,6 @@ Chr1	PreGalba	exon	30902	31122	.	+	.	gene_id "STRG.3"; transcript_id "STRG.3.1";
 #-Wollen wir zusätzlich miniprot predictete ORFs verwenden? Stand jetzt nutzen wir miinniprot nur um zu schauen, dass Konflikte vermieden werden
 #-Sind am Ende auch nur die HC Gene die die wir reinschreiben in die annot file oder schreiben wir alles rein?
                            
-'''
-Chr1	StringTie	transcript	3676	5861	1000	+	.	gene_id "STRG.1"; transcript_id "STRG.1.1"; cov "27.170204"; FPKM "4.147030"; TPM "5.471606";
-Chr1	StringTie	exon	3676	3913	1000	+	.	gene_id "STRG.1"; transcript_id "STRG.1.1"; exon_number "1"; cov "19.891108";
-
->STRG.1.1.p1 GENE.STRG.1.1~~STRG.1.1.p1  ORF type:5prime_partial (+),score=23.30 len:152 STRG.1.1:3-461(+)
-QSRQRNSGSYNTYSEYDSANHGQQFNENSNIMQQQPLQGSFNPLLEYDFANHGGQWLSDY
-
-Chr1    MAKER   transcript      1000    4500    .       +       .       gene_id "gene1"; transcript_id "transcript2"; gene_name "Gene1"; 
-Chr1    MAKER   exon            1000    1500    .       +       .       gene_id "gene1"; transcript_id "transcript2"; exon_number "1"; 
-Chr1    MAKER   exon            2500    3500    .       +       .       gene_id "gene1"; transcript_id "transcript2"; exon_number "2"; 
-Chr1    MAKER   exon            4000    4500    .       +       .       gene_id "gene1"; transcript_id "transcript2"; exon_number "3"; 
-Chr1    MAKER   CDS             1100    1500    .       +       0       gene_id "gene1"; transcript_id "transcript2"; 
-Chr1    MAKER   CDS             2500    3500    .       +       2       gene_id "gene1"; transcript_id "transcript2"; 
-Chr1    MAKER   CDS             4000    4500    .       +       0       gene_id "gene1"; transcript_id "transcript2"; 
-Chr1    MAKER   five_prime_UTR  1000    1099    .       +       .       gene_id "gene1"; transcript_id "transcript2"; 
-Chr1    MAKER   three_prime_UTR 4501    4500    .       +       .       gene_id "gene1"; transcript_id "transcript2"; 
-
-Chr1    Araport11       CDS     3760    3913    .       +       0       gene_id "AT1G01010"; transcript_id "AT1G01010.1"; cds_type "Initial"; count "1_6";
-Chr1    Araport11       CDS     3996    4276    .       +       2       gene_id "AT1G01010"; transcript_id "AT1G01010.1"; cds_type "Internal"; count "2_6";
-Chr1    Araport11       CDS     4486    4605    .       +       0       gene_id "AT1G01010"; transcript_id "AT1G01010.1"; cds_type "Internal"; count "3_6";
-Chr1    Araport11       CDS     4706    5095    .       +       0       gene_id "AT1G01010"; transcript_id "AT1G01010.1"; cds_type "Internal"; count "4_6";
-Chr1    Araport11       CDS     5174    5326    .       +       0       gene_id "AT1G01010"; transcript_id "AT1G01010.1"; cds_type "Internal"; count "5_6";
-Chr1    Araport11       CDS     5439    5630    .       +       0       gene_id "AT1G01010"; transcript_id "AT1G01010.1"; cds_type "Terminal"; count "6_6";
-Chr1    Araport11       intron  3914    3995    .       +       1       gene_id "AT1G01010"; transcript_id "AT1G01010.1"; count "1_5"; site_seq "GT_AG";
-Chr1    Araport11       intron  4277    4485    .       +       0       gene_id "AT1G01010"; transcript_id "AT1G01010.1"; count "2_5"; site_seq "GT_AG";
-Chr1    Araport11       intron  4606    4705    .       +       0       gene_id "AT1G01010"; transcript_id "AT1G01010.1"; count "3_5"; site_seq "GT_AG";
-Chr1    Araport11       intron  5096    5173    .       +       0       gene_id "AT1G01010"; transcript_id "AT1G01010.1"; count "4_5"; site_seq "GT_AG";
-'''
-
-
 '''
 Theorie:
 -High confidence CDS finden mit folgenden Kriterien:
@@ -971,121 +942,6 @@ Plan:
 ODER alle complete durchgehen in bestehender pep file und bei incomplete
     schauen ob gekürzt wurde. Wenn ja zum nächsten Element.
 '''
-'''
-Normal:
-STRG.10016.1.p1	prot521	56.0	125	55	0	1	125	187	311	7.82e-43	143
-STRG.10016.1.p1	prot853	35.8	123	70	4	8	125	159	277	2.29e-15	67.0
-STRG.10016.1.p1	prot852	36.8	117	65	5	8	119	143	255	5.01e-14	63.2
-STRG.10017.1.p2	prot660	29.4	68	42	2	1	64	61	126	6.42e-05	38.1
-STRG.10034.1.p1	prot1315	47.4	137	40	4	34	169	20	125	7.81e-26	103
-STRG.10039.1.p1	prot1288	56.7	127	49	4	40	162	28	152	1.66e-40	139
-STRG.10039.1.p1	prot837	35.6	132	79	2	37	162	21	152	8.57e-23	89.7
-STRG.10057.1.p1	prot1266	33.8	195	59	9	65	256	43	170	3.02e-18	76.3
-STRG.10090.1.p1	prot691	28.2	387	231	8	17	382	66	426	3.35e-39	143
-STRG.10101.1.p1	prot64	56.2	169	69	3	1	168	146	310	1.65e-54	175
-STRG.10101.1.p3	prot64	58.1	31	13	0	47	77	89	119	1.19e-04	35.8 
-
-Shortened:
-STRG.10016.1.p1	prot521	55.8	113	50	0	2	114	199	311	1.79e-37	128
-STRG.10016.1.p1	prot853	35.6	118	67	4	2	114	164	277	3.55e-14	63.2
-STRG.10016.1.p1	prot852	36.6	112	62	5	2	108	148	255	5.75e-13	59.7
-STRG.10039.1.p1	prot1288 56.7	127	49	4	29	151	28	152	1.14e-40	139
-STRG.10039.1.p1	prot837	35.6	132	79	2	26	151	21	152	6.26e-23	89.7
-STRG.10110.1.p1	prot1201 44.4	99	55	0	148	246	803	901	1.01e-22	92.8
-STRG.10174.1.p1	prot1095 40.7	216	124	3	28	242	316	528	7.82e-50	169
-STRG.10174.1.p1	prot446	31.4	242	162	3	1	242	609	846	9.54e-45	156
-STRG.10174.1.p1	prot447	31.4	242	162	3	1	242	609	846	9.54e-45	156
-STRG.10174.1.p1	prot448	31.4	242	162	3	1	242	609	846	9.54e-45	156
-
-STRINGTIE:
-Chr1	StringTie	transcript	3676	5861	1000	+	.	gene_id "STRG.1"; transcript_id "STRG.1.1"; cov "27.170204"; FPKM "4.147030"; TPM "5.471606";
-Chr1	StringTie	exon	3676	3913	1000	+	.	gene_id "STRG.1"; transcript_id "STRG.1.1"; exon_number "1"; cov "19.891108";
-Chr1	StringTie	exon	3996	4276	1000	+	.	gene_id "STRG.1"; transcript_id "STRG.1.1"; exon_number "2"; cov "15.570964";
-Chr1	StringTie	exon	4486	4605	1000	+	.	gene_id "STRG.1"; transcript_id "STRG.1.1"; exon_number "3"; cov "22.015558";
-Chr1	StringTie	exon	4706	5095	1000	+	.	gene_id "STRG.1"; transcript_id "STRG.1.1"; exon_number "4"; cov "31.399448";
-Chr1	StringTie	exon	5174	5326	1000	+	.	gene_id "STRG.1"; transcript_id "STRG.1.1"; exon_number "5"; cov "34.461781";
-Chr1	StringTie	exon	5439	5861	1000	+	.	gene_id "STRG.1"; transcript_id "STRG.1.1"; exon_number "6"; cov "33.396362";
-
-STRG.1.1	transdecoder	gene	1	1157	.	+	.	ID=GENE.STRG.1.1~~STRG.1.1.p1;Name="ORF type:5prime_partial (+),score=23.30"
-STRG.1.1	transdecoder	mRNA	1	1157	.	+	.	ID=STRG.1.1.p1;Parent=GENE.STRG.1.1~~STRG.1.1.p1;Name="ORF type:5prime_partial (+),score=23.30"
-STRG.1.1	transdecoder	exon	1	1157	.	+	.	ID=STRG.1.1.p1.exon1;Parent=STRG.1.1.p1
-STRG.1.1	transdecoder	CDS   	3	461	    .	+	0	ID=cds.STRG.1.1.p1;Parent=STRG.1.1.p1
-STRG.1.1	transdecoder	three_prime_UTR	462	1157	.	+	.	ID=STRG.1.1.p1.utr3p1;Parent=STRG.1.1.p1
-
->STRG.1.1.p1 GENE.STRG.1.1~~STRG.1.1.p1  ORF type:5prime_partial (+),score=23.30 len:152 STRG.1.1:3-461(+)
-QSRQRNSGSYNTYSEYDSANHGQQFNENSNIMQQQPLQGSFNPLLEYDFANHGGQWLSDY
-
-Chr1	StringTie	transcript	6812	8720	1000	-	.	gene_id "STRG.2"; transcript_id "STRG.2.1"; cov "171.187973"; FPKM "5.001022"; TPM "7.711779";
-Chr1	StringTie	exon	6812	7069	1000	-	.	gene_id "STRG.2"; transcript_id "STRG.2.1"; exon_number "1"; cov "125.622360";
-Chr1	StringTie	exon	7157	7232	1000	-	.	gene_id "STRG.2"; transcript_id "STRG.2.1"; exon_number "2"; cov "230.052353";
-Chr1	StringTie	exon	7384	7450	1000	-	.	gene_id "STRG.2"; transcript_id "STRG.2.1"; exon_number "3"; cov "211.434280";
-Chr1	StringTie	exon	7564	7649	1000	-	.	gene_id "STRG.2"; transcript_id "STRG.2.1"; exon_number "4"; cov "219.834091";
-Chr1	StringTie	exon	7762	7835	1000	-	.	gene_id "STRG.2"; transcript_id "STRG.2.1"; exon_number "5"; cov "211.385376";
-Chr1	StringTie	exon	7942	7987	1000	-	.	gene_id "STRG.2"; transcript_id "STRG.2.1"; exon_number "6"; cov "209.836029";
-Chr1	StringTie	exon	8236	8325	1000	-	.	gene_id "STRG.2"; transcript_id "STRG.2.1"; exon_number "7"; cov "222.475906";
-Chr1	StringTie	exon	8417	8464	1000	-	.	gene_id "STRG.2"; transcript_id "STRG.2.1"; exon_number "8"; cov "227.134079";
-Chr1	StringTie	exon	8571	8720	1000	-	.	gene_id "STRG.2"; transcript_id "STRG.2.1"; exon_number "9"; cov "93.510895";
-
-STRG.9450.3	transdecoder	gene	1	1609	.	+	.	ID=GENE.STRG.9450.3~~STRG.9450.3.p1;Name="ORF type:complete (+),score=47.10"
-STRG.9450.3	transdecoder	mRNA	1	1609	.	+	.	ID=STRG.9450.3.p1;Parent=GENE.STRG.9450.3~~STRG.9450.3.p1;Name="ORF type:complete (+),score=47.10"
-STRG.9450.3	transdecoder	five_prime_UTR	1	840	.	+	.	ID=STRG.9450.3.p1.utr5p1;Parent=STRG.9450.3.p1
-STRG.9450.3	transdecoder	exon	1	1609	.	+	.	ID=STRG.9450.3.p1.exon1;Parent=STRG.9450.3.p1
-STRG.9450.3	transdecoder	CDS	841	1506	.	+	0	ID=cds.STRG.9450.3.p1;Parent=STRG.9450.3.p1
-STRG.9450.3	transdecoder	three_prime_UTR	1507	1609	.	+	.	ID=STRG.9450.3.p1.utr3p1;Parent=STRG.9450.3.p1
-
-ZIEL:
-Chr1    MAKER   gene            1000    5000    .       +       .       gene_id "gene1"; gene_name "Gene1"; 
-Chr1    MAKER   transcript      1000    5000    .       +       .       gene_id "gene1"; transcript_id "transcript1"; gene_name "Gene1"; 
-
-# Exons for the first transcript
-Chr1    MAKER   exon            1000    1200    .       +       .       gene_id "gene1"; transcript_id "transcript1"; exon_number "1"; 
-Chr1    MAKER   exon            2000    3000    .       +       .       gene_id "gene1"; transcript_id "transcript1"; exon_number "2"; 
-Chr1    MAKER   exon            4000    5000    .       +       .       gene_id "gene1"; transcript_id "transcript1"; exon_number "3"; 
-
-# Coding sequence (CDS) within these exons
-Chr1    MAKER   CDS             1050    1200    .       +       0       gene_id "gene1"; transcript_id "transcript1"; 
-Chr1    MAKER   CDS             2000    3000    .       +       2       gene_id "gene1"; transcript_id "transcript1"; 
-Chr1    MAKER   CDS             4000    4500    .       +       1       gene_id "gene1"; transcript_id "transcript1"; 
-
-# UTRs for completeness
-Chr1    MAKER   five_prime_UTR  1000    1049    .       +       .       gene_id "gene1"; transcript_id "transcript1"; 
-Chr1    MAKER   three_prime_UTR 4501    5000    .       +       .       gene_id "gene1"; transcript_id "transcript1"; 
-
-# A second transcript of the same gene with slightly different structure
-Chr1    MAKER   transcript      1000    4500    .       +       .       gene_id "gene1"; transcript_id "transcript2"; gene_name "Gene1"; 
-Chr1    MAKER   exon            1000    1500    .       +       .       gene_id "gene1"; transcript_id "transcript2"; exon_number "1"; 
-Chr1    MAKER   exon            2500    3500    .       +       .       gene_id "gene1"; transcript_id "transcript2"; exon_number "2"; 
-Chr1    MAKER   exon            4000    4500    .       +       .       gene_id "gene1"; transcript_id "transcript2"; exon_number "3"; 
-Chr1    MAKER   CDS             1100    1500    .       +       0       gene_id "gene1"; transcript_id "transcript2"; 
-Chr1    MAKER   CDS             2500    3500    .       +       2       gene_id "gene1"; transcript_id "transcript2"; 
-Chr1    MAKER   CDS             4000    4500    .       +       0       gene_id "gene1"; transcript_id "transcript2"; 
-Chr1    MAKER   five_prime_UTR  1000    1099    .       +       .       gene_id "gene1"; transcript_id "transcript2"; 
-Chr1    MAKER   three_prime_UTR 4501    4500    .       +       .       gene_id "gene1"; transcript_id "transcript2"; 
-
-'''
-def compare_annotation(transdecoder_gff3, example_gff3):
-    try:
-        command = [
-            "/home/s-amknut/GALBA/tools/gffcompare",
-            "-r",
-            example_gff3,
-            "-o comparison",
-            transdecoder_gff3
-        ]
-        result = subprocess.run(command, capture_output=True)
-
-        if result.returncode == 0:
-            print("Comparison completed successfully")
-        else:
-            print("Error during comparison")
-            print(result.stderr)
-    
-    except Exception:
-        print("Could not run gffcompare command.")
-        print(result.stderr)
-        print(result.stdout)
-        sys.exit(1)
-
 
 def load_config(config_file):
     with open(config_file, "r") as config_file:
@@ -1221,3 +1077,24 @@ from_transcript_to_genome_coords("transcripts_mixed_test1.gtf", transdecoder_id_
 #-Transcript + protein support (Bei mir vielleicht Diamond)
 #-Transcript + ab initio support (Bei mir vielleicht Augustus)
 #-Nur Protein support (Bei mir vielleicht miniprot)
+
+'''
+Auswertung:
+genemark.gtf mit allen rnaseq und protein.fa Daten:
+#-----------------| Sensitivity | Precision  |  
+        Base level:    94.1     |    91.2    |
+        Exon level:    84.6     |    88.5    |
+      Intron level:    90.5     |    90.3    |
+Intron chain level:    55.4     |    75.6    |
+  Transcript level:    57.7     |    77.1    |
+       Locus level:    80.9     |    79.7    |
+
+main.py mit allen rnaseq und isoseq Daten, nur bis transdecoder Aufruf (ohne Kategorisierung und ohne hc Filter):
+#-----------------| Sensitivity | Precision  |
+        Base level:    83.0     |    67.9    |
+        Exon level:    60.9     |    57.3    |
+      Intron level:    86.9     |    84.3    |
+Intron chain level:    47.2     |    41.1    |
+  Transcript level:    42.0     |    40.0    |
+       Locus level:    55.5     |    65.9    |
+'''
