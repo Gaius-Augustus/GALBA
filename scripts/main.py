@@ -613,44 +613,8 @@ def get_cds_classification(normal_tsv, shortened_tsv, short_start_dict):
     #print(classifications)
     #print(count)
     return classifications
-
-def get_hc_cds(diamond_tsv, classifications):
-    header_list = ["cdsID", "proteinID", "percIdentMatches", "alignLength", "mismatches", "gapOpenings", "alignStart", "alignEnd", "proteinStart", "proteinEnd", "eValue", "bitScore"]
-    df = pd.read_csv(diamond_tsv, delimiter='\t', header=None, names=header_list)
-    q_length_dict = {}
-    for record in SeqIO.parse(protein_file, "fasta"):
-        q_length_dict[record.id] = len(record.seq)
-    t_length_dict = {}
-    for record in SeqIO.parse("revised_candidates.pep", "fasta"):
-        t_length_dict[record.id] = len(record.seq)
-    with open(diamond_tsv, "r") as tsv:
-       # with open("hc_genes.pep", "w") as output:
-        for line in tsv:    #7580 Elemente in tsv
-            part = line.strip().split('\t')
-            cdsID = part[0]
-            #proteinID = part[1]
-            #percIdentMatches = float(part[2])
-            align_length = int(part[3])
-            #mismatches = int(part[4])
-            #gapOpenings = int(part[5])
-            t_start = int(part[6])
-            t_end = int(part[7])
-            q_start = int(part[8])
-            q_end = int(part[9])
-            #eValue = float(part[10])
-            #bitScore = float(part[11])
-            q_length = q_length_dict[cdsID]
-            t_length = t_length_dict[cdsID]
-            
-            start_condition = q_start - t_start < 6
-            stop_condition = (q_length - q_end) - (t_length - t_end) < 21
-            if classifications[cdsID] == "complete":
-                if start_condition and stop_condition:
-                    hc = True 
-
-            if classifications[cdsID] == "3prime_partial" or classifications[cdsID] == "internal":
-                continue
     
+#Noch die Klassifkation rausnehmen
 def get_optimized_pep_file(normal_pep, shortened_pep, classifications, short_start_dict):
     with open("revised_candidates.pep", "w") as output:
         shortened_pep_dict = {record.id: (record.seq, record.description) for record in SeqIO.parse(shortened_pep, "fasta")}
@@ -695,9 +659,10 @@ def get_optimized_pep_file(normal_pep, shortened_pep, classifications, short_sta
             else:
                 SeqIO.write(record, output, "fasta")
 
-            classifications_for_hc[id] = classification
+            if classification == "complete" or classification == "5prime_partial":
+                classifications_for_hc[id] = [classification, record.description]
 
-        return classifications_for_hc
+    return classifications_for_hc
 
     #4691 sind in classifications nicht drin, aber in normal_pep als 5prime/ internal
     #5502 sind in 5prime/internal in normal_pep
@@ -706,24 +671,97 @@ def get_optimized_pep_file(normal_pep, shortened_pep, classifications, short_sta
     #820 elemente sind in short_tsv
     #9 Elemente sind in short_tsv aber nicht in classifications -> Vermutung: Protein aligniert nur mit short oder nur mit normal und alignment taucht damit nicht in mergeddf auf
 
-def parse_transdecoder_file(transdecoder_pep):
-    transdecoder_id_dict = {}
+def get_hc_cds(diamond_tsv, transdecoder_pep, protein_file):
+    #header_list = ["cdsID", "proteinID", "percIdentMatches", "alignLength", "mismatches", "gapOpenings", "alignStart", "alignEnd", "proteinStart", "proteinEnd", "eValue", "bitScore"]
+    #df = pd.read_csv(diamond_tsv, delimiter='\t', header=None, names=header_list)
+    q_length_dict = {}
+    for record in SeqIO.parse(protein_file, "fasta"):
+        q_length_dict[record.id] = len(record.seq) 
+    t_dict = {}
     for record in SeqIO.parse(transdecoder_pep, "fasta"):
-        id = record.id
-        id = id.split(".p")[0]
+       # t_length_dict[record.id] = len(record.seq) - 1 # -1 damit * nicht gezählt wird
+        t_dict[record.id] = [record.description, record.seq]
+    with open(diamond_tsv, "r") as tsv, open("hc_genes.pep", "w") as output:
+        for line in tsv:    #7580 Elemente in tsv
+            part = line.strip().split('\t')
+            id = part[0]
+            protein_id = part[1]
+            #percIdentMatches = float(part[2])
+            align_length = int(part[3])
+            #mismatches = int(part[4])
+            #gapOpenings = int(part[5])
+            t_start = int(part[6])
+            t_end = int(part[7])
+            q_start = int(part[8])
+            q_end = int(part[9])
+            #eValue = float(part[10])
+            #bitScore = float(part[11])
+            if id in t_dict:
+                record.id = id
+                record.description = t_dict[id][0]
+                record.seq = t_dict[id][1]
+                t_length = int(re.search(r"len:(\d+)", record.description).group(1))
+                q_length = q_length_dict[protein_id]
+                start_condition = q_start - t_start 
+                stop_condition = (q_length - q_end) - (t_length - t_end) 
+                if "type:complete" in record.description: #30544 complete & hc von insgesamt 42797 complete candidates 
+                    if start_condition < 6 and stop_condition < 21:
+                        SeqIO.write(record, output, "fasta")
+                        del t_dict[id]
+                        continue
+                #Für nicht complete cds: DRINGEND WIEDER HINZUFÜGEN 
+               # if "type:5prime_partial" in record.description: #1021 5prime & hc von insgesamt 5126 5prime candidates
+                #    if stop_condition < 21:
+                 #       SeqIO.write(record, output, "fasta")
+                  #      del t_dict[id]
+                   #     continue
+
+        #for id in t_dict:
+
+def choose_one_isoform(transdecoder_pep): 
+    isoform_dict = {}
+    with open("one_chosen_isoform.pep", "w") as output:
+        for record in SeqIO.parse(transdecoder_pep, "fasta"):
+            transdecoder_id = record.id
+            stringtie_id = transdecoder_id.split(".p")[0]
+            gene_id = stringtie_id.split(".")[1]
+            description = record.description.split(" ")
+            cds_coords = re.search(r":(\d+)-(\d+)\((\+|\-)\)", description[7])
+            start_cds = int(cds_coords.group(1))
+            stop_cds = int(cds_coords.group(2))
+            description = record.description.split(" ")
+            if gene_id not in isoform_dict:
+                isoform_dict[gene_id] = [(start_cds, stop_cds, record)]
+            else:
+                isoform_dict[gene_id].append((start_cds, stop_cds, record))
+
+        for gene_id in isoform_dict:
+            if len(isoform_dict[gene_id]) == 1:
+                record = isoform_dict[gene_id][0][2]
+                SeqIO.write(record, output, "fasta")
+            else:
+                #takes the longest isoform, if there are two longest, it takes the first, because that indicates the highest expression rate
+                longest_isoform = max(isoform_dict[gene_id], key=lambda x: x[1] - x[0]) 
+                record = longest_isoform[2]
+                SeqIO.write(record, output, "fasta")
+            
+def parse_transdecoder_file(transdecoder_pep):
+    stringtie_id_dict = {} 
+    for record in SeqIO.parse(transdecoder_pep, "fasta"):
+        transdecoder_id = record.id
+        stringtie_id = transdecoder_id.split(".p")[0]
         description = record.description.split(" ")
         cds_transcript_coords = re.search(r":(\d+)-(\d+)\((\+|\-)\)", description[7])
-        #if cds_transcript_coords:
         start_cds_transcript = int(cds_transcript_coords.group(1))
         stop_cds_transcript = int(cds_transcript_coords.group(2))
         cds_length = int(stop_cds_transcript) - int(start_cds_transcript) + 1
         triple = (start_cds_transcript, stop_cds_transcript, cds_length)
-        if id not in transdecoder_id_dict:
-            transdecoder_id_dict[id] = [triple]
+        #Hier noch einbauen, dass wir nur das längste nehmen, falls wir am Ende eine file haben wollen, die mehrere isoformen enthalten soll
+        if stringtie_id not in stringtie_id_dict:
+            stringtie_id_dict[stringtie_id] = [triple]
         else:
-            transdecoder_id_dict[id].append(triple)
-            
-    filtered_dict = {id: val for id, val in transdecoder_id_dict.items() if len(val) == 1}
+            stringtie_id_dict[stringtie_id].append(triple)
+    filtered_dict = {stringtie_id: val for stringtie_id, val in stringtie_id_dict.items() if len(val) == 1}
     return filtered_dict
 
 def from_transcript_to_genome_coords(stringtie_gtf, transdecoder_id_dict): #better name: creating_annotation_file
@@ -754,7 +792,7 @@ def from_transcript_to_genome_coords(stringtie_gtf, transdecoder_id_dict): #bett
                 
                 if feature == 'transcript':
                     print("--------------Neues Transcript mit ID: ----------- ", transcript_id) 
-                    output.write(f"{seqname}\tPreGalba\tgenome\t{start_genome}\t{stop_genome}\t.\t{strand}\t{frame}\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
+                    output.write(f"{seqname}\tPreGalba\tgene\t{start_genome}\t{stop_genome}\t.\t{strand}\t{frame}\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
                     output.write(f"{seqname}\tPreGalba\ttranscript\t{start_genome}\t{stop_genome}\t.\t{strand}\t{frame}\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
                     print("ANFANG: Transkriptlänge, cds Länge, cds index auf 0")
                     if len(exon_coords_list) > 1: #Für CDS muss es auch zugelassen sein, dass nur ein Exon vorhanden ist
@@ -1010,22 +1048,19 @@ if process_isoseq:
 #assembling(alignment_rnaseq, alignment_isoseq)  #Für alleine testen leer machen
 #orfsearching(genome_file, "transcripts_mixed_test1.gtf")  #Vielleicht eher Was returned wurde als input übergeben
 #protein_aligning(genome_file, protein_file, "/home/s-amknut/GALBA/tools/blosum62_1.csv") 
-short_start_dict = shorten_incomplete_Orfs("transcripts_test1.fasta.transdecoder.pep")
+#short_start_dict = shorten_incomplete_Orfs("transcripts_test1.fasta.transdecoder.pep")
 #make_diamond_db(protein_file)
 #validating_ORFs("shortened_candidates.pep", "diamond_shortened.tsv")
 #make_diamond_db(protein_file)
 #validating_ORFs("transcripts_test1.fasta.transdecoder.pep", "diamond_normal.tsv")
-classifications_dict = get_cds_classification("diamond_normal.tsv", "diamond_shortened.tsv", short_start_dict)
-classifications_hc_dict = get_optimized_pep_file("transcripts_test1.fasta.transdecoder.pep", "shortened_candidates.pep", classifications_dict, short_start_dict)
-
-    
-
+#classifications_dict = get_cds_classification("diamond_normal.tsv", "diamond_shortened.tsv", short_start_dict)
+#classifications_hc_dict = get_optimized_pep_file("transcripts_test1.fasta.transdecoder.pep", "shortened_candidates.pep", classifications_dict, short_start_dict)
 #make_diamond_db(protein_file)
 #validating_ORFs("revised_candidates.pep", "diamond_revised.tsv")
-#get_hc_cds("diamond_revised.tsv", classifications_hc_dict)
-
-#transdecoder_id_dict = parse_transdecoder_file("revised_candidates.pep")
-#from_transcript_to_genome_coords("transcripts_mixed_test1.gtf", transdecoder_id_dict)
+#get_hc_cds("diamond_revised.tsv", "revised_candidates.pep", protein_file)
+#choose_one_isoform("hc_genes.pep")
+transdecoder_id_dict = parse_transdecoder_file("one_chosen_isoform.pep")
+from_transcript_to_genome_coords("transcripts_mixed_test1.gtf", transdecoder_id_dict)
 
 #TO DOs:
 #-Variablen und Funktionsnamen anpassen
@@ -1072,11 +1107,10 @@ classifications_hc_dict = get_optimized_pep_file("transcripts_test1.fasta.transd
 #-Diamond nutzt .pep file von Transdecoder und sucht homologe Proteine 
 #-Spaln aligniert die homologen Proteine zurück ans Genom, um predictions genauer zu machen 
 
-#In GeneMark:
-#-3 Arten hints:
-#-Transcript + protein support (Bei mir vielleicht Diamond)
-#-Transcript + ab initio support (Bei mir vielleicht Augustus)
-#-Nur Protein support (Bei mir vielleicht miniprot)
+#Frame hinzufügen
+#File, die training.gtf entspricht + file mit allen hc genen + file mit allen genen + file mit allen hc introns
+#Nur eine Isoform pro Gen wählen: Längste CDS und sonst niedrigste StringTie Nummer 
+#CDS ohne Protein support 
 
 '''
 Auswertung:
@@ -1089,7 +1123,8 @@ Intron chain level:    55.4     |    75.6    |
   Transcript level:    57.7     |    77.1    |
        Locus level:    80.9     |    79.7    |
 
-main.py mit allen rnaseq und isoseq Daten, nur bis transdecoder Aufruf (ohne Kategorisierung und ohne hc Filter):
+main.py mit allen rnaseq und isoseq Daten (ohne Kategorisierung und ohne hc Filter):
+Nur mehr als ein Exon pro Transkript: 
 #-----------------| Sensitivity | Precision  |
         Base level:    83.0     |    67.9    |
         Exon level:    60.9     |    57.3    |
@@ -1098,7 +1133,7 @@ Intron chain level:    47.2     |    41.1    |
   Transcript level:    42.0     |    40.0    |
        Locus level:    55.5     |    65.9    |
 
-main.py mit allen rnaseq und isoseq Daten, nur bis transdecoder Aufruf (ohne Kategorisierung und ohne hc Filter):
+main.py mit allen rnaseq und isoseq Daten (ohne Kategorisierung und ohne hc Filter):
 AUCH CDS VORHERGESAGT WENN NUR EIN EXON PRO TRANSCRIPT VORHANDEN
 
 #-----------------| Sensitivity | Precision  |
@@ -1110,5 +1145,51 @@ Intron chain level:    42.5     |    36.6    |
        Locus level:    49.6     |    63.1    |
 
 main.py mit allen rnaseq und isoseq Daten, nur bis transdecoder Aufruf (mit Kategorisierung und ohne hc Filter):
+#-----------------| Sensitivity | Precision  |
+        Base level:    83.2     |    65.3    |
+        Exon level:    60.7     |    56.8    |
+      Intron level:    86.8     |    82.5    |
+Intron chain level:    42.5     |    36.6    |
+  Transcript level:    37.5     |    35.7    |
+       Locus level:    49.6     |    63.1    |
 
+main.py mit allen rnaseq und isoseq Daten (mit Kategorisierung und mit hc Filter):
+#-----------------| Sensitivity | Precision  |
+        Base level:    83.2     |    65.5    |
+        Exon level:    60.7     |    56.8    |
+      Intron level:    86.8     |    82.6    |
+Intron chain level:    42.8     |    36.8    |
+  Transcript level:    37.7     |    35.9    |
+       Locus level:    49.9     |    63.2    |
+
+main.py mit allen rnaseq und isoseq Daten (mit Kategorisierung und mit hc Filter), nur CDS in file:
+#-----------------| Sensitivity | Precision  |
+        Base level:    67.3     |    86.6    |
+        Exon level:    64.5     |    75.5    |
+      Intron level:    76.8     |    85.1    |
+Intron chain level:    35.7     |    46.7    |
+  Transcript level:    31.1     |    45.7    |
+       Locus level:    41.1     |    66.4    |
+
+-Gibt hier auch unter hc noch ein paar wenige doppelte cds pro gen. Die werden rausgelöscht aus output file
+    -> Idee: Wenn zwei hc cds in einem Gen sind, dann die mit dem besseren score behalten
+-in trainigsgene file normalerweise (transcript, gene, exon, cds) und in hints (introns, start, stop). Ich habe jetzt 
+    gerade alles in einem. Brauche ich auch beides?
+-Gar kein Unterschied erkennbar bei Kategorisierung oder keiner Kategorisierung
+-Wie kann es sein, dass die Exon level so viel schlechter sind und sollten wir sensitivität erhöhen?
+-HC Auswahl bezieht sich gerade ausschließlich auf die CDS, weil wir dafür Proteindaten nutzen.
+    Schmeißen wir transkript/gen raus wenn keine cds gefunden wurden oder sie nicht als hc kategorisiert wurden?
+-Score für nicht Proteingestützte CDS: 
+    -Inframe Stopcodon in 5' UTR verstehe ich nicht weil 1. Stopcodon in CDS und 2. Stopcodon in 3' UTR
+    -GMS-T log-odds score > 50, ersetzen durch bit score? Z.B. Median berechnen von den anderen HC Genen und das festlegen als Grenze
+    -Plan:
+        -Habe hc.gff file von miniprot, hier stehen introns/start/stop drin
+        -Nehme mir die exon/intron Struktur von Transkript wo CDS drin ist, ohne CDS ansich zu berücksichtigen
+        -Suche danach wo mein Kandidat liegen könnte. 
+        -Wenn es mehrere passende abschnitte gibt, nehme ich Protein mit dem besten score.
+        -Wenn es keine Konflikte gibt ist es approved 
+
+-Wie kann es sein, dass in Stringtie file die verschiedenen Isoformen leicht unterschiedliche Transkriptgrenzen haben?
+-Entscheiden uns für Isoform mit längster CDS. Dadurch gibt tomas ja quasi auch vor, dass wir uns bei mehreren CDS im selben Transkript immer für die längste entscheiden.
+Schließlich entscheiden wir uns ja nur wegen dieser CDS für die Isoform.
 '''
