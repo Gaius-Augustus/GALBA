@@ -11,9 +11,6 @@ import pandas as pd
 import math
 from Bio import SeqIO
 
-#VARIABLES 
-cwd = os.getcwd()
-
 #FUNCTIONS
 def check_input(genome_file, reads_file):
     if not os.path.isfile(genome_file):
@@ -38,6 +35,7 @@ def check_input(genome_file, reads_file):
 #dont know if needed 
 def fastq_to_fasta(fastqFile):
     output_file = fastqFile.split(".")[0] + ".fasta"
+    output = output_path + "/" + proj_name + "/" + output_file
     try:
         seqtk_command = [
             "/home/s-amknut/GALBA/tools/seqtk/seqtk", #Neuen Pfad angeben
@@ -45,7 +43,7 @@ def fastq_to_fasta(fastqFile):
             "-a",
             fastqFile,
             "> ",
-            output_file
+            output
         ]
 
         print("Converting .fastq to .fasta file...")
@@ -132,7 +130,7 @@ def indexing(genome_fasta):
             "-p",
             str(threads),        
             genome_fasta,           
-            "genome"     
+            "genome"   
         ]
 
         print("Building genome index...")
@@ -191,7 +189,7 @@ def mapping_short(rnaseq_paired_sets, rnaseq_single_sets):
                 format_option = ""
             string_with_first = ",".join(rnaseq_paired_sets[0::2])
             string_with_second = ",".join(rnaseq_paired_sets[1::2])
-            output_2 = "alignment_paired_rnaseq_test1.sam" 
+            output_2 = "alignment_paired_rnaseq_test1.sam"  
             hisat2_command = [
                     "hisat2", 
                     format_option,                       
@@ -555,13 +553,13 @@ def validating_ORFs(transdecoder_pep, output_tsv):
         result = subprocess.run(command, capture_output=True)
 
         if result.returncode == 0:
-            print("Blastp search for completed successfully and ", output_tsv, " was created.")
+            print("Blastp search completed successfully and ", output_tsv, " was created.")
         else:
             print("Error during diamond blastp search.")
             print(result.stderr)
     
     except Exception:
-        print("Could not run diamond blastp command for complete CDS candidates.")
+        print("Could not run diamond blastp command.")
         sys.exit(1)
 
 def get_cds_classification(normal_tsv, shortened_tsv, short_start_dict):
@@ -607,12 +605,9 @@ def get_cds_classification(normal_tsv, shortened_tsv, short_start_dict):
             classifications[cds["cdsID"]] = "incomplete" #112 13.8%
         else:
             classifications[cds["cdsID"]] = "complete" #699 86.2%
-            #print("t_complete_start: ", cds["alignStart_normal"], "t_incomplete_start: ", cds["alignStart_short"] )
 
     pd.set_option('display.max_columns', None)
     #print(merged_df.head())
-    #print(classifications)
-    #print(count)
     return classifications
     
 #Noch die Klassifkation rausnehmen
@@ -638,15 +633,16 @@ def get_optimized_pep_file(normal_pep, shortened_pep, classifications, short_sta
                     else:
                         seq = shortened_pep_dict[id][0]
                         record.seq = seq
-                        description = re.sub(r"len:\d+", f"len:{len(seq)-1}", record.description) #-1 damit * nicht gezählt wird
-                        coords = re.search(r":(\d+)-(\d+)\([\+\-]\)", description)
-                        start_normal = int(coords.group(1))
-                        start_short = start_normal + short_start_dict[id] * 3 #Nicht -1, denn m_position ist 0-based
-                        stop = int(coords.group(2))
-                        strand = coords.group(0)[-2]
-                        new_coords = f'{start_short}-{stop}({strand})'
-                        description = re.sub(r'(\d+-\d+\([\+\-]\))', new_coords, description)
-                        if "type:5prime_partial" in record.description:
+                        description = shortened_pep_dict[id][1]
+                        #description = re.sub(r"len:\d+", f"len:{len(seq)-1}", record.description) #-1 damit * nicht gezählt wird
+                        #coords = re.search(r":(\d+)-(\d+)\([\+\-]\)", description)
+                        #start_normal = int(coords.group(1))
+                        #start_short = start_normal + short_start_dict[id] * 3 #Nicht -1, denn m_position ist 0-based
+                        #stop = int(coords.group(2))
+                        #strand = coords.group(0)[-2]
+                        #new_coords = f'{start_short}-{stop}({strand})'
+                        #description = re.sub(r'(\d+-\d+\([\+\-]\))', new_coords, description)
+                        if "type:5prime_partial" in description:
                             description = description.replace("type:5prime_partial", "type:complete")
                             classification = "complete"
                         else:
@@ -787,7 +783,6 @@ def choose_one_isoform(transdecoder_pep):
                 record = longest_isoform[2]
                 SeqIO.write(record, output, "fasta")
 
-
 def parse_transdecoder_file(transdecoder_pep):
     stringtie_id_dict = {} 
     for record in SeqIO.parse(transdecoder_pep, "fasta"):
@@ -823,7 +818,6 @@ def from_transcript_to_genome_coords(stringtie_gtf, transdecoder_id_dict): #bett
                 stop_genome = part[4]
                 score = part[5]
                 strand = part[6]
-                frame = part[7]
                 attributes = part[8]
 
                 gene_id = re.search(r'gene_id "([^"]+)"', attributes)
@@ -835,14 +829,13 @@ def from_transcript_to_genome_coords(stringtie_gtf, transdecoder_id_dict): #bett
                 
                 if feature == 'transcript':
                     print("--------------Neues Transcript mit ID: ----------- ", transcript_id) 
-                    output.write(f"{seqname}\tPreGalba\tgene\t{start_genome}\t{stop_genome}\t.\t{strand}\t{frame}\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
-                    output.write(f"{seqname}\tPreGalba\ttranscript\t{start_genome}\t{stop_genome}\t.\t{strand}\t{frame}\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
+                    output.write(f"{seqname}\tPreGalba\tgene\t{start_genome}\t{stop_genome}\t.\t{strand}\t.\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
+                    output.write(f"{seqname}\tPreGalba\ttranscript\t{start_genome}\t{stop_genome}\t.\t{strand}\t.\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
                     print("ANFANG: Transkriptlänge, cds Länge, cds index auf 0")
                     if len(exon_coords_list) > 1: #Für CDS muss es auch zugelassen sein, dass nur ein Exon vorhanden ist
                         transcript_id = exon_coords_list[0][2]
                         gene_id = exon_coords_list[0][3]
                         strand = exon_coords_list[0][4]
-                        frame = exon_coords_list[0][5]
                         print("Exons für vorheriges Transkript vorhanden: ", transcript_id)
                         for i in range(len(exon_coords_list)-1):
                             curr_exon_stop = int(exon_coords_list[i][1])
@@ -850,9 +843,8 @@ def from_transcript_to_genome_coords(stringtie_gtf, transdecoder_id_dict): #bett
                             intron_start = int(curr_exon_stop) + 1
                             intron_stop = int(next_exon_start) - 1
                             print("Intron von: ", intron_start, "bis: ", intron_stop)
-                            output.write(f"{seqname}\tPreGalba\tintron\t{intron_start}\t{intron_stop}\t.\t{strand}\t{frame}\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
+                            output.write(f"{seqname}\tPreGalba\tintron\t{intron_start}\t{intron_stop}\t.\t{strand}\t.\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
                     if len(exon_coords_list) > 0:
-                        frame = "None"
                         if transcript_id in transdecoder_id_dict:
                             cds_transcript_start = int(transdecoder_id_dict[transcript_id][0][0])
                             cds_transcript_stop = int(transdecoder_id_dict[transcript_id][0][1])
@@ -885,7 +877,7 @@ def from_transcript_to_genome_coords(stringtie_gtf, transdecoder_id_dict): #bett
                                         print("CDS Startpunkt liegt innerhalb des Exons bei: ", cds_start_genome)
                                         if cds_start_genome + cds_total_length - cds_current_length - 1 > curr_exon_stop: #GEÄNDERT
                                             print("CDS geht bis Exongrenze...")
-                                            output.write(f"{seqname}\tPreGalba\tCDS\t{cds_start_genome}\t{curr_exon_stop}\t.\t{strand}\t{frame}\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
+                                            output.write(f"{seqname}\tPreGalba\tCDS\t{cds_start_genome}\t{curr_exon_stop}\t.\t{strand}\t.\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
                                             #frame = frame(frame, curr_exon_stop - cds_start_genome + 1, strand)
                                             print("CDS von: ", cds_start_genome, "bis: ", curr_exon_stop, "hinzugefügt")
                                             cds_current_length = curr_exon_stop - cds_start_genome + 1
@@ -909,7 +901,7 @@ def from_transcript_to_genome_coords(stringtie_gtf, transdecoder_id_dict): #bett
                                             cds_current_length = cds_total_length
                                             print("Aktueller Exonstoppunkt: ", stop_genome)
                                             print("CDS Stoppunkt: ", cds_stop_genome)
-                                            output.write(f"{seqname}\tPreGalba\tCDS\t{cds_start_genome}\t{cds_stop_genome}\t.\t{strand}\t{frame}\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
+                                            output.write(f"{seqname}\tPreGalba\tCDS\t{cds_start_genome}\t{cds_stop_genome}\t.\t{strand}\t.\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
                                             fivePrimeUTR_start = curr_exon_start
                                             fivePrimeUTR_stop = cds_start_genome - 1
                                             threePrimeUTR_start = cds_stop_genome + 1
@@ -947,7 +939,7 @@ def from_transcript_to_genome_coords(stringtie_gtf, transdecoder_id_dict): #bett
                                         print("CDS noch nicht beendet...")
                                         cds_stop_genome = int(curr_exon_stop) 
                                         print("CDS wird von Start des aktuellen Exons, bis Stopp des aktuellen Exons eingetragen")
-                                        output.write(f"{seqname}\tPreGalba\tCDS\t{cds_start_genome}\t{cds_stop_genome}\t.\t{strand}\t{frame}\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
+                                        output.write(f"{seqname}\tPreGalba\tCDS\t{cds_start_genome}\t{cds_stop_genome}\t.\t{strand}\t.\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
                                         cds_current_length+=curr_exon_stop - curr_exon_start + 1
                                         print("Neue aktuelle Länge: ", cds_current_length)
                                     else:
@@ -955,7 +947,7 @@ def from_transcript_to_genome_coords(stringtie_gtf, transdecoder_id_dict): #bett
                                         cds_stop_genome = int(curr_exon_start) + cds_total_length - cds_current_length - 1 #GEÄNDERT (-1 hinzugefügt)
                                         print("Aktueller Exonstoppunkt: ", curr_exon_stop)
                                         print("CDS Stoppunkt: ", cds_stop_genome)
-                                        output.write(f"{seqname}\tPreGalba\tCDS\t{cds_start_genome}\t{cds_stop_genome}\t.\t{strand}\t{frame}\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
+                                        output.write(f"{seqname}\tPreGalba\tCDS\t{cds_start_genome}\t{cds_stop_genome}\t.\t{strand}\t.\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
                                         threePrimeUTR_start = cds_stop_genome + 1
                                         threePrimeUTR_stop = curr_exon_stop
                                         stop_codon_plus_start = cds_stop_genome - 2
@@ -973,71 +965,31 @@ def from_transcript_to_genome_coords(stringtie_gtf, transdecoder_id_dict): #bett
                     exon_coords_list.clear()
                         
                 if feature == 'exon':
-                    output.write(f"{seqname}\tPreGalba\texon\t{start_genome}\t{stop_genome}\t.\t{strand}\t{frame}\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
+                    output.write(f"{seqname}\tPreGalba\texon\t{start_genome}\t{stop_genome}\t.\t{strand}\t.\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
                     exon_number = re.search(r'exon_number "([^"]+)"', attributes)
                     exon_number = exon_number.group(1)
-                    exon_coords_list.append((start_genome, stop_genome, transcript_id, gene_id, strand, frame))
-
-
-def next_frame(frame, cds_length, strand):
-    if strand == "+":
-        return (frame + cds_length % 3)
-
-    if strand == "-":
-        return (frame - cds_length % 3)
+                    exon_coords_list.append((start_genome, stop_genome, transcript_id, gene_id, strand))
     
 def frame_in_annotation(annotation_file):
-    for line in fileinput.input(annotation_file, inplace=True):
-        if "CDS" in line:              
-            part = line.strip().split('\t') 
-            start = part[3]
-            stop = part[4]
-            strand = part[6]
-            if strand == "+":
-                line = line.replace("None", str(frame))
-                frame = frame + (int(stop) - int(start) + 1) % 3
-        #print(line, end='')  # Muss print benutzt werden, um die Ausgabe direkt zu überschreiben
-        else:
-            frame = 0
-        print(line, end='')  # Muss print benutzt werden, um die Ausgabe direkt zu überschreiben
+    try:
+        command = [
+            "/home/s-amknut/GALBA/tools/eviann/src/gffread", #Schauen ob in sif file
+            "-F",
+            annotation_file,
+            "-o",
+            "annotation_with_frame.gtf"
+        ]
+        result = subprocess.run(command, capture_output=True)
 
-#(Zwischen cds im selben transkript liegen Utrs? Im selben Exon hört ein cds auf und anderes beginnt?)
-#--> Schreibt man die mit auf?
-#-Wie verwende ich die overlap.pl Datei? Ich muss ja eigentlich sagen können, wann zwei sets als gleich bezeichnet werden. key error
-#-gffcompare versucht zu verwenden aber make funktioniert nicht
-#-Wollen wir zusätzlich miniprot predictete ORFs verwenden? Stand jetzt nutzen wir miinniprot nur um zu schauen, dass Konflikte vermieden werden
-#-Sind am Ende auch nur die HC Gene die die wir reinschreiben in die annot file oder schreiben wir alles rein?
-                           
-'''
-Theorie:
--High confidence CDS finden mit folgenden Kriterien:
-    Für complete:
-        > Wenn CDS mit irgendeinem Protein die Gleichung erfüllt wird CDS als HC kategorisiert
-    Für incomplete:
-        > Wenn irgendein Protein C-terminus (alignment Ende) abdeckt (Wie in Gleichung), wird CDS als HC kategorisiert
-        > Wenn das beste alignment nicht die Sequenz von Anfang an abdeckt, wird es gekürzt (?)
-    Ohne Protein support oder ohne Gleichung zu erfüllen:
-        > Betrachten nur die ohne Protein support
-        > Nur das längste CDS wird pro Gen ausgewählt für dieses muss gelten: (Nur längste ohne Protein support?)
-            > Länge >= 300 nucleotides 
-            > GMS-T log-odds score > 50, #EIGENEN SCORE AUSWÄHLEN?
-            > Complete
-            > InFrame Stop Codon in the 5' UTR
-            > No conflict with other gene prediction in same locus
-            > No overlap with other gene prediction in same locus
-                --> Mapping predicted gene to genome (?) and compare exon-intron structure with potentially conflicting MiniProthint prediction 
-            
-Plan:
--In Kürzungsfunktion instant_complete_dictonary erstellen (Für complete und 3' partial) 
--In Candidatesfunktion later_complete_dictonary mit gekürzte complete ORFS erstellen und incomplete_dictonary erstellen 
--In normal.tsv Gleichung für instant_complete_ORFS berechnen und HC CDS in dictonary speichern (PARALELLISIEREN)
--In short.tsv Gleichung für later_complete_ORFS berechnen und zu HC dictonary hinzufügen 
--In normal.tsv für incomplete_dictonary prüfen, ob C-terminus abgedeckt ist und Gleichung erfüllt, dann zu HC dictonary hinzufügen 
--
--Neue Transdecoder.pep file mit neuen Ergebnissen 
-ODER alle complete durchgehen in bestehender pep file und bei incomplete
-    schauen ob gekürzt wurde. Wenn ja zum nächsten Element.
-'''
+        if result.returncode == 0:
+            print("Frames were successfully added to annotation file.")
+        else:
+            print("Error during adding frames to annotation file with gffread.")
+            print(result.stderr)
+    
+    except Exception:
+        print("Could not run gffread command.")
+        sys.exit(1)
 
 def load_config(config_file):
     with open(config_file, "r") as config_file:
@@ -1052,9 +1004,21 @@ parser.add_argument('-y', '--config', help='Config file input', metavar='<config
 parser.add_argument('--isoseq', action='store_true', help='Use this option if you want to process isoseq data only')
 parser.add_argument('--rnaseq', action='store_true', help='Use this option if you want to process rnaseq data only')
 parser.add_argument('--mixed', action='store_true', help='Use this option if you want to process both rnaseq and isoseq data')
+parser.add_argument('--projname', default="pregalba", help='Name the output folder', required=False)
+parser.add_argument('--output_path',  help='Specify the path you want the output folder to be created in if it should differ from the current working directory', required=False)
 
 args = parser.parse_args()
 threads = args.threads
+proj_name = args.projname
+output_path = args.output_path
+print("Projektname: ", proj_name)
+
+if output_path == None:
+    output_path = os.getcwd()
+
+os.makedirs(output_path + "/" + proj_name, exist_ok=True)
+os.chdir(output_path + "/" + proj_name)
+
 input_files = load_config(args.config)
 genome_file = input_files["genome"]
 rnaseq_paired_sets = input_files.get("rnaseq_paired_sets", []) #Wenn Liste nicht vorhanden, dann leere Liste
@@ -1085,9 +1049,8 @@ if (rnaseq_paired_sets == [] and rnaseq_single_sets == []) or (isoseq_sets == []
 process_rnaseq = args.rnaseq or args.mixed
 process_isoseq = args.isoseq or args.mixed
 
-'''
 if process_rnaseq:
-    #indexing(genome_file)
+    indexing(genome_file)
     alignments_list = mapping_short(rnaseq_paired_sets, rnaseq_single_sets)
     sam_to_bam(alignments_list)    
     if len(alignments_list) > 1:    #NOCHMAL PRÜFEN OB HIER WIRKLICH BAMFILES ÜBERGEBEN WERDEN
@@ -1100,28 +1063,25 @@ if process_isoseq:
     sam_file_list = [alignment_isoseq]
     sam_to_bam(sam_file_list) 
     alignment_isoseq = file_name(alignment_isoseq) + ".bam"
-'''
-#assembling(alignment_rnaseq, alignment_isoseq)  #Für alleine testen leer machen
-#orfsearching(genome_file, "transcripts_mixed_test1.gtf")  #Vielleicht eher Was returned wurde als input übergeben
+
+assembling(alignment_rnaseq, alignment_isoseq)  #Für alleine testen leer machen
+orfsearching(genome_file, "transcripts_mixed_test1.gtf")  #Vielleicht eher Was returned wurde als input übergeben
 #protein_aligning(genome_file, protein_file, "/home/s-amknut/GALBA/tools/blosum62_1.csv") 
-#short_start_dict = shorten_incomplete_Orfs("transcripts_test1.fasta.transdecoder.pep")
-#make_diamond_db(protein_file)
-#validating_ORFs("shortened_candidates.pep", "diamond_shortened.tsv")
-#make_diamond_db(protein_file)
-#validating_ORFs("transcripts_test1.fasta.transdecoder.pep", "diamond_normal.tsv")
-#classifications_dict = get_cds_classification("diamond_normal.tsv", "diamond_shortened.tsv", short_start_dict)
-#classifications_hc_dict = get_optimized_pep_file("transcripts_test1.fasta.transdecoder.pep", "shortened_candidates.pep", classifications_dict, short_start_dict)
-#make_diamond_db(protein_file)
-#validating_ORFs("revised_candidates.pep", "diamond_revised.tsv")
+short_start_dict = shorten_incomplete_Orfs("transcripts_test1.fasta.transdecoder.pep")
+make_diamond_db(protein_file)
+validating_ORFs("shortened_candidates.pep", "diamond_shortened.tsv")
+make_diamond_db(protein_file)
+validating_ORFs("transcripts_test1.fasta.transdecoder.pep", "diamond_normal.tsv")
+classifications_dict = get_cds_classification("diamond_normal.tsv", "diamond_shortened.tsv", short_start_dict)
+#print("Classifications dict: ", classifications_dict)
+classifications_hc_dict = get_optimized_pep_file("transcripts_test1.fasta.transdecoder.pep", "shortened_candidates.pep", classifications_dict, short_start_dict)
+make_diamond_db(protein_file)
+validating_ORFs("revised_candidates.pep", "diamond_revised.tsv")
 get_hc_cds("diamond_revised.tsv", "revised_candidates.pep", protein_file)
 choose_one_isoform("hc_genes.pep")
 transdecoder_id_dict = parse_transdecoder_file("one_chosen_isoform.pep")
 from_transcript_to_genome_coords("transcripts_mixed_test1.gtf", transdecoder_id_dict)
-#frame_in_annotation("annotation.gtf")
-#print(next_frame(0, 154, "+")) #-> 2
-#print(next_frame(0, 281, "+")) #-> 0
-#print(next_frame(2, 120, "+")) #-> 0
-
+frame_in_annotation("annotation.gtf")
 
 #TO DOs:
 #-Variablen und Funktionsnamen anpassen
@@ -1169,7 +1129,6 @@ from_transcript_to_genome_coords("transcripts_mixed_test1.gtf", transdecoder_id_
 #-Diamond nutzt .pep file von Transdecoder und sucht homologe Proteine 
 #-Spaln aligniert die homologen Proteine zurück ans Genom, um predictions genauer zu machen 
 
-#Frame hinzufügen
 #File, die training.gtf entspricht + file mit allen hc genen + file mit allen genen + file mit allen hc introns
 #Nur eine Isoform pro Gen wählen: Längste CDS und sonst niedrigste StringTie Nummer 
 #CDS ohne Protein support 
@@ -1288,7 +1247,7 @@ Schließlich entscheiden wir uns ja nur wegen dieser CDS für die Isoform.
 -Abgabedatum passt mit Korrektur?
 -Finale files: 
     -gene_models: Alle HC Genstrukturen
-    -hints_file: Wie die von Tomas, nur CDS,Introns,Start,Stop (Keine Incomplete)
+    -hints_file: Wie die von Tomas, nur CDS,Introns,Start,Stop (Keine Incomplete), habe ja jetzt gerade nur CDS, ändern?
     -Introns: Alle HC Introns
     -Alle HC und Low Confidence CDS
     Wo sind die incomplete HC? 
