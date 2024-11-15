@@ -155,7 +155,7 @@ def mapping_short(rnaseq_paired_sets, rnaseq_single_sets):
             if file_format(rnaseq_single_sets[0]) == "fastq":
                 format_option = ""
             string_with_sets = ",".join(rnaseq_single_sets)
-            output_1 = "alignment_single_rnaseq_test1.sam" 
+            output_1 = "alignment_single_rnaseq.sam" 
             hisat2_command = [
                     "hisat2",  
                     format_option,                       
@@ -189,7 +189,7 @@ def mapping_short(rnaseq_paired_sets, rnaseq_single_sets):
                 format_option = ""
             string_with_first = ",".join(rnaseq_paired_sets[0::2])
             string_with_second = ",".join(rnaseq_paired_sets[1::2])
-            output_2 = "alignment_paired_rnaseq_test1.sam"  
+            output_2 = "alignment_paired_rnaseq.sam"  
             hisat2_command = [
                     "hisat2", 
                     format_option,                       
@@ -218,7 +218,7 @@ def mapping_short(rnaseq_paired_sets, rnaseq_single_sets):
 
 def mapping_long(genome, isoseq_sets):
     try :
-        output_sam = "alignment_isoseq_test1.sam" #threads neu prüfen
+        output_sam = "alignment_isoseq.sam" #threads neu prüfen
         minimap2_command = ["minimap2", "-ax", "splice", "-uf", "-C5", genome, "-t", str(threads)] + isoseq_sets + ["-o", output_sam]
         #Threads noch hinzufügen
         #We can use -C5 for reads with low error rates like isoseq 
@@ -268,7 +268,7 @@ def sam_to_bam(sam_file_list):
 def merge_bam_files(bamfile_1, bamfile_2): 
     try:
         print("Merging bam files " + bamfile_1 + " and " + bamfile_2 + "...")
-        output_bam = "alignment_merged_rnaseq_test1.bam"
+        output_bam = "alignment_merged_rnaseq.bam"
         command1 = [
             "samtools",
             "merge",
@@ -293,7 +293,7 @@ def merge_bam_files(bamfile_1, bamfile_2):
 def assembling(alignment_rnaseq, alignment_isoseq):
     try:
         print("Assembling the reads...")
-        output_gtf = "transcripts_mixed_test1.gtf"
+        output_gtf = "transcripts_mixed.gtf"
         #alignment_rnaseq = "alignment_paired_rnaseq_test1.bam"
         #alignment_isoseq = "alignment_isoseq.bam"
 
@@ -358,7 +358,7 @@ def assembling(alignment_rnaseq, alignment_isoseq):
 
 def orfsearching(genome_fa, transcripts_gtf):
     try:
-        output_fa = "transcripts_test1.fasta" 
+        output_fa = "transcripts.fasta" 
         gffread_command = [
             "gffread",
             "-w",
@@ -669,8 +669,6 @@ def get_optimized_pep_file(normal_pep, shortened_pep, classifications, short_sta
     #9 Elemente sind in short_tsv aber nicht in classifications -> Vermutung: Protein aligniert nur mit short oder nur mit normal und alignment taucht damit nicht in mergeddf auf
 
 def get_hc_cds(diamond_tsv, transdecoder_pep, protein_file):
-    #header_list = ["cdsID", "proteinID", "percIdentMatches", "alignLength", "mismatches", "gapOpenings", "alignStart", "alignEnd", "proteinStart", "proteinEnd", "eValue", "bitScore"]
-    #df = pd.read_csv(diamond_tsv, delimiter='\t', header=None, names=header_list)
     q_length_dict = {}
     for record in SeqIO.parse(protein_file, "fasta"):
         q_length_dict[record.id] = len(record.seq) 
@@ -705,8 +703,9 @@ def get_hc_cds(diamond_tsv, transdecoder_pep, protein_file):
                 if "type:complete" in record.description: #30544 complete & hc von insgesamt 42797 complete candidates 
                     if start_condition < 6 and stop_condition < 21:
                         SeqIO.write(record, output, "fasta")
-                        stringtie_id = id.split(".p")[0]
-                        gene_id = stringtie_id.split(".")[0] + "." + stringtie_id.split(".")[1] + "."
+                        print("ID: ", id, " ist hc und ", record.id, " wird geschrieben")
+                        #stringtie_id = id.split(".p")[0]
+                        #gene_id = stringtie_id.split(".")[0] + "." + stringtie_id.split(".")[1] + "."
                         #del t_dict[id]
                         #hc_genes.append(gene_id)
                         #print("StringTie ID ist hc: ", stringtie_id)
@@ -714,12 +713,14 @@ def get_hc_cds(diamond_tsv, transdecoder_pep, protein_file):
                         #for key in keys_to_delete:
                             #print("Key wird gelöscht: ", key)
                            # del t_dict[key]
-                        continue
+                        #continue
                     #else:
-                     #   if gene_id not in hc_genes:
+                     #   if gene_id not in hc_genes:   
 
 
                         #Hier intrinsic, complete schon abgehakt. 
+        #for id in t_dict:
+
         #Die durchgehen die keine Proteinevidence haben 
 '''
         last_gene_id = None
@@ -1012,6 +1013,7 @@ threads = args.threads
 proj_name = args.projname
 output_path = args.output_path
 print("Projektname: ", proj_name)
+print("Korrigierte Eingabe für validating ORFs.")
 
 if output_path == None:
     output_path = os.getcwd()
@@ -1048,7 +1050,7 @@ if (rnaseq_paired_sets == [] and rnaseq_single_sets == []) or (isoseq_sets == []
 
 process_rnaseq = args.rnaseq or args.mixed
 process_isoseq = args.isoseq or args.mixed
-
+'''
 if process_rnaseq:
     indexing(genome_file)
     alignments_list = mapping_short(rnaseq_paired_sets, rnaseq_single_sets)
@@ -1065,23 +1067,24 @@ if process_isoseq:
     alignment_isoseq = file_name(alignment_isoseq) + ".bam"
 
 assembling(alignment_rnaseq, alignment_isoseq)  #Für alleine testen leer machen
-orfsearching(genome_file, "transcripts_mixed_test1.gtf")  #Vielleicht eher Was returned wurde als input übergeben
+orfsearching(genome_file, "transcripts.gtf")  #Vielleicht eher Was returned wurde als input übergeben
 #protein_aligning(genome_file, protein_file, "/home/s-amknut/GALBA/tools/blosum62_1.csv") 
-short_start_dict = shorten_incomplete_Orfs("transcripts_test1.fasta.transdecoder.pep")
+short_start_dict = shorten_incomplete_Orfs("transcripts.fasta.transdecoder.pep")
 make_diamond_db(protein_file)
 validating_ORFs("shortened_candidates.pep", "diamond_shortened.tsv")
 make_diamond_db(protein_file)
-validating_ORFs("transcripts_test1.fasta.transdecoder.pep", "diamond_normal.tsv")
+validating_ORFs("transcripts.fasta.transdecoder.pep", "diamond_normal.tsv")
 classifications_dict = get_cds_classification("diamond_normal.tsv", "diamond_shortened.tsv", short_start_dict)
 #print("Classifications dict: ", classifications_dict)
-classifications_hc_dict = get_optimized_pep_file("transcripts_test1.fasta.transdecoder.pep", "shortened_candidates.pep", classifications_dict, short_start_dict)
+classifications_hc_dict = get_optimized_pep_file("transcripts.fasta.transdecoder.pep", "shortened_candidates.pep", classifications_dict, short_start_dict)
 make_diamond_db(protein_file)
 validating_ORFs("revised_candidates.pep", "diamond_revised.tsv")
+'''
 get_hc_cds("diamond_revised.tsv", "revised_candidates.pep", protein_file)
-choose_one_isoform("hc_genes.pep")
-transdecoder_id_dict = parse_transdecoder_file("one_chosen_isoform.pep")
-from_transcript_to_genome_coords("transcripts_mixed_test1.gtf", transdecoder_id_dict)
-frame_in_annotation("annotation.gtf")
+#choose_one_isoform("hc_genes.pep")
+#transdecoder_id_dict = parse_transdecoder_file("one_chosen_isoform.pep")
+#from_transcript_to_genome_coords("transcripts.gtf", transdecoder_id_dict)
+#frame_in_annotation("annotation.gtf")
 
 #TO DOs:
 #-Variablen und Funktionsnamen anpassen
