@@ -293,7 +293,7 @@ def merge_bam_files(bamfile_1, bamfile_2):
 def assembling(alignment_rnaseq, alignment_isoseq):
     try:
         print("Assembling the reads...")
-        output_gtf = "transcripts_mixed.gtf"
+        output_gtf = "transcripts.gtf"
         #alignment_rnaseq = "alignment_paired_rnaseq_test1.bam"
         #alignment_isoseq = "alignment_isoseq.bam"
 
@@ -422,6 +422,114 @@ def orfsearching(genome_fa, transcripts_gtf):
 
 def protein_aligning(genome, protein, alignment_scoring):
     try: 
+        command = [
+            "/home/s-amknut/GALBA/tools/miniprot/miniprot",
+           # "miniprot",
+            #"-t",
+            #str(threads),
+            "--genome",
+            genome,
+            "--protein",
+            protein,
+            "--aln",
+        ]
+        print("Aligning proteins to genome...")
+        with open("miniprot.aln", "w") as output:
+            result = subprocess.run(command, stdout=output, stderr=subprocess.PIPE)
+        if result.returncode == 0:
+            print("Proteins aligned successfully")
+        else:
+            print("Error during protein alignment with miniprot")
+            print("stdout:", result.stdout.decode())
+            print("stderr:", result.stderr.decode())
+
+    except Exception:
+        print("Could not run miniprot command.")
+        print(result.stderr)
+        sys.exit(1)
+
+    try: 
+        command = f"/home/s-amknut/GALBA/tools/miniprot-boundary-scorer/miniprot_boundary_scorer -o miniprot_parsed.gff -s {alignment_scoring} < miniprot.aln"
+        #command = [
+         #   "miniprot_boundary_scorer",
+          #  "-o",
+           # "miniprot_parsed.gff",
+            #"-s",
+            #alignment_scoring,
+            #"<",
+            #"miniprot.aln"
+        #]
+        print("Running command:", command)
+        print("Scoring the alignment...")
+        
+        result = subprocess.run(command, shell=True, capture_output=True)
+
+        if result.returncode == 0:
+            print("Alignment scored successfully with miniprot_boundary_scorer!")
+        else:
+            print("Error during scoring the alignment with miniport_boundary_scorer!")
+            print("stdout:", result.stdout.decode())
+            print("stderr:", result.stderr.decode())
+    
+    except Exception:
+        print("Could not run miniprot_boundary_scorer command.")
+        sys.exit(1)
+
+    try:
+        command = [
+            "/home/s-amknut/GALBA/tools/miniprothint/miniprothint.py",
+            "miniprot_parsed.gff",
+            "--workdir",
+            "miniprothint"
+        ]
+
+        print("Creating hints for Augustus...")
+
+        result = subprocess.run(command, capture_output=True)
+
+        if result.returncode == 0:
+            print("Hints created successfully")
+        else:
+            print("Error during creating hints by miniprothint")
+            print("stdout:", result.stdout.decode())
+            print("stderr:", result.stderr.decode())
+            print(result.stderr)
+        
+    except Exception:
+        print("Could not run miniprothint command.")
+        sys.exit(1)
+
+
+def protein_aligning2(genome, protein):
+    try:
+        command = [
+            "/home/s-amknut/GALBA/tools/miniprothint/miniprothint.py",
+            "--genome",
+            genome,
+            "--protein",
+            protein,
+            "--workdir",
+            "miniprothint"
+        ]
+
+        print("Aligning proteins to genome...")
+        print("Running command:", command)
+        result = subprocess.run(command, capture_output=True)
+
+        if result.returncode == 0:
+            print("Proteins aligned successfully")
+        else:
+            print("Error during protein alignment with miniprothint")
+            print("stdout:", result.stdout.decode())
+            print("stderr:", result.stderr.decode())
+    except Exception:
+        print("Could not run miniprothint command.")
+        sys.exit(1)
+    
+    
+'''
+def protein_aligning(genome, protein, alignment_scoring):
+    try: 
         #output_aln = "protein_alignment.aln"
         command = [
             "miniprot",
@@ -445,6 +553,7 @@ def protein_aligning(genome, protein, alignment_scoring):
 
     except Exception:
         print("Could not run miniprot command.")
+        print(result.stderr)
         sys.exit(1)
 
     try: 
@@ -488,7 +597,7 @@ def protein_aligning(genome, protein, alignment_scoring):
     except Exception:
         print("Could not run miniprothint command.")
         sys.exit(1)
-
+    '''
 def shorten_incomplete_Orfs(transdecoder_pep):
     try:
         short_start_dict = {}
@@ -500,16 +609,16 @@ def shorten_incomplete_Orfs(transdecoder_pep):
                         record.seq = record.seq[m_position:]
                         description = record.description.split(" ")
                         coords = re.search(r":(\d+)-(\d+)\([\+\-]\)", description[7])
-                        new_length = len(record.seq)
+                        new_length = len(record.seq) - 1 #damit stopp nicht mitgezählt wird
                         if coords:
                             old_start = int(coords.group(1)) 
-                            new_start = old_start + m_position #Nicht -1, denn m_position ist 0-based
+                            new_start = old_start + m_position*3 #Nicht -1, denn m_position ist 0-based
                             stop = int(coords.group(2))
                             description = re.sub(f"{old_start}-{stop}", f"{new_start}-{stop}", record.description)
                             description = re.sub(r"len:\d+", f"len:{new_length}", description)
                             record.description = description
                             SeqIO.write(record, output, "fasta")
-                            short_start_dict[record.id] = m_position
+                            short_start_dict[record.id] = m_position 
         return short_start_dict
     
     except Exception:
@@ -577,15 +686,15 @@ def get_cds_classification(normal_tsv, shortened_tsv, short_start_dict):
         q_incomplete_start = cds["proteinStart_normal"]
         t_incomplete_start = cds["alignStart_normal"]
         t_complete_start = cds["alignStart_short"] + cds["shortStart"]  #not -1 because alignmentstart is 1-based but Mposition not. +shortstart, weil Differenz von normal zu short gebraucht wird
-        aai_incomplete = cds["percIdentMatches_normal"]
-        aai_complete = cds["percIdentMatches_short"]
+        aai_incomplete = cds["percIdentMatches_normal"] 
+        aai_complete = cds["percIdentMatches_short"] 
         if aai_complete == 0:
             aai_complete = 0.0001
-        if aai_incomplete == 0:
-            aai_incomplete = 0.0001
+        #if aai_incomplete == 0:
+         #   aai_incomplete = 0.0001
         match_log = math.log(aai_incomplete/aai_complete)
         #maybe betrag nehmen
-        support_score = (t_complete_start - t_incomplete_start) - (q_incomplete_start - 1) + match_log**1000
+        support_score = abs(t_complete_start - t_incomplete_start) - (q_incomplete_start - 1) + match_log**1000
         merged_df.at[i, "supportScore"] = support_score
         #if t_complete_start < t_incomplete_start:
             #print("cdsID: ", cds["cdsID"] , "incomplete Start: ", t_incomplete_start, "complete Start: ", t_complete_start)
@@ -627,7 +736,7 @@ def get_optimized_pep_file(normal_pep, shortened_pep, classifications, short_sta
                 classification = "3prime_partial"
 
             if classification == "5prime_partial" or classification == "internal":
-                if id in classifications:
+                if id in classifications: #Falls es Protein gab, das aligniert hat
                     if classifications[id] == "incomplete":
                         SeqIO.write(record, output, "fasta")  
                     else:
@@ -652,14 +761,14 @@ def get_optimized_pep_file(normal_pep, shortened_pep, classifications, short_sta
                         SeqIO.write(record, output, "fasta")
                 else:
                     SeqIO.write(record, output, "fasta") #If there is no classification, there was no protein evidence found for the CDS 
-                    classifications[id] = "incomplete"   #(drüber nachdenken ob es sein kann, dass es nur für den normalen aber dafür für den kurzen evidenz gibt. Auch dann kommt cds in merged_df nicht vor)
+                    #classifications[id] = "incomplete"   #(drüber nachdenken ob es sein kann, dass es nur für den normalen aber dafür für den kurzen evidenz gibt. Auch dann kommt cds in merged_df nicht vor)
             else:
                 SeqIO.write(record, output, "fasta")
 
-            if classification == "complete" or classification == "5prime_partial":
-                classifications_for_hc[id] = [classification, record.description]
+            #if classification == "complete" or classification == "5prime_partial":
+             #   classifications_for_hc[id] = [classification, record.description]
 
-    return classifications_for_hc
+    #return classifications_for_hc
 
     #4691 sind in classifications nicht drin, aber in normal_pep als 5prime/ internal
     #5502 sind in 5prime/internal in normal_pep
@@ -667,47 +776,102 @@ def get_optimized_pep_file(normal_pep, shortened_pep, classifications, short_sta
     #4682 sind in normal_pep als 5prime_partial oder internal, aber nicht in short_tsv
     #820 elemente sind in short_tsv
     #9 Elemente sind in short_tsv aber nicht in classifications -> Vermutung: Protein aligniert nur mit short oder nur mit normal und alignment taucht damit nicht in mergeddf auf
+def preparing_miniprot_gff_for_conflict_comparison(miniprot_gff):
+    with open(miniprot_gff, "r") as gff_file, open("bedtools_reference.bed", "w") as output:
+        for line in gff_file: 
+            if "CDS" in line:
+                parts = line.split("\t")
+                chromosome = parts[0]
+                start = parts[3]
+                stop = parts[4]
+                output.write(f"{chromosome}\t{start}\t{stop}\n")
 
-def get_hc_cds(diamond_tsv, transdecoder_pep, protein_file):
+def preparing_candidates_for_conflict_comparison(t_dict):
+    with open("bedtools_candidates.bed", "w") as output:
+        for element in t_dict: 
+            description = t_dict[element][0]
+            #print("Description: ", description)
+            coords = re.search(r":(\d+)-(\d+)\((\+|\-)\)", description)
+            start = coords.group(1)
+            stop = coords.group(2)
+            chromosome = description.split(" ")[0]
+            output.write(f"{chromosome}\t{start}\t{stop}\t{element}\n")
+
+def finding_protein_conflicts(candidates_bed, reference_bed):
+    try:
+        command = [
+            "/home/s-amknut/GALBA/tools/bedtools2/bin/bedtools",
+            "coverage",
+            "-a",
+            candidates_bed,
+            "-b",
+            reference_bed
+        ]
+        with open("coverage.bed", "w") as output:
+            result = subprocess.run(command, stdout=output, stderr=subprocess.PIPE)
+
+        if result.returncode == 0:
+            print("Coverage file created successfully")
+
+        else:
+            print("Error during creating coverage file")
+            print(result.stderr)
+
+    except Exception:
+        print("Could not run bedtools command.")
+        sys.exit(1)
+    
+    with open("coverage.bed", "r") as coverage_file:
+        for line in coverage_file:
+            parts = line.split("\t")
+            if int(parts[4]) > 0:
+                print("Conflict found: ", parts[4])
+
+def getting_hc_supported_by_proteins(diamond_tsv, transdecoder_pep, protein_file):
     q_length_dict = {}
     for record in SeqIO.parse(protein_file, "fasta"):
         q_length_dict[record.id] = len(record.seq) 
     t_dict = {}
-    hc_genes = []
+    already_hc_genes = []
+    count = 0
     for record in SeqIO.parse(transdecoder_pep, "fasta"):
        # t_length_dict[record.id] = len(record.seq) - 1 # -1 damit * nicht gezählt wird
-        t_dict[record.id] = [record.description, record.seq]
+        t_dict[record.id] = [record.description, record.seq] #46187 Elemente in t_dict
     with open(diamond_tsv, "r") as tsv, open("hc_genes.pep", "w") as output:
         for line in tsv:    #7580 Elemente in tsv
             part = line.strip().split('\t')
             id = part[0]
             protein_id = part[1]
-            #percIdentMatches = float(part[2])
-            align_length = int(part[3])
-            #mismatches = int(part[4])
-            #gapOpenings = int(part[5])
-            t_start = int(part[6])
-            t_end = int(part[7])
-            q_start = int(part[8])
-            q_end = int(part[9])
-            #eValue = float(part[10])
-            #bitScore = float(part[11])
+            #align_length = int(part[3])
+            #t_start = int(part[6]) #Bis 18.11. dachte ich es wäre t zuerst und dann q, dann auf website von diamond was anderes gelesen
+            #t_end = int(part[7])
+            #q_start = int(part[8])
+            #q_end = int(part[9])
+            q_start = int(part[6])
+            q_end = int(part[7])
+            t_start = int(part[8])
+            t_end = int(part[9])
             if id in t_dict:
                 record.id = id
                 record.description = t_dict[id][0]
                 record.seq = t_dict[id][1]
-                t_length = int(re.search(r"len:(\d+)", record.description).group(1))
+                #t_length = int(re.search(r"len:(\d+)", record.description).group(1)) #geht auch, weil len genau sequenzlänge der AS angibt
+                t_length = len(record.seq) - 1 # -1 damit * nicht gezählt wird
                 q_length = q_length_dict[protein_id]
                 start_condition = q_start - t_start 
                 stop_condition = (q_length - q_end) - (t_length - t_end) 
-                if "type:complete" in record.description: #30544 complete & hc von insgesamt 42797 complete candidates 
+                if "type:complete" in record.description: #28490 complete & hc von insgesamt 42797 complete candidates 
                     if start_condition < 6 and stop_condition < 21:
+                        print("Reingeschrieben, wegen Protein: ", protein_id)
                         SeqIO.write(record, output, "fasta")
-                        print("ID: ", id, " ist hc und ", record.id, " wird geschrieben")
-                        #stringtie_id = id.split(".p")[0]
-                        #gene_id = stringtie_id.split(".")[0] + "." + stringtie_id.split(".")[1] + "."
+                        gene_id = id.split(".")[0] + "." + id.split(".")[1] 
+                        count += 1
                         #del t_dict[id]
-                        #hc_genes.append(gene_id)
+                        already_hc_genes.append(gene_id)
+                    else:
+                        print("Nicht erfüllt für: ", protein_id)
+                if "type:5prime_partial" in record.description or "type:internal" in record.description or "type:3prime_partial" in record.description:
+                    del t_dict[id]
                         #print("StringTie ID ist hc: ", stringtie_id)
                         #keys_to_delete = [key for key in t_dict if key.startswith(gene_id)]
                         #for key in keys_to_delete:
@@ -716,12 +880,26 @@ def get_hc_cds(diamond_tsv, transdecoder_pep, protein_file):
                         #continue
                     #else:
                      #   if gene_id not in hc_genes:   
-
-
                         #Hier intrinsic, complete schon abgehakt. 
-        #for id in t_dict:
+    return already_hc_genes, t_dict
 
-        #Die durchgehen die keine Proteinevidence haben 
+def getting_hc_supported_by_intrinsic(already_hc_genes, t_dict):
+        #print("Länge t_dict nach Hinzufügen von ausgewählten complete: ", len(t_dict)) #Nach Hinzufügen noch 15640
+        #preparing_miniprot_gff_for_conflict_comparison("miniprot_parsed.gff")
+        #preparing_candidates_for_conflict_comparison(t_dict)
+        #finding_protein_conflicts("bedtools_candidates.bed", "miniprot_parsed.gff")
+    '''
+        for id in t_dict:
+            record.id = id
+            record.description = t_dict[id][0]
+            record.seq = t_dict[id][1]
+            gene_id = id.split(".")[0] + "." + id.split(".")[1]
+            if gene_id not in already_hc_genes:   
+                length = int(re.search(r"len:(\d+)", record.description).group(1))
+                condition1 = (length >= 300)
+                condition2 = "type:complete" in record.description 
+        '''
+               
 '''
         last_gene_id = None
         longest_length = 0
@@ -739,7 +917,6 @@ def get_hc_cds(diamond_tsv, transdecoder_pep, protein_file):
                     longest_length = length
                     longest_id = id
             else:
-                
                 print("Längstes Transkript: ", longest_length, "ID: ", longest_id)
                 intrisic_dict[longest_id] = t_dict[longest_id]
                 longest_length = length
@@ -800,12 +977,28 @@ def parse_transdecoder_file(transdecoder_pep):
             stringtie_id_dict[stringtie_id] = [triple]
         else:
             stringtie_id_dict[stringtie_id].append(triple)
-    filtered_dict = {stringtie_id: val for stringtie_id, val in stringtie_id_dict.items() if len(val) == 1}
+    filtered_dict = {stringtie_id: val for stringtie_id, val in stringtie_id_dict.items() if len(val) == 1} #nicht notwendig
     return filtered_dict
 
-def from_transcript_to_genome_coords(stringtie_gtf, transdecoder_id_dict): #better name: creating_annotation_file
-    annotation_file = "annotation.gtf"
-    with open(stringtie_gtf, "r") as stringtie, open(annotation_file, "w") as output:
+def parse_transdecoder_dict(transdecoder_dict):
+    stringtie_id_dict = {}
+    for record in transdecoder_dict:
+        transdecoder_id = record
+        #stringtie_id = transdecoder_id.split(".p")[0]
+        description = transdecoder_dict[record][0]
+        cds_transcript_coords = re.search(r":(\d+)-(\d+)\((\+|\-)\)", description)
+        start_cds_transcript = int(cds_transcript_coords.group(1))
+        stop_cds_transcript = int(cds_transcript_coords.group(2))
+        cds_length = int(stop_cds_transcript) - int(start_cds_transcript) + 1
+        triple = (start_cds_transcript, stop_cds_transcript, cds_length)
+        if transdecoder_id not in stringtie_id_dict:
+            stringtie_id_dict[transdecoder_id] = [triple]
+        else:
+            stringtie_id_dict[transdecoder_id].append(triple)
+    return stringtie_id_dict
+
+def from_transcript_to_genome_coords(stringtie_gtf, transdecoder_id_dict, output_file): #better name: creating_annotation_file
+    with open(stringtie_gtf, "r") as stringtie, open(output_file, "w") as output:
         exon_coords_list = []
         for line in stringtie:
             if line.startswith("#"):
@@ -827,7 +1020,7 @@ def from_transcript_to_genome_coords(stringtie_gtf, transdecoder_id_dict): #bett
                 transcript_id = transcript_id.group(1)
                 #Eventuell noch exon_number hinzufügen
                 #Soll score mit rein? Habs erstmal rausgenommen
-                
+
                 if feature == 'transcript':
                     print("--------------Neues Transcript mit ID: ----------- ", transcript_id) 
                     output.write(f"{seqname}\tPreGalba\tgene\t{start_genome}\t{stop_genome}\t.\t{strand}\t.\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
@@ -1001,6 +1194,8 @@ def load_config(config_file):
 parser = argparse.ArgumentParser(description='Genome annotation with transcriptomic data like RNA-seq and Iso-seq data')  
 parser.add_argument('-t', '--threads', default=4, help='Number of threads (default=4)', required=False)
 parser.add_argument('-y', '--config', help='Config file input', metavar='<config.yaml>', required=False) #required=True
+parser.add_argument('-g', '--genome', help='Genome file input', metavar='<genome.fasta>', required=False)
+parser.add_argument('-p', '--proteins', help='Protein file input', metavar='<proteins.fasta>', required=False)
 
 parser.add_argument('--isoseq', action='store_true', help='Use this option if you want to process isoseq data only')
 parser.add_argument('--rnaseq', action='store_true', help='Use this option if you want to process rnaseq data only')
@@ -1013,43 +1208,49 @@ threads = args.threads
 proj_name = args.projname
 output_path = args.output_path
 print("Projektname: ", proj_name)
-print("Korrigierte Eingabe für validating ORFs.")
-
+print("Ohne abs() Aufruf in mixed entire")
 if output_path == None:
     output_path = os.getcwd()
 
-os.makedirs(output_path + "/" + proj_name, exist_ok=True)
-os.chdir(output_path + "/" + proj_name)
+#os.makedirs(output_path + "/" + proj_name, exist_ok=True)
+#os.chdir(output_path + "/" + proj_name)
 
-input_files = load_config(args.config)
-genome_file = input_files["genome"]
-rnaseq_paired_sets = input_files.get("rnaseq_paired_sets", []) #Wenn Liste nicht vorhanden, dann leere Liste
-rnaseq_single_sets = input_files.get("rnaseq_single_sets", [])
-isoseq_sets = input_files.get("isoseq_sets", [])
-protein_file = input_files["protein"] #optional?
+if args.config:
+    input_files = load_config(args.config)
+    genome_file = input_files["genome"]
+    rnaseq_paired_sets = input_files.get("rnaseq_paired_sets", []) #Wenn Liste nicht vorhanden, dann leere Liste
+    rnaseq_single_sets = input_files.get("rnaseq_single_sets", [])
+    isoseq_sets = input_files.get("isoseq_sets", [])
+    protein_file = input_files["protein"] #optional?
 
-#Intercept if given data doesnt match the chosen option  
-if rnaseq_paired_sets == [] and rnaseq_single_sets == [] and isoseq_sets == []:
-    print("Error: No transcriptomic data found in config file. Please provide at least one set of RNA-seq or Iso-seq data.")
-    sys.exit(1)
-if not args.rnaseq and not args.isoseq and not args.mixed:
-    if rnaseq_paired_sets != [] or rnaseq_single_sets != []:
-        args.rnaseq = True
-    if isoseq_sets != []:
-        args.isoseq = True
-    print("You did not specify which data you want to process. The mode is set based on given data.")
-if rnaseq_paired_sets == [] and rnaseq_single_sets == [] and args.rnaseq:
-    print("Error: No RNA-seq data found in config file. Please provide at least one set of RNA-seq data.")
-    sys.exit(1)
-if isoseq_sets == [] and args.isoseq:
-    print("Error: No Iso-seq data found in config file. Please provide at least one set of Iso-seq data.")
-    sys.exit(1)
-if (rnaseq_paired_sets == [] and rnaseq_single_sets == []) or (isoseq_sets == []) and args.mixed:
-    print("Error: You chose the mixed option. Please provide both RNA-seq and Iso-seq data.")
-    sys.exit(1)
+    #Intercept if given data doesnt match the chosen option  
+    if rnaseq_paired_sets == [] and rnaseq_single_sets == [] and isoseq_sets == []:
+        print("Error: No transcriptomic data found in config file. Please provide at least one set of RNA-seq or Iso-seq data.")
+        sys.exit(1)
+    if not args.rnaseq and not args.isoseq and not args.mixed:
+        if rnaseq_paired_sets != [] or rnaseq_single_sets != []:
+            args.rnaseq = True
+        if isoseq_sets != []:
+            args.isoseq = True
+        print("You did not specify which data you want to process. The mode is set based on given data.")
+    if rnaseq_paired_sets == [] and rnaseq_single_sets == [] and args.rnaseq:
+        print("Error: No RNA-seq data found in config file. Please provide at least one set of RNA-seq data.")
+        sys.exit(1)
+    if isoseq_sets == [] and args.isoseq:
+        print("Error: No Iso-seq data found in config file. Please provide at least one set of Iso-seq data.")
+        sys.exit(1)
+    if (rnaseq_paired_sets == [] and rnaseq_single_sets == []) or (isoseq_sets == []) and args.mixed:
+        print("Error: You chose the mixed option. Please provide both RNA-seq and Iso-seq data.")
+        sys.exit(1)
 
-process_rnaseq = args.rnaseq or args.mixed
-process_isoseq = args.isoseq or args.mixed
+        process_rnaseq = args.rnaseq or args.mixed
+        process_isoseq = args.isoseq or args.mixed
+
+if args.genome:
+    genome_file = args.genome
+
+if args.proteins:
+    protein_file = args.proteins
 '''
 if process_rnaseq:
     indexing(genome_file)
@@ -1059,32 +1260,42 @@ if process_rnaseq:
         alignment_rnaseq = file_name(merge_bam_files(alignments_list[0], alignments_list[1])) + ".bam"
     else:
         alignment_rnaseq = file_name(alignments_list[0]) + ".bam"
+else:
+    alignment_rnaseq = None
 
 if process_isoseq:
     alignment_isoseq = mapping_long(genome_file, isoseq_sets)
     sam_file_list = [alignment_isoseq]
     sam_to_bam(sam_file_list) 
     alignment_isoseq = file_name(alignment_isoseq) + ".bam"
-
-assembling(alignment_rnaseq, alignment_isoseq)  #Für alleine testen leer machen
-orfsearching(genome_file, "transcripts.gtf")  #Vielleicht eher Was returned wurde als input übergeben
-#protein_aligning(genome_file, protein_file, "/home/s-amknut/GALBA/tools/blosum62_1.csv") 
-short_start_dict = shorten_incomplete_Orfs("transcripts.fasta.transdecoder.pep")
-make_diamond_db(protein_file)
-validating_ORFs("shortened_candidates.pep", "diamond_shortened.tsv")
-make_diamond_db(protein_file)
-validating_ORFs("transcripts.fasta.transdecoder.pep", "diamond_normal.tsv")
-classifications_dict = get_cds_classification("diamond_normal.tsv", "diamond_shortened.tsv", short_start_dict)
-#print("Classifications dict: ", classifications_dict)
-classifications_hc_dict = get_optimized_pep_file("transcripts.fasta.transdecoder.pep", "shortened_candidates.pep", classifications_dict, short_start_dict)
-make_diamond_db(protein_file)
-validating_ORFs("revised_candidates.pep", "diamond_revised.tsv")
+else:
+    alignment_isoseq = None
 '''
-get_hc_cds("diamond_revised.tsv", "revised_candidates.pep", protein_file)
+#assembling(alignment_rnaseq, alignment_isoseq)  #Für alleine testen leer machen
+#orfsearching(genome_file, "transcripts.gtf")  #Vielleicht eher Was returned wurde als input übergeben
+#protein_aligning(genome_file, protein_file, "/home/s-amknut/GALBA/tools/blosum62_1.csv") 
+#protein_aligning2(genome_file, protein_file)
+#short_start_dict = shorten_incomplete_Orfs("transcripts.fasta.transdecoder.pep")
+#make_diamond_db(protein_file)
+#validating_ORFs("shortened_candidates.pep", "diamond_shortened.tsv")
+#make_diamond_db(protein_file)
+#validating_ORFs("transcripts.fasta.transdecoder.pep", "diamond_normal.tsv")
+#classifications_dict = get_cds_classification("diamond_normal.tsv", "diamond_shortened.tsv", short_start_dict)
+#get_optimized_pep_file("transcripts.fasta.transdecoder.pep", "shortened_candidates.pep", classifications_dict, short_start_dict)
+#make_diamond_db(protein_file)
+#validating_ORFs("revised_candidates.pep", "diamond_revised.tsv")
+#already_hc_genes, t_dict = getting_hc_supported_by_proteins("diamond_revised.tsv", "revised_candidates.pep", protein_file)
+already_hc_genes, t_dict = getting_hc_supported_by_proteins("diam_rev_test.tsv", "revised_candidates.pep", protein_file)
+#coord_dict = parse_transdecoder_dict(t_dict)
+#from_transcript_to_genome_coords("transcripts.gtf", coord_dict, "intrinsic_candidates.gtf")
+#getting_hc_supported_by_intrinsic(already_hc_genes, t_dict)
 #choose_one_isoform("hc_genes.pep")
 #transdecoder_id_dict = parse_transdecoder_file("one_chosen_isoform.pep")
-#from_transcript_to_genome_coords("transcripts.gtf", transdecoder_id_dict)
+#from_transcript_to_genome_coords("transcripts.gtf", transdecoder_id_dict, "annotation.gtf")
 #frame_in_annotation("annotation.gtf")
+#preparing_miniprot_gff_for_conflict_comparison("miniprot_parsed.gff")
+#preparing_candidates_for_conflict_comparison(t_dict)
+#finding_protein_conflicts("bedtools_reference.bed", "bedtools_candidates.bed")
 
 #TO DOs:
 #-Variablen und Funktionsnamen anpassen
@@ -1116,10 +1327,12 @@ get_hc_cds("diamond_revised.tsv", "revised_candidates.pep", protein_file)
 #-Scoring Matrix von Nutzer einfügen lassen oder selbst eine vorgeben?
 #-Ist es richtig, dass ein Trankript nach dem splicing mehrere CDS haben kann? D.h. dass man UTR mittig hat?
 
-#-Wann Incomplete CDS als HC bezeichnet?
-#-Training von AUGUSTUS auch in meiner Hand? Wenn ja, passiert das vorher?
-#-Wieso steht in Doktorarbeit section 5.3.2.3 eine zweite Diamondsuche drin. Wir haben ja schon eine gemacht. 
-#-Wie vergleiche ich die Annotationen. Welche ist die finale, die von Transdecoder?
+'''Neue Fragen'''
+#-Wie bekomme ich von der miniprot file die Chromosomennummer
+#-Bedtools okay?
+#Betrag bei candidates 
+#-Wähle ich zu viele HC Gene aus #28490 complete & hc von insgesamt 42797 complete candidates 
+#-Gibt es eine Möglichkeit, dass ich einzelne mit dem von GeneMark vergleichen kann?
 
 #Plan:
 #-Transdecoder macht ORF prediction -> Davor intron hints von spliced rnaseq daten wie bei genemark?
@@ -1156,70 +1369,69 @@ Intron chain level:    40.1     |    96.4    |
   Transcript level:    39.5     |    96.2    |
        Locus level:    58.0     |    96.3    |
 
-main.py mit allen rnaseq und isoseq Daten (ohne Kategorisierung und ohne hc Filter):
-Nur mehr als ein Exon pro Transkript: 
+#main.py mit allen rnaseq und isoseq Daten (mit Kategorisierung und mit hc Filter(ohne intrinsic und incomplete)), nur CDS in file, nur eine Isoform pro Gen mit FRAME mit Korrektur vom 17.11.:     
 #-----------------| Sensitivity | Precision  |
-        Base level:    83.0     |    67.9    |
-        Exon level:    60.9     |    57.3    |
-      Intron level:    86.9     |    84.3    |
-Intron chain level:    47.2     |    41.1    |
-  Transcript level:    42.0     |    40.0    |
-       Locus level:    55.5     |    65.9    |
+        Base level:    63.9     |    88.5    |
+        Exon level:    60.0     |    84.5    |
+      Intron level:    72.3     |    91.9    |
+Intron chain level:    27.8     |    62.4    |
+  Transcript level:    24.3     |    61.1    |
+       Locus level:    35.7     |    61.2    |
 
-main.py mit allen rnaseq und isoseq Daten (ohne Kategorisierung und ohne hc Filter):
-AUCH CDS VORHERGESAGT WENN NUR EIN EXON PRO TRANSCRIPT VORHANDEN
+#main.py mit allen rnaseq und isoseq Daten (mit Kategorisierung und mit hc Filter(ohne intrinsic und incomplete, ohne abs())), nur CDS in file, nur eine Isoform pro Gen mit FRAME mit Korrektur vom 17.11.:
 #-----------------| Sensitivity | Precision  |
-        Base level:    83.2     |    65.3    |
-        Exon level:    60.7     |    56.8    |
-      Intron level:    86.8     |    82.5    |
-Intron chain level:    42.5     |    36.6    |
-  Transcript level:    37.5     |    35.7    |
-       Locus level:    49.6     |    63.1    |
-
-main.py mit allen rnaseq und isoseq Daten, nur bis transdecoder Aufruf (mit Kategorisierung und ohne hc Filter):
-#-----------------| Sensitivity | Precision  |
-        Base level:    83.2     |    65.3    |
-        Exon level:    60.7     |    56.8    |
-      Intron level:    86.8     |    82.5    |
-Intron chain level:    42.5     |    36.6    |
-  Transcript level:    37.5     |    35.7    |
-       Locus level:    49.6     |    63.1    |
-
-main.py mit allen rnaseq und isoseq Daten (mit Kategorisierung und mit hc Filter):
-#-----------------| Sensitivity | Precision  |
-        Base level:    83.2     |    65.5    |
-        Exon level:    60.7     |    56.8    |
-      Intron level:    86.8     |    82.6    |
-Intron chain level:    42.8     |    36.8    |
-  Transcript level:    37.7     |    35.9    |
-       Locus level:    49.9     |    63.2    |
-
-main.py mit allen rnaseq und isoseq Daten (mit Kategorisierung und mit hc Filter(ohne intrinsic)), nur CDS in file:
-#-----------------| Sensitivity | Precision  |
-        Base level:    67.3     |    86.6    |
-        Exon level:    64.5     |    75.5    |
-      Intron level:    76.8     |    85.1    |
-Intron chain level:    35.7     |    46.7    |
-  Transcript level:    31.1     |    45.7    |
-       Locus level:    41.1     |    66.4    |
-
-#main.py mit allen rnaseq und isoseq Daten (mit Kategorisierung und mit hc Filter(ohne intrinsic und incomplete)), nur CDS in file, nur eine Isoform pro Gen:
-#-----------------| Sensitivity | Precision  |
-        Base level:    65.2     |    88.4    |
-        Exon level:    61.0     |    84.3    |
-      Intron level:    73.6     |    91.7    |
-Intron chain level:    28.2     |    62.2    |
-  Transcript level:    24.7     |    60.8    |
-       Locus level:    36.2     |    60.9    |
-
-#main.py mit allen rnaseq und isoseq Daten (mit Kategorisierung und mit hc Filter(ohne intrinsic und incomplete)), nur CDS in file, nur eine Isoform pro Gen mit FRAME:
-#-----------------| Sensitivity | Precision  |
-        Base level:    65.2     |    88.4    |
-        Exon level:    61.0     |    84.3    |
-      Intron level:    73.6     |    91.7    |
+        Base level:    65.1     |    88.3    |
+        Exon level:    60.9     |    84.3    |
+      Intron level:    73.5     |    91.7    |
 Intron chain level:    28.1     |    62.0    |
   Transcript level:    24.6     |    60.6    |
        Locus level:    36.1     |    60.7    |
+
+#main.py mit allen rnaseq und isoseq Daten (OHNE Kategorisierung und mit hc Filter(ohne intrinsic und incomplete, mit abs())), nur CDS in file, nur eine Isoform pro Gen mit FRAME mit Korrektur vom 17.11.:
+#-----------------| Sensitivity | Precision  |
+        Base level:    59.9     |    88.7    |
+        Exon level:    56.1     |    84.8    |
+      Intron level:    67.6     |    92.0    |
+Intron chain level:    25.6     |    62.2    |
+  Transcript level:    22.4     |    60.9    |
+       Locus level:    32.9     |    61.0    |
+
+#main.py mit allen rnaseq und isoseq Daten (OHNE Kategorisierung und mit hc Filter(ohne intrinsic aber mit ALLEN incomplete, mit abs())), nur CDS in file, nur eine Isoform pro Gen mit FRAME mit Korrektur vom 17.11.:
+#-----------------| Sensitivity | Precision  |
+        Base level:    65.8     |    87.5    |
+        Exon level:    61.2     |    83.2    |
+      Intron level:    74.2     |    91.2    |
+Intron chain level:    28.5     |    61.2    |
+  Transcript level:    24.9     |    59.6    |
+       Locus level:    36.6     |    59.7    |
+
+#main.py mit allen rnaseq und isoseq Daten (OHNE Kategorisierung und OHNE hc Filter(ohne intrinsic incomplete)), nur CDS in file, nur eine Isoform pro Gen mit FRAME mit Korrektur vom 17.11.:
+#-----------------| Sensitivity | Precision  |
+        Base level:    70.6     |    87.0    |
+        Exon level:    64.7     |    82.4    |
+      Intron level:    78.7     |    91.1    |
+Intron chain level:    30.7     |    60.3    |
+  Transcript level:    26.8     |    58.4    |
+       Locus level:    39.3     |    58.5    |
+
+#main.py mit allen rnaseq und isoseq Daten (mit Kategorisierung und OHNE hc Filter(ohne intrinsic und incomplete)), nur CDS in file, nur eine Isoform pro Gen mit FRAME mit Korrektur vom 17.11.:
+#-----------------| Sensitivity | Precision  |
+        Base level:    70.6     |    87.4    |
+        Exon level:    64.9     |    82.8    |
+      Intron level:    78.7     |    91.2    |
+Intron chain level:    30.8     |    60.5    |
+  Transcript level:    26.9     |    58.6    |
+       Locus level:    39.4     |    58.7    |
+       
+#main.py mit rnaseq (mit Kategorisierung und mit hc Filter(ohne intrinsic und incomplete)), nur CDS in file, nur eine Isoform pro Gen mit FRAME mit Korrektur vom 17.11.:
+#-----------------| Sensitivity | Precision  |
+        Base level:    57.8     |    89.6    |
+        Exon level:    55.3     |    85.2    |
+      Intron level:    66.4     |    92.0    |
+Intron chain level:    25.4     |    63.6    |
+  Transcript level:    22.2     |    62.2    |
+       Locus level:    32.7     |    62.3    |
+
 
 
 -Gibt hier auch unter hc noch ein paar wenige doppelte cds pro gen. Die werden rausgelöscht aus output file
