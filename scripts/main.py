@@ -670,7 +670,7 @@ def validating_ORFs(transdecoder_pep, output_tsv):
     except Exception:
         print("Could not run diamond blastp command.")
         sys.exit(1)
-
+'''
 def get_cds_classification(normal_tsv, shortened_tsv, short_start_dict):
     #Weil hier nach CDS-ID und nach Protein gemerged wird, werden einzelne herausgefiltert, die nicht in beiden vorkommen. 
     header_list = ["cdsID", "proteinID", "percIdentMatches", "alignLength", "mismatches", "gapOpenings", "alignStart", "alignEnd", "proteinStart", "proteinEnd", "eValue", "bitScore"]
@@ -718,7 +718,77 @@ def get_cds_classification(normal_tsv, shortened_tsv, short_start_dict):
     pd.set_option('display.max_columns', None)
     #print(merged_df.head())
     return classifications
+'''
+def get_cds_classification(normal_tsv, shortened_tsv, short_start_dict):
+    #Weil hier nach CDS-ID und nach Protein gemerged wird, werden einzelne herausgefiltert, die nicht in beiden vorkommen. 
+    header_list = ["cdsID", "proteinID", "percIdentMatches", "alignLength", "mismatches", "gapOpenings", "queryStart", "queryEnd", "targetStart", "targetEnd", "eValue", "bitScore"]
+    df_shortened = pd.read_csv(shortened_tsv, delimiter='\t', header=None, names=header_list)
+    df_normal = pd.read_csv(normal_tsv, delimiter='\t', header=None, names=header_list)
+    merged_df = pd.merge(df_shortened, df_normal, on=["cdsID", "proteinID"], suffixes=('_short', '_normal'))
+    merged_df = merged_df.drop(columns=["alignLength_short", "alignLength_normal", "mismatches_short", "mismatches_normal", "gapOpenings_short", "gapOpenings_normal", "queryEnd_short", "queryEnd_normal", "targetEnd_short", "targetEnd_normal", "eValue_short", "eValue_normal"])
+    merged_df["shortStart"] = merged_df["cdsID"].map(short_start_dict)
+    merged_df["supportScore"] = None
+    #merged_df["classification"] = None
+    count = 0 
     
+    for i, cds in merged_df.iterrows():
+        print("Short start: ", cds["shortStart"])
+        if count >= 0 :
+            print("-----------cdsID: ", cds["cdsID"], "Protein:", cds["proteinID"], "------------------")
+            count += 1
+            #print(cds["shortStart"])
+            q_incomplete_start = cds["queryStart_normal"]
+            t_incomplete_start = cds["targetStart_normal"]
+            t_complete_start = cds["targetStart_short"] #+ cds["shortStart"]  doch nicht weil eh in Protein#not -1 because alignmentstart is 1-based but Mposition not. +shortstart, weil Differenz von normal zu short gebraucht wird
+            aai_incomplete = cds["percIdentMatches_normal"] 
+            aai_complete = cds["percIdentMatches_short"] 
+            print("Query_start incomp: ", q_incomplete_start, "T Start incomp: ",t_incomplete_start,"T Start comp: ", t_complete_start, "AAI incomp: ",aai_incomplete, "AAI comp: ", aai_complete)
+            if aai_complete == 0:
+                aai_complete = 0.0001
+            #if aai_incomplete == 0:
+            #   aai_incomplete = 0.0001
+            match_log = math.log(aai_incomplete/aai_complete)
+            #maybe betrag nehmen
+            support_score = (t_complete_start - t_incomplete_start) - (q_incomplete_start - 1) + match_log**1000
+            print("Support Score: ", support_score)
+            merged_df.at[i, "supportScore"] = support_score
+            #if t_complete_start < t_incomplete_start:
+                #print("cdsID: ", cds["cdsID"] , "incomplete Start: ", t_incomplete_start, "complete Start: ", t_complete_start)
+        
+    merged_df["bitScore_max"] = merged_df[["bitScore_short", "bitScore_normal"]].max(axis=1) #FRAGE: Hier richtig über bitscore das beste alignment zu finden?
+    grouped = merged_df.groupby("cdsID")
+    #from here on it takes a lot of runtime because of .append() and .iterrows()
+    classifications = {}
+    for groupname, groupdata in grouped:
+        sorted_group = groupdata.sort_values(by="bitScore_max", ascending=False)
+        incomplete = False
+        
+        for i, cds in sorted_group.head(25).iterrows():
+            if cds["supportScore"] > 0:
+                incomplete = True
+                break
+        if incomplete:
+            classifications[cds["cdsID"]] = "incomplete" #112 13.8% NEU 354 
+        else:
+            classifications[cds["cdsID"]] = "complete" #699 86.2% NEU 4714 
+        print ("Klassifikation: ", classifications[cds["cdsID"]], " von ", cds["cdsID"])
+        
+    #18.11.:
+    #Es gab in shortened.pep file 5192 Einträge 
+    #4714 werden gekürzt 90.8%
+    #478 bleiben incomplete 9.2%
+    #24.11.: 5068 candidates
+    #1758 bleiben incomplete 
+    pd.set_option('display.max_columns', None)
+    #print(merged_df.head())
+    countc = 0
+    for id in classifications:
+        if classifications[id] == "incomplete":
+            countc += 1
+
+    print("Incomplete: ", countc)
+    return classifications
+   
 #Noch die Klassifkation rausnehmen
 def get_optimized_pep_file(normal_pep, shortened_pep, classifications, short_start_dict):
     with open("revised_candidates.pep", "w") as output:
@@ -828,6 +898,98 @@ def finding_protein_conflicts(candidates_bed, reference_bed):
                 print("Conflict found: ", parts[4])
 
 def getting_hc_supported_by_proteins(diamond_tsv, transdecoder_pep, protein_file):
+    t_length_dict = {}
+    for record in SeqIO.parse(protein_file, "fasta"):
+        t_length_dict[record.id] = len(record.seq) 
+    q_dict = {}
+    already_hc_genes = []
+    count = 0
+    for record in SeqIO.parse(transdecoder_pep, "fasta"):
+        # t_length_dict[record.id] = len(record.seq) - 1 # -1 damit * nicht gezählt wird
+        q_dict[record.id] = [record.description, record.seq] #46187 Elemente in t_dict
+    print("Länge vom dict vor Filterung", len(q_dict))
+    start_condition_counter = 0
+    stop_condition_counter = 0
+    with open(diamond_tsv, "r") as tsv, open("hc_genes.pep", "w") as output:
+        for line in tsv:    #7580 Elemente in tsv
+            part = line.strip().split('\t')
+            id = part[0] #Query ID
+            protein_id = part[1] #Target ID
+            aaident = float(part[2])
+            #align_length = int(part[3])
+            #t_start = int(part[6]) #Bis 18.11. dachte ich es wäre t zuerst und dann q, dann auf website von diamond was anderes gelesen
+            #t_end = int(part[7])
+            #q_start = int(part[8])
+            #q_end = int(part[9])
+            q_start = int(part[6])
+            q_end = int(part[7])
+            t_start = int(part[8])
+            t_end = int(part[9])
+            #bitscore = int(part[11])
+            if id in q_dict:
+                #print("----ID: ", id, "Protein ID: ", protein_id, "Query Start: ", q_start, "Query End: ", q_end, "Target Start: ", t_start, "Target End: ", t_end ,"-----")
+                record.id = id
+                record.description = q_dict[id][0]
+                record.seq = q_dict[id][1]
+                #t_length = int(re.search(r"len:(\d+)", record.description).group(1)) #geht auch, weil len genau sequenzlänge der AS angibt
+                q_length = len(record.seq) - 1 # -1 damit * nicht gezählt wird
+                t_length = t_length_dict[protein_id]
+                #print("Query Length: ", q_length, "Target Length: ", t_length)
+                start_condition = (q_start - t_start)
+                stop_condition = (q_length - q_end) - (t_length - t_end) 
+                #print("Start Condition: ", start_condition, "Stop Condition: ", stop_condition)
+
+                if "type:complete" in record.description: #28490 complete & hc von insgesamt 42797 complete candidates 
+                    #Combi 0 und 0:    62.7     |    88.7    |
+                    #Combi 3 und 10:   66.4     |    87.9    |
+                    #Combi 6 und 21:   66.5     |    87.9    | 
+                    #Combi 6 und 21 und t_start == 1:    64.3     |    88.2   
+                    #Combi 6 und 21 und t_start == 1 und q_start == 1 und (t_length-t_end)==0:    61.8     |    88.8 
+                    #Combi 6 und 21 und (t_length-t_end) == 0:     64.6     |    88.5  
+                    #Combi 6 und 21 und t_start == 1 und q_start == 1 und (t_length-t_end)==0 und (q_length-q_end)==0:    61.6     |    88.8
+                    #Combi 0 und 0 und (t_length-t_end)==0 und aaident > 99.5:    49.7     |    89.1    |
+                    #Combi 6 und 21 und (t_length-t_end)==0 und aaident > 99.5:    52.7     |    89.1    |
+                    #Combi 6 und 21 und aaident > 99.5:    54.4     |    88.9    |
+                    #Combi 6 und 21 und aaident > 99.8:    41.6     |    88.8    |
+                    #Combi 6 und 21 und aaident > 98:    62.7     |    88.5    |
+                    #Combi 6 und 21 und aaident > 97:    63.7     |    88.5    |
+                    #Combi 6 und 21 und aaident > 96.5:    64.0     |    88.4    |
+                    #Combi 6 und 21 und aaident > 96:    64.3     |    88.4    
+                    #Combi 6 und 21 und aaident > 95:    64.7     |    88.4    |
+                    #Combi 6 und 21 und aaident > 95 und (t_length-t_end)<6:    62.9     |    88.8    |
+                    #Combi 6 und 21 und aaident > 95 und (t_length-t_end)<11:   63.0     |    88.8    |
+                    #Combi 6 und 21 und aaident > 95 und (t_length-t_end)<15:   63.1     |    88.8    |
+                    #Combi 6 und 21 und aaident > 95 und (t_length-t_end)<18:   63.1     |    88.8    |
+                    #Combi 6 und 21 und aaident > 95 und (t_length-t_end)<15 und t_start < 5:   60.3     |    88.9    |
+                    #Combi 6 und 21 und aaident > 95 und (t_length-t_end)<15 und t_start < 25:     60.8     |    88.8    |
+                    #Combi 0 und 0 und aaident == 100 und (t_length-t_end)==0 und q_start == 1:     31.6     |    88.1    
+                    if start_condition < 6 and stop_condition < 21 and aaident > 95 and (t_length-t_end) < 15: #abs() AUSTESTEN # Eigentlich 6 und 21 aber neu getestet mit 3 und 10
+                       # print("Reingeschrieben, wegen Protein: ", protein_id)
+                        SeqIO.write(record, output, "fasta")
+                        gene_id = id.split(".")[0] + "." + id.split(".")[1] 
+                        count += 1
+                        del q_dict[id]
+                        already_hc_genes.append(gene_id)
+                   # else:
+                        #print("Nicht erfüllt für: ", protein_id)
+                if "type:5prime_partial" in record.description or "type:internal" in record.description or "type:3prime_partial" in record.description:
+                    #print ("Nicht erfüllt wegen incomplete")
+                    del q_dict[id]
+                        #print("StringTie ID ist hc: ", stringtie_id)
+                        #keys_to_delete = [key for key in t_dict if key.startswith(gene_id)]
+                        #for key in keys_to_delete:
+                            #print("Key wird gelöscht: ", key)
+                           # del t_dict[key]
+                        #continue
+                    #else:
+                     #   if gene_id not in hc_genes:   
+                        #Hier intrinsic, complete schon abgehakt.
+    print("Länge vom dict nach Filterung", len(q_dict)) 
+    print("Start condition erfüllt: ", start_condition_counter)
+    print("Stop condition erfüllt: ", stop_condition_counter)
+    return already_hc_genes, q_dict
+'''
+def getting_hc_supported_by_proteins(diamond_tsv, transdecoder_pep, protein_file):
     q_length_dict = {}
     for record in SeqIO.parse(protein_file, "fasta"):
         q_length_dict[record.id] = len(record.seq) 
@@ -882,7 +1044,7 @@ def getting_hc_supported_by_proteins(diamond_tsv, transdecoder_pep, protein_file
                      #   if gene_id not in hc_genes:   
                         #Hier intrinsic, complete schon abgehakt. 
     return already_hc_genes, t_dict
-
+'''
 def getting_hc_supported_by_intrinsic(already_hc_genes, t_dict):
         #print("Länge t_dict nach Hinzufügen von ausgewählten complete: ", len(t_dict)) #Nach Hinzufügen noch 15640
         #preparing_miniprot_gff_for_conflict_comparison("miniprot_parsed.gff")
@@ -1185,6 +1347,39 @@ def frame_in_annotation(annotation_file):
         print("Could not run gffread command.")
         sys.exit(1)
 
+def only_cds_in_annotation(annotation_file):
+    try:
+        command = "grep 'CDS' " + annotation_file + " > annotation_only_cds.gtf" 
+
+        result = os.system(command)
+    
+    except Exception:
+        print("Could not run grep command.")
+        sys.exit(1)
+    
+def control_annotation(annotation_file, reference, projname):
+    try:
+        command = [
+            "/home/s-amknut/GALBA/tools/gffcompare-0.12.6.Linux_x86_64/gffcompare",
+            "-r",
+            reference,
+            "-o",
+            projname,
+            annotation_file
+        ]
+    
+        result = subprocess.run(command, capture_output=True)
+
+        if result.returncode == 0:
+            print("Annotation stats were determined successfully.")
+        else:
+            print("Error during determining annotation stats with gffcompare.")
+            print(result.stderr)
+
+    except Exception:
+        print("Could not run gffcompare command.")
+        sys.exit(1)
+
 def load_config(config_file):
     with open(config_file, "r") as config_file:
         input_files = yaml.safe_load(config_file)
@@ -1208,12 +1403,12 @@ threads = args.threads
 proj_name = args.projname
 output_path = args.output_path
 print("Projektname: ", proj_name)
-print("Ohne abs() Aufruf in mixed entire")
+print("Parameter für HC durchtesten.")
 if output_path == None:
     output_path = os.getcwd()
 
-#os.makedirs(output_path + "/" + proj_name, exist_ok=True)
-#os.chdir(output_path + "/" + proj_name)
+os.makedirs(output_path + "/" + proj_name, exist_ok=True)
+os.chdir(output_path + "/" + proj_name)
 
 if args.config:
     input_files = load_config(args.config)
@@ -1222,6 +1417,7 @@ if args.config:
     rnaseq_single_sets = input_files.get("rnaseq_single_sets", [])
     isoseq_sets = input_files.get("isoseq_sets", [])
     protein_file = input_files["protein"] #optional?
+    reference_annotation = input_files["annotation"]
 
     #Intercept if given data doesnt match the chosen option  
     if rnaseq_paired_sets == [] and rnaseq_single_sets == [] and isoseq_sets == []:
@@ -1243,8 +1439,8 @@ if args.config:
         print("Error: You chose the mixed option. Please provide both RNA-seq and Iso-seq data.")
         sys.exit(1)
 
-        process_rnaseq = args.rnaseq or args.mixed
-        process_isoseq = args.isoseq or args.mixed
+    process_rnaseq = args.rnaseq or args.mixed
+    process_isoseq = args.isoseq or args.mixed
 
 if args.genome:
     genome_file = args.genome
@@ -1284,18 +1480,26 @@ else:
 #get_optimized_pep_file("transcripts.fasta.transdecoder.pep", "shortened_candidates.pep", classifications_dict, short_start_dict)
 #make_diamond_db(protein_file)
 #validating_ORFs("revised_candidates.pep", "diamond_revised.tsv")
-#already_hc_genes, t_dict = getting_hc_supported_by_proteins("diamond_revised.tsv", "revised_candidates.pep", protein_file)
-already_hc_genes, t_dict = getting_hc_supported_by_proteins("diam_rev_test.tsv", "revised_candidates.pep", protein_file)
+
+###already_hc_genes, q_dict = getting_hc_supported_by_proteins("diamond_revised.tsv", "revised_candidates.pep", protein_file)
+#already_hc_genes, t_dict = getting_hc_supported_by_proteins("diam_rev_test.tsv", "revised_candidates.pep", protein_file)
 #coord_dict = parse_transdecoder_dict(t_dict)
 #from_transcript_to_genome_coords("transcripts.gtf", coord_dict, "intrinsic_candidates.gtf")
 #getting_hc_supported_by_intrinsic(already_hc_genes, t_dict)
-#choose_one_isoform("hc_genes.pep")
-#transdecoder_id_dict = parse_transdecoder_file("one_chosen_isoform.pep")
-#from_transcript_to_genome_coords("transcripts.gtf", transdecoder_id_dict, "annotation.gtf")
-#frame_in_annotation("annotation.gtf")
+###choose_one_isoform("hc_genes.pep")
+#choose_one_isoform("revised_candidates.pep")
+#choose_one_isoform("transcripts.fasta.transdecoder.pep")
+###transdecoder_id_dict = parse_transdecoder_file("one_chosen_isoform.pep")
+###from_transcript_to_genome_coords("transcripts.gtf", transdecoder_id_dict, "annotation.gtf")
+###frame_in_annotation("annotation.gtf")
+###only_cds_in_annotation("annotation_with_frame.gtf")
+###control_annotation("annotation_only_cds.gtf", reference_annotation, proj_name) #noch testen
+
+control_annotation("/home/s-amknut/GALBA/braker/GeneMark-ETP/training_cds.gtf", reference_annotation, "new_braker_cds")
 #preparing_miniprot_gff_for_conflict_comparison("miniprot_parsed.gff")
 #preparing_candidates_for_conflict_comparison(t_dict)
 #finding_protein_conflicts("bedtools_reference.bed", "bedtools_candidates.bed")
+
 
 #TO DOs:
 #-Variablen und Funktionsnamen anpassen
@@ -1369,6 +1573,15 @@ Intron chain level:    40.1     |    96.4    |
   Transcript level:    39.5     |    96.2    |
        Locus level:    58.0     |    96.3    |
 
+#training_cds.gtf mit allen rnaseq und protein.fa Daten:
+#-----------------| Sensitivity | Precision  |
+        Base level:    66.3     |    99.5    |
+        Exon level:    64.6     |    99.1    |
+      Intron level:    70.3     |    99.4    |
+Intron chain level:    40.1     |    96.4    |
+  Transcript level:    39.5     |    96.2    |
+       Locus level:    58.0     |    96.3    |
+
 #main.py mit allen rnaseq und isoseq Daten (mit Kategorisierung und mit hc Filter(ohne intrinsic und incomplete)), nur CDS in file, nur eine Isoform pro Gen mit FRAME mit Korrektur vom 17.11.:     
 #-----------------| Sensitivity | Precision  |
         Base level:    63.9     |    88.5    |
@@ -1405,7 +1618,7 @@ Intron chain level:    28.5     |    61.2    |
   Transcript level:    24.9     |    59.6    |
        Locus level:    36.6     |    59.7    |
 
-#main.py mit allen rnaseq und isoseq Daten (OHNE Kategorisierung und OHNE hc Filter(ohne intrinsic incomplete)), nur CDS in file, nur eine Isoform pro Gen mit FRAME mit Korrektur vom 17.11.:
+#main.py mit allen rnaseq und isoseq Daten (OHNE Kategorisierung und OHNE hc Filter), nur CDS in file, nur eine Isoform pro Gen mit FRAME mit Korrektur vom 17.11.:
 #-----------------| Sensitivity | Precision  |
         Base level:    70.6     |    87.0    |
         Exon level:    64.7     |    82.4    |
@@ -1422,6 +1635,24 @@ Intron chain level:    30.7     |    60.3    |
 Intron chain level:    30.8     |    60.5    |
   Transcript level:    26.9     |    58.6    |
        Locus level:    39.4     |    58.7    |
+    
+#main.py mit allen rnaseq und isoseq Daten (mit Kategorisierung und OHNE hc Filter(ohne intrinsic und incomplete)), nur CDS in file, nur eine Isoform pro Gen mit FRAME mit Diamond-Spalten Korrektur vom 18.11.:
+#-----------------| Sensitivity | Precision  |
+        Base level:    70.6     |    87.3    |
+        Exon level:    64.9     |    82.7    |
+      Intron level:    78.7     |    91.2    |
+Intron chain level:    30.8     |    60.4    |
+  Transcript level:    26.8     |    58.5    |
+       Locus level:    39.4     |    58.6    |
+
+#main.py mit allen rnaseq und isoseq Daten (mit Kategorisierung und OHNE hc Filter(ohne intrinsic und incomplete)), nur CDS in file, nur eine Isoform pro Gen mit FRAME mit + short_start Korrektur und nur cds vom 27.11.:
+#-----------------| Sensitivity | Precision  |
+        Base level:    70.6     |    87.4    |
+        Exon level:    65.0     |    82.8    |
+      Intron level:    78.7     |    91.2    |
+Intron chain level:    30.9     |    60.6    |
+  Transcript level:    26.9     |    58.7    |
+       Locus level:    39.5     |    58.9    |
        
 #main.py mit rnaseq (mit Kategorisierung und mit hc Filter(ohne intrinsic und incomplete)), nur CDS in file, nur eine Isoform pro Gen mit FRAME mit Korrektur vom 17.11.:
 #-----------------| Sensitivity | Precision  |
@@ -1431,6 +1662,34 @@ Intron chain level:    30.8     |    60.5    |
 Intron chain level:    25.4     |    63.6    |
   Transcript level:    22.2     |    62.2    |
        Locus level:    32.7     |    62.3    |
+
+#main.py mit allen rnaseq und isoseq Daten (mit Kategorisierung und mit hc Filter(ohne intrinsic und incomplete)), nur CDS in file, nur eine Isoform pro Gen mit FRAME mit Diamond-Spalten Korrektur vom 18.11.: 
+#-----------------| Sensitivity | Precision  |
+        Base level:    65.7     |    88.0    |
+        Exon level:    61.3     |    83.7    |
+      Intron level:    74.0     |    91.2    |
+Intron chain level:    27.8     |    60.5    |
+  Transcript level:    24.3     |    58.8    |
+       Locus level:    35.7     |    59.0    |
+
+#main.py mit allen rnaseq und isoseq Daten (mit Kategorisierung und mit hc Filter(ohne intrinsic und incomplete)), nur CDS in file, nur eine Isoform pro Gen mit FRAME mit Diamond-Spalten Korrektur + short Korrektur 27.11.: 
+#-----------------| Sensitivity | Precision  |
+        Base level:    66.5     |    87.9    |
+        Exon level:    62.0     |    83.6    |
+      Intron level:    74.8     |    91.2    |
+Intron chain level:    28.3     |    60.7    |
+  Transcript level:    24.8     |    59.0    |
+       Locus level:    36.4     |    59.2    |
+
+#main.py mit allen rnaseq und isoseq Daten (mit Kategorisierung und mit hc Filter mit abs()(ohne intrinsic und incomplete)), nur CDS in file, nur eine Isoform pro Gen mit FRAME mit Diamond-Spalten Korrektur + short Korrektur + cds vom 27.11.:
+#-----------------| Sensitivity | Precision  |
+        Base level:    63.9     |    88.5    |
+        Exon level:    59.9     |    84.5    |
+      Intron level:    72.2     |    91.8    |
+Intron chain level:    27.9     |    62.5    |
+  Transcript level:    24.4     |    61.2    |
+       Locus level:    35.8     |    61.3    |
+
 
 
 
@@ -1469,4 +1728,16 @@ Schließlich entscheiden wir uns ja nur wegen dieser CDS für die Isoform.
     Gibt es file mit allen isoforms
 -CDS getrimmt?
 -Kategorisierung macht gerade keinen Unterschied 
+
+27.11.:
+-Was kann ich zu den Daten schreiben?
+-Was zitiere ich bei BRAKER3
+-Kommt Pandas und Biopython mit in Tabelle?
+-Dockerfile in Material erklären?
+-Graphic tool / VS code und so erwähnen?
+-Wie noch confidence erhöhen?
+
+
+Zu tun:
+Bedtools in die Dockerfile schreiben
 '''
