@@ -10,6 +10,7 @@ import fileinput
 import pandas as pd
 import math
 from Bio import SeqIO
+from Bio.SeqRecord import SeqRecord
 
 #FUNCTIONS
 def check_input(genome_file, reads_file):
@@ -219,7 +220,8 @@ def mapping_short(rnaseq_paired_sets, rnaseq_single_sets):
 def mapping_long(genome, isoseq_sets):
     try :
         output_sam = "alignment_isoseq.sam" #threads neu prüfen
-        minimap2_command = ["minimap2", "-ax", "splice", "-uf", "-C5", genome, "-t", str(threads)] + isoseq_sets + ["-o", output_sam]
+        # vorher: minimap2_command = ["minimap2", "-ax", "splice", "-uf", "-C5", genome, "-t", str(threads)] + isoseq_sets + ["-o", output_sam]
+        minimap2_command = ["minimap2", "-ax", "splice:hq", "-uf", genome, "-t", str(threads)] + isoseq_sets + ["-o", output_sam]
         #Threads noch hinzufügen
         #We can use -C5 for reads with low error rates like isoseq 
 
@@ -355,8 +357,97 @@ def assembling(alignment_rnaseq, alignment_isoseq):
     except Exception:
         print("Could not run stringtie command.")
 
-
 def orfsearching(genome_fa, transcripts_gtf):
+    output_fa = "transcripts.fasta" 
+    try:
+        output_fa = "transcripts.fasta" 
+        fasta_file_command = [
+            "/opt/TransDecoder/util/gtf_genome_to_cdna_fasta.pl",
+            transcripts_gtf,
+            genome_fa,
+            "-o",
+            output_fa
+        ]
+        print("Constructing the transcript fasta file using the genome and the transcripts.gtf")
+        print("Running command:", "".join(fasta_file_command))
+        result = subprocess.run(fasta_file_command, capture_output=True)
+
+        if result.returncode == 0:
+            print("Transcripts prepared successfully")
+        else:
+            print("Error during preparing transcripts")
+            print(result.stderr)    
+    
+    except Exception:
+        print("Could not run gffread command.")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
+    
+    #No threads option for Transdecoder (ChatGPT says option would be to split input files)
+    try:
+        print("Extract the long open reading frames...")
+        longORF_command = [
+            "TransDecoder.LongOrfs",
+            #"-S",
+            "-t",
+            output_fa
+        ]
+       
+        #print("Running command:", "".join(transdecoder_command))
+        result= subprocess.run(longORF_command, capture_output=True)
+        if result.returncode == 0:
+            print("ORFs found successfully")
+        else:
+            print("Error during ORF search")
+            print(result.stderr)
+    except Exception:
+        print("Could not run TransDecoder command.")
+
+    #Optional on Transdecoder paige: Predicting ORFs with homology to known proteins
+
+    try:
+        print("Predict the likely coding regions...")
+        predict_command = [
+            "TransDecoder.Predict",
+            "-t",
+            output_fa
+        ]
+       
+        #print("Running command:", "".join(transdecoder_command))
+        result= subprocess.run(predict_command, capture_output=True)
+        if result.returncode == 0:
+            print("Predict successfully")
+        else:
+            print("Error during ORF search")
+            print(result.stderr)
+    except Exception:
+        print("Could not run TransDecoder command.") 
+
+def convert_gtf_to_gff3(transcripts_gtf):
+    try:
+        command = [
+            "/opt/TransDecoder/util/gtf_to_alignment_gff3.pl",
+            transcripts_gtf,
+            #">",
+            #"transcripts.gff3"
+        ]
+    
+        with open("transcripts.gff3", "w") as output:
+            result = subprocess.run(command, stdout=output, stderr=subprocess.PIPE)
+
+        if result.returncode == 0:
+            print("Converted GTF to GFF3 file completed successfully.")
+
+        else:
+            print("Error during converting GTF to GFF3 file.")
+    
+    except Exception:
+        print("Could not run util/gtf_to_alignment_gff3.pl module.") 
+'''
+def orfsearching(genome_fa, transcripts_gtf):
+    output_fa = "transcripts_util.fasta"
+    
     try:
         output_fa = "transcripts.fasta" 
         gffread_command = [
@@ -380,7 +471,7 @@ def orfsearching(genome_fa, transcripts_gtf):
     except Exception:
         print("Could not run gffread command.")
         sys.exit(1)
-
+    
     #No threads option for Transdecoder (ChatGPT says option would be to split input files)
     try:
         print("Extract the long open reading frames...")
@@ -419,7 +510,7 @@ def orfsearching(genome_fa, transcripts_gtf):
             print(result.stderr)
     except Exception:
         print("Could not run TransDecoder command.") 
-
+'''
 def protein_aligning(genome, protein, alignment_scoring):
     try: 
         command = [
@@ -483,7 +574,7 @@ def protein_aligning(genome, protein, alignment_scoring):
             "miniprothint"
         ]
 
-        print("Creating hints for Augustus...")
+        print("...")
 
         result = subprocess.run(command, capture_output=True)
 
@@ -846,26 +937,105 @@ def get_optimized_pep_file(normal_pep, shortened_pep, classifications, short_sta
     #4682 sind in normal_pep als 5prime_partial oder internal, aber nicht in short_tsv
     #820 elemente sind in short_tsv
     #9 Elemente sind in short_tsv aber nicht in classifications -> Vermutung: Protein aligniert nur mit short oder nur mit normal und alignment taucht damit nicht in mergeddf auf
+
+def from_pep_file_to_gff3(orf_pep, transcript_gtf, output_name):
+    transcript_lengths = {}
+    transcript_length = 0
+    with open(transcript_gtf, "r") as transcript_file:
+        for line in transcript_file:
+            if line.startswith("#"):
+                continue
+            else:
+                part = line.strip().split('\t')
+                if "exon" == part[2]:
+                    start = int(part[3])
+                    stop = int(part[4])
+                    length = stop - start + 1 
+                    transcript_length += length
+                    transcript_id = re.search(r'transcript_id "([^"]+)"', part[8]).group(1)
+                    transcript_lengths[transcript_id] = transcript_length
+                else:
+                    transcript_length = 0
+    with open(output_name, "w") as output:
+        for record in SeqIO.parse(orf_pep, "fasta"):
+            id_transdecoder = record.id
+            id_stringtie = id_transdecoder.split(".p")
+            id_stringtie = id_stringtie[0]
+            tool = "transdecoder"
+            description = record.description
+            coords = re.search(r":(\d+)-(\d+)\([\+\-]\)", description)
+            orf_start = int(coords.group(1))
+            orf_stop = int(coords.group(2))
+            transcript_length = transcript_lengths[id_stringtie]
+            strand = re.search(r"\((\+|-)\)", description) 
+            strand = strand.group(1) 
+            description_parts = description.split()
+            gene_id = description_parts[1]
+            gene_name = description_parts[2] + " "+ description_parts[3] +" "+ description_parts[4]  
+            output.write(f"{id_stringtie}\t{tool}\tgene\t1\t{transcript_length}\t.\t{strand}\t.\tID={gene_id};Name=\"{gene_name}\"\n")
+            output.write(f"{id_stringtie}\t{tool}\tmRNA\t1\t{transcript_length}\t.\t{strand}\t.\tID={id_transdecoder};Parent={gene_id};Name=\"{gene_name}\"\n")
+            if strand == "+" and orf_start > 1:
+                output.write(f"{id_stringtie}\t{tool}\tfive_prime_UTR\t1\t{orf_start-1}\t.\t{strand}\t.\tID={id_transdecoder}.utr5p1;Parent={id_transdecoder}\n")
+            if strand == "-" and orf_stop < transcript_length:
+                output.write(f"{id_stringtie}\t{tool}\tfive_prime_UTR\t{orf_stop+1}\t{transcript_length}\t.\t{strand}\t.\tID={id_transdecoder}.utr5p1;Parent={id_transdecoder}\n")
+            output.write(f"{id_stringtie}\t{tool}\texon\t1\t{transcript_length}\t.\t{strand}\t.\tID={id_transdecoder}.exon1;Parent={id_transdecoder}\n")
+            output.write(f"{id_stringtie}\t{tool}\tCDS\t{orf_start}\t{orf_stop}\t.\t{strand}\t0\tID=cds.{id_transdecoder};Parent={id_transdecoder}\n")
+            if strand == "-" and orf_start > 1:
+                output.write(f"{id_stringtie}\t{tool}\tthree_prime_UTR\t1\t{orf_start-1}\t.\t{strand}\t.\tID={id_transdecoder}.utr3p1;Parent={id_transdecoder}\n")
+            if strand == "+" and orf_stop < transcript_length:
+                output.write(f"{id_stringtie}\t{tool}\tthree_prime_UTR\t{orf_stop+1}\t{transcript_length}\t.\t{strand}\t.\tID={id_transdecoder}.utr3p1;Parent={id_transdecoder}\n")
+            output.write("\n")
+
 def preparing_miniprot_gff_for_conflict_comparison(miniprot_gff):
-    with open(miniprot_gff, "r") as gff_file, open("bedtools_reference.bed", "w") as output:
+    with open(miniprot_gff, "r") as gff_file, open("reference.bed", "w") as output:
         for line in gff_file: 
             if "CDS" in line:
                 parts = line.split("\t")
                 chromosome = parts[0]
                 start = parts[3]
                 stop = parts[4]
-                output.write(f"{chromosome}\t{start}\t{stop}\n")
+                prot_id = re.search(r"prot=(prot\d+)", line).group(1)
+                strand = parts[6]
+                output.write(f"{chromosome}\t{start}\t{stop}\t{prot_id}\t.\t{strand}\n")
 
-def preparing_candidates_for_conflict_comparison(t_dict):
-    with open("bedtools_candidates.bed", "w") as output:
-        for element in t_dict: 
-            description = t_dict[element][0]
-            #print("Description: ", description)
-            coords = re.search(r":(\d+)-(\d+)\((\+|\-)\)", description)
-            start = coords.group(1)
-            stop = coords.group(2)
-            chromosome = description.split(" ")[0]
-            output.write(f"{chromosome}\t{start}\t{stop}\t{element}\n")
+def from_dict_to_pep_file(input_dict, output_name):
+    with open(output_name, "w") as output:
+        for entry in input_dict:
+            # Create a SeqRecord directly using the Seq and description from the dictionary
+            record = SeqRecord(
+                input_dict[entry][1],  
+                id=entry,                 
+                description=input_dict[entry][0]                                                           
+            )
+            # Write the record to the output file in FASTA format
+            SeqIO.write(record, output, "fasta")
+
+def preparing_candidates_for_conflict_comparison(candidates_gff3, transcripts_gtf):
+    chromosome_dict = {}
+    with open(transcripts_gtf, "r") as transcripts_file:
+        for line in transcripts_file:
+            if line.startswith("#"):
+                continue
+            part = line.split('\t')
+            if part[2] == "transcript":
+                gene_id = re.search(r'gene_id "([^"]+)"', line)
+                gene_id = gene_id.group(1)
+                chromosome_dict[gene_id] = part[0]
+
+    with open("candidates.bed", "w") as output, open(candidates_gff3, "r") as candidates_file:
+        for line in candidates_file:
+            #Bei Leerzeile, also wenn nicht strip() gemacht werden kann wird übersprungen
+            if line.startswith("#") or not line.strip():
+                continue
+            part = line.split('\t')
+            if part[2] == "CDS":
+                start = part[3]
+                stop = part[4]
+                gene_id = re.search(r"(STRG\.\d+)", line).group(1)
+                transcript_id = re.search(r'Parent=([^\s;]+)', line).group(1)
+                chromosome = chromosome_dict[gene_id]
+                strand = part[6]
+                output.write(f"{chromosome}\t{start}\t{stop}\t{transcript_id}\t.\t{strand}\n")
 
 def finding_protein_conflicts(candidates_bed, reference_bed):
     try:
@@ -875,9 +1045,10 @@ def finding_protein_conflicts(candidates_bed, reference_bed):
             "-a",
             candidates_bed,
             "-b",
-            reference_bed
+            reference_bed,
+            "-s" #strand wird berücksichtigt
         ]
-        with open("coverage.bed", "w") as output:
+        with open("conflicts.bed", "w") as output:
             result = subprocess.run(command, stdout=output, stderr=subprocess.PIPE)
 
         if result.returncode == 0:
@@ -908,8 +1079,6 @@ def getting_hc_supported_by_proteins(diamond_tsv, transdecoder_pep, protein_file
         # t_length_dict[record.id] = len(record.seq) - 1 # -1 damit * nicht gezählt wird
         q_dict[record.id] = [record.description, record.seq] #46187 Elemente in t_dict
     print("Länge vom dict vor Filterung", len(q_dict))
-    start_condition_counter = 0
-    stop_condition_counter = 0
     with open(diamond_tsv, "r") as tsv, open("hc_genes.pep", "w") as output:
         for line in tsv:    #7580 Elemente in tsv
             part = line.strip().split('\t')
@@ -963,15 +1132,11 @@ def getting_hc_supported_by_proteins(diamond_tsv, transdecoder_pep, protein_file
                     #Combi 6 und 21 und aaident > 95 und (t_length-t_end)<15 und t_start < 5:   60.3     |    88.9    |
                     #Combi 6 und 21 und aaident > 95 und (t_length-t_end)<15 und t_start < 25:     60.8     |    88.8    |
                     #Combi 0 und 0 und aaident == 100 und (t_length-t_end)==0 und q_start == 1:     31.6     |    88.1    
-                    if start_condition < 6 and stop_condition < 21 and aaident > 95 and (t_length-t_end) < 15: #abs() AUSTESTEN # Eigentlich 6 und 21 aber neu getestet mit 3 und 10
-                       # print("Reingeschrieben, wegen Protein: ", protein_id)
+                    if start_condition < 6 and stop_condition < 21 and aaident > 95 and (t_length-t_end)<15: #abs() AUSTESTEN # Eigentlich 6 und 21 aber neu getestet mit 3 und 10
                         SeqIO.write(record, output, "fasta")
                         gene_id = id.split(".")[0] + "." + id.split(".")[1] 
-                        count += 1
                         del q_dict[id]
                         already_hc_genes.append(gene_id)
-                   # else:
-                        #print("Nicht erfüllt für: ", protein_id)
                 if "type:5prime_partial" in record.description or "type:internal" in record.description or "type:3prime_partial" in record.description:
                     #print ("Nicht erfüllt wegen incomplete")
                     del q_dict[id]
@@ -984,10 +1149,20 @@ def getting_hc_supported_by_proteins(diamond_tsv, transdecoder_pep, protein_file
                     #else:
                      #   if gene_id not in hc_genes:   
                         #Hier intrinsic, complete schon abgehakt.
-    print("Länge vom dict nach Filterung", len(q_dict)) 
-    print("Start condition erfüllt: ", start_condition_counter)
-    print("Stop condition erfüllt: ", stop_condition_counter)
-    return already_hc_genes, q_dict
+                #for id in q_dict:
+                 #   gene_id = id.split(".")[0] + "." + id.split(".")[1] 
+                  #  if gene_id in already_hc_genes:
+                   #     print(gene_id)
+                    #    del q_dict[id]
+        print(len(q_dict))
+        q_dict = {
+            id: value
+            for id, value in q_dict.items()
+            if id.split(".")[0] + "." + id.split(".")[1] not in already_hc_genes
+        }
+        print(len(q_dict))
+
+    return q_dict
 '''
 def getting_hc_supported_by_proteins(diamond_tsv, transdecoder_pep, protein_file):
     q_length_dict = {}
@@ -1045,22 +1220,41 @@ def getting_hc_supported_by_proteins(diamond_tsv, transdecoder_pep, protein_file
                         #Hier intrinsic, complete schon abgehakt. 
     return already_hc_genes, t_dict
 '''
-def getting_hc_supported_by_intrinsic(already_hc_genes, t_dict):
-        #print("Länge t_dict nach Hinzufügen von ausgewählten complete: ", len(t_dict)) #Nach Hinzufügen noch 15640
-        #preparing_miniprot_gff_for_conflict_comparison("miniprot_parsed.gff")
-        #preparing_candidates_for_conflict_comparison(t_dict)
-        #finding_protein_conflicts("bedtools_candidates.bed", "miniprot_parsed.gff")
-    '''
-        for id in t_dict:
-            record.id = id
-            record.description = t_dict[id][0]
-            record.seq = t_dict[id][1]
-            gene_id = id.split(".")[0] + "." + id.split(".")[1]
-            if gene_id not in already_hc_genes:   
-                length = int(re.search(r"len:(\d+)", record.description).group(1))
-                condition1 = (length >= 300)
-                condition2 = "type:complete" in record.description 
-        '''
+def getting_hc_supported_by_intrinsic(q_dict):
+    #from_dict_to_pep_file(q_dict, "intrinsic_candidates.pep")
+    #choose_one_isoform("intrinsic_candidates.pep", "intrinsic_one_isoform.pep")
+    #from_pep_file_to_gff3("intrinsic_one_isoform.pep", "transcripts.gtf", "intrinsic_candidates.gff3")
+    #from_transcript_to_genome("intrinsic_candidates.gff3", "transcripts.gff3", "transcripts.fasta", "intrinsic_candidates_genome.gff3")
+    #preparing_candidates_for_conflict_comparison("intrinsic_candidates_genome.gff3", "transcripts.gtf")
+    #preparing_miniprot_gff_for_conflict_comparison("miniprot_parsed.gff")
+    #finding_protein_conflicts("candidates.bed", "reference.bed")
+    count2 = 0
+    count1 = 0
+    no_conflicts_dict = {}
+    with open("conflicts.bed", "r") as conflicts_file:
+        for line in conflicts_file:
+            part = line.split('\t')
+            transcript_id = part[3]
+            if int(part[6]) > 0: 
+                no_conflicts_dict[transcript_id] = True
+            else:
+                no_conflicts_dict[transcript_id] = False
+
+    with open("hc_genes.pep", "a") as output, open("intrinsic_one_isoform.pep") as candidates_file: 
+        for record in SeqIO.parse(candidates_file, "fasta"):
+            count1 += 1
+            transcript_id = record.id
+            length_pep = int(re.search(r"len:(\d+)", record.description).group(1))
+            length_cds = length_pep*3
+            score = float(re.search(r"score=(-?[\d.]+)", record.description).group(1))
+            if transcript_id in no_conflicts_dict: #falls gegen Genom gemapped wurde
+                condition1 = (length_cds >= 300)
+                condition2 = (score >= 70)  #Muss noch niedriger werden
+                condition3 = (no_conflicts_dict[transcript_id])
+                if condition1 and condition2 and condition3:
+                    SeqIO.write(record, output, "fasta")
+
+        
                
 '''
         last_gene_id = None
@@ -1096,9 +1290,11 @@ def getting_hc_supported_by_intrinsic(already_hc_genes, t_dict):
 
         #for id in t_dict:
 
-def choose_one_isoform(transdecoder_pep): 
+def choose_one_isoform(transdecoder_pep, output_name): 
     isoform_dict = {}
-    with open("one_chosen_isoform.pep", "w") as output:
+    sum_of_scores = 0
+    amount_of_entrys = 0
+    with open(output_name, "w") as output:
         for record in SeqIO.parse(transdecoder_pep, "fasta"):
             transdecoder_id = record.id
             stringtie_id = transdecoder_id.split(".p")[0]
@@ -1108,20 +1304,34 @@ def choose_one_isoform(transdecoder_pep):
             start_cds = int(cds_coords.group(1))
             stop_cds = int(cds_coords.group(2))
             description = record.description.split(" ")
+
+            score = re.search(r"score=(-?[\d.]+)", record.description)
+            score = float(score.group(1))
             if gene_id not in isoform_dict:
-                isoform_dict[gene_id] = [(start_cds, stop_cds, record)]
+                isoform_dict[gene_id] = [(start_cds, stop_cds, record, score)]
             else:
-                isoform_dict[gene_id].append((start_cds, stop_cds, record))
+                isoform_dict[gene_id].append((start_cds, stop_cds, record, score))
 
         for gene_id in isoform_dict:
             if len(isoform_dict[gene_id]) == 1:
                 record = isoform_dict[gene_id][0][2]
                 SeqIO.write(record, output, "fasta")
+                sum_of_scores += isoform_dict[gene_id][0][3]
+                amount_of_entrys += 1
             else:
                 #takes the longest isoform, if there are two longest, it takes the first, because that indicates the highest expression rate
                 longest_isoform = max(isoform_dict[gene_id], key=lambda x: x[1] - x[0]) 
                 record = longest_isoform[2]
                 SeqIO.write(record, output, "fasta")
+                sum_of_scores += isoform_dict[gene_id][0][3]
+                amount_of_entrys += 1
+                ##orf_highest_score = max(isoform_dict[gene_id], key=lambda x: x[-1])
+                ##record = orf_highest_score[2]
+                ##SeqIO.write(record, output, "fasta")
+    print("Sum scores: ", sum_of_scores) #1408841.4800000126
+    print("Amount entrys: ", amount_of_entrys) #18844
+    #Mean: 74.76
+    
 
 def parse_transdecoder_file(transdecoder_pep):
     stringtie_id_dict = {} 
@@ -1133,7 +1343,9 @@ def parse_transdecoder_file(transdecoder_pep):
         start_cds_transcript = int(cds_transcript_coords.group(1))
         stop_cds_transcript = int(cds_transcript_coords.group(2))
         cds_length = int(stop_cds_transcript) - int(start_cds_transcript) + 1
-        triple = (start_cds_transcript, stop_cds_transcript, cds_length)
+        strand = re.search(r"\((\+|-)\)", description[7])
+        strand = strand.group(1)
+        triple = (start_cds_transcript, stop_cds_transcript, cds_length, strand) #TRIPLE UMBENNENEN
         #Hier noch einbauen, dass wir nur das längste nehmen, falls wir am Ende eine file haben wollen, die mehrere isoformen enthalten soll
         if stringtie_id not in stringtie_id_dict:
             stringtie_id_dict[stringtie_id] = [triple]
@@ -1159,7 +1371,33 @@ def parse_transdecoder_dict(transdecoder_dict):
             stringtie_id_dict[transdecoder_id].append(triple)
     return stringtie_id_dict
 
+def from_transcript_to_genome(orf_gff3, transcripts_gff3, transcripts_fasta, output_name):
+    try:
+        command = [
+            "/opt/TransDecoder/util/cdna_alignment_orf_to_genome_orf.pl",
+            orf_gff3,
+            transcripts_gff3,
+            transcripts_fasta,
+            #">",
+            #output_name
+        ]
+        with open(output_name, "w") as output:
+            result = subprocess.run(command, stdout=output, stderr=subprocess.PIPE)
+       # result = subprocess.run(command)
+
+        if result.returncode == 0:
+            print("Successfull")
+
+        else:
+            print("Error")
+            print(result.stderr)
+    
+    except Exception:
+        print("Could not run miniprothint command.")
+        sys.exit(1)
+
 def from_transcript_to_genome_coords(stringtie_gtf, transdecoder_id_dict, output_file): #better name: creating_annotation_file
+    count = 0
     with open(stringtie_gtf, "r") as stringtie, open(output_file, "w") as output:
         exon_coords_list = []
         for line in stringtie:
@@ -1187,40 +1425,52 @@ def from_transcript_to_genome_coords(stringtie_gtf, transdecoder_id_dict, output
                     print("--------------Neues Transcript mit ID: ----------- ", transcript_id) 
                     output.write(f"{seqname}\tPreGalba\tgene\t{start_genome}\t{stop_genome}\t.\t{strand}\t.\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
                     output.write(f"{seqname}\tPreGalba\ttranscript\t{start_genome}\t{stop_genome}\t.\t{strand}\t.\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
-                    print("ANFANG: Transkriptlänge, cds Länge, cds index auf 0")
+                    #print("ANFANG: Transkriptlänge, cds Länge, cds index auf 0")
                     if len(exon_coords_list) > 1: #Für CDS muss es auch zugelassen sein, dass nur ein Exon vorhanden ist
                         transcript_id = exon_coords_list[0][2]
                         gene_id = exon_coords_list[0][3]
                         strand = exon_coords_list[0][4]
-                        print("Exons für vorheriges Transkript vorhanden: ", transcript_id)
+                        print("Transkript ID: ", transcript_id, "Exon Liste Länge: ", len(exon_coords_list), spliced_transcript_length)
+                        #print("Exons für vorheriges Transkript vorhanden: ", transcript_id)
                         for i in range(len(exon_coords_list)-1):
                             curr_exon_stop = int(exon_coords_list[i][1])
                             next_exon_start = int(exon_coords_list[i+1][0])
                             intron_start = int(curr_exon_stop) + 1
                             intron_stop = int(next_exon_start) - 1
-                            print("Intron von: ", intron_start, "bis: ", intron_stop)
+                            #print("Intron von: ", intron_start, "bis: ", intron_stop)
                             output.write(f"{seqname}\tPreGalba\tintron\t{intron_start}\t{intron_stop}\t.\t{strand}\t.\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
                     if len(exon_coords_list) > 0:
                         if transcript_id in transdecoder_id_dict:
-                            cds_transcript_start = int(transdecoder_id_dict[transcript_id][0][0])
-                            cds_transcript_stop = int(transdecoder_id_dict[transcript_id][0][1])
+                            strand_transcript = transdecoder_id_dict[transcript_id][0][3]
+                            if strand_transcript == "+":
+                                cds_transcript_start = int(transdecoder_id_dict[transcript_id][0][0])
+                                cds_transcript_stop = int(transdecoder_id_dict[transcript_id][0][1])
+                            if strand_transcript == "-":
+                                print("Spliced Transcript: ", spliced_transcript_length)
+                                print("Start in Transdecoder: ", transdecoder_id_dict[transcript_id][0][0])
+                                print("Stop in Transdecoder: ", transdecoder_id_dict[transcript_id][0][1])
+                                cds_transcript_stop = spliced_transcript_length - int(transdecoder_id_dict[transcript_id][0][0]) + 1
+                                cds_transcript_start = spliced_transcript_length - int(transdecoder_id_dict[transcript_id][0][1]) + 1
+                                print("Neuer Start: ", cds_transcript_start)
+                                print("Neuer Stopp: ", cds_transcript_stop)
                             cds_total_length = int(transdecoder_id_dict[transcript_id][0][2])
-                            print("CDS ist insgesamt so lang: ", cds_total_length)
-                            print("CDS Koordinaten in Transkript: ", cds_transcript_start, cds_transcript_stop)
+                            
+                           # print("CDS ist insgesamt so lang: ", cds_total_length)
+                           # print("CDS Koordinaten in Transkript: ", cds_transcript_start, cds_transcript_stop)
                             curr_transcript_length = 0
                             cds_current_length = 0
                             for i in range(len(exon_coords_list)):
                                 curr_exon_start = int(exon_coords_list[i][0]) 
                                 curr_exon_stop = int(exon_coords_list[i][1])
-                                print("Exonkoordinaten vom aktuellen Exon: ", curr_exon_start, curr_exon_stop)
+                                #print("Exonkoordinaten vom aktuellen Exon: ", curr_exon_start, curr_exon_stop)
                                 if i > 0:
                                     curr_transcript_length += int(exon_coords_list[i-1][1]) - int(exon_coords_list[i-1][0]) + 1
-                                    print("Vorherige Transkriptlänge wird hochgesetzt auf: ", curr_transcript_length)
+                                    #print("Vorherige Transkriptlänge wird hochgesetzt auf: ", curr_transcript_length)
                                 #Anfang vom CDS:
                                 if cds_current_length == 0:
                                     if curr_exon_start - curr_transcript_length + cds_transcript_start - 1 > curr_exon_stop: #GEÄNDERT
                                         x = curr_exon_start + cds_transcript_start - 1 #nochmal genau bestimmen GEÄNDERT
-                                        print("CDS Startpunkt:", x , " liegt hinter Exonstoppunkt: ", curr_exon_stop, "Also zu nächstem Exon springen")
+                                        #print("CDS Startpunkt:", x , " liegt hinter Exonstoppunkt: ", curr_exon_stop, "Also zu nächstem Exon springen")
                                         fivePrimeUTR_start = curr_exon_start
                                         fivePrimeUTR_stop = curr_exon_stop
                                         if strand == "+":
@@ -1230,14 +1480,14 @@ def from_transcript_to_genome_coords(stringtie_gtf, transdecoder_id_dict, output
                                         continue
                                     else: 
                                         cds_start_genome = curr_exon_start + int(cds_transcript_start) - curr_transcript_length - 1
-                                        print("CDS Startpunkt liegt innerhalb des Exons bei: ", cds_start_genome)
+                                        #print("CDS Startpunkt liegt innerhalb des Exons bei: ", cds_start_genome)
                                         if cds_start_genome + cds_total_length - cds_current_length - 1 > curr_exon_stop: #GEÄNDERT
-                                            print("CDS geht bis Exongrenze...")
+                                            #print("CDS geht bis Exongrenze...")
                                             output.write(f"{seqname}\tPreGalba\tCDS\t{cds_start_genome}\t{curr_exon_stop}\t.\t{strand}\t.\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
                                             #frame = frame(frame, curr_exon_stop - cds_start_genome + 1, strand)
-                                            print("CDS von: ", cds_start_genome, "bis: ", curr_exon_stop, "hinzugefügt")
+                                            #print("CDS von: ", cds_start_genome, "bis: ", curr_exon_stop, "hinzugefügt")
                                             cds_current_length = curr_exon_stop - cds_start_genome + 1
-                                            print("CDS aktuelle Länge: ", cds_current_length)
+                                            #print("CDS aktuelle Länge: ", cds_current_length)
                                             fivePrimeUTR_start = curr_exon_start
                                             fivePrimeUTR_stop = cds_start_genome - 1
                                             start_codon_plus_start = cds_start_genome
@@ -1252,17 +1502,17 @@ def from_transcript_to_genome_coords(stringtie_gtf, transdecoder_id_dict, output
                                                     output.write(f"{seqname}\tPreGalba\tthree_prime_UTR\t{fivePrimeUTR_start}\t{fivePrimeUTR_stop}\t.\t{strand}\t.\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
 
                                         else:
-                                            print("CDS innerhalb des Exons beendet...")
+                                            #print("CDS innerhalb des Exons beendet...")
                                             cds_stop_genome = cds_start_genome + cds_total_length - 1
                                             cds_current_length = cds_total_length
-                                            print("Aktueller Exonstoppunkt: ", stop_genome)
-                                            print("CDS Stoppunkt: ", cds_stop_genome)
+                                            #print("Aktueller Exonstoppunkt: ", stop_genome)
+                                            #print("CDS Stoppunkt: ", cds_stop_genome)
                                             output.write(f"{seqname}\tPreGalba\tCDS\t{cds_start_genome}\t{cds_stop_genome}\t.\t{strand}\t.\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
                                             fivePrimeUTR_start = curr_exon_start
                                             fivePrimeUTR_stop = cds_start_genome - 1
                                             threePrimeUTR_start = cds_stop_genome + 1
                                             threePrimeUTR_stop = curr_exon_stop
-                                            print("CDS von: ", cds_start_genome, "bis: ", cds_stop_genome, "hinzugefügt")
+                                            #print("CDS von: ", cds_start_genome, "bis: ", cds_stop_genome, "hinzugefügt")
                                             start_codon_plus_start = cds_start_genome
                                             start_codon_plus_stop = cds_start_genome + 2
                                             stop_codon_plus_start = cds_stop_genome - 2
@@ -1284,7 +1534,7 @@ def from_transcript_to_genome_coords(stringtie_gtf, transdecoder_id_dict, output
                                             continue
                                         
                                 elif cds_current_length == cds_total_length:
-                                    print("CDS bereits beendet. Rest der exons wird zu UTR")
+                                    #print("CDS bereits beendet. Rest der exons wird zu UTR")
                                     if strand == "+":
                                         output.write(f"{seqname}\tPreGalba\tthree_prime_UTR\t{curr_exon_start}\t{curr_exon_stop}\t.\t{strand}\t.\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
                                     else:
@@ -1292,17 +1542,17 @@ def from_transcript_to_genome_coords(stringtie_gtf, transdecoder_id_dict, output
                                 else:
                                     cds_start_genome = curr_exon_start
                                     if cds_current_length+int(curr_exon_stop)-int(curr_exon_start)+1<cds_total_length:
-                                        print("CDS noch nicht beendet...")
+                                        #print("CDS noch nicht beendet...")
                                         cds_stop_genome = int(curr_exon_stop) 
-                                        print("CDS wird von Start des aktuellen Exons, bis Stopp des aktuellen Exons eingetragen")
+                                        #print("CDS wird von Start des aktuellen Exons, bis Stopp des aktuellen Exons eingetragen")
                                         output.write(f"{seqname}\tPreGalba\tCDS\t{cds_start_genome}\t{cds_stop_genome}\t.\t{strand}\t.\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
                                         cds_current_length+=curr_exon_stop - curr_exon_start + 1
-                                        print("Neue aktuelle Länge: ", cds_current_length)
+                                        #print("Neue aktuelle Länge: ", cds_current_length)
                                     else:
-                                        print("CDS innerhalb des Exons beendet...")
+                                        #print("CDS innerhalb des Exons beendet...")
                                         cds_stop_genome = int(curr_exon_start) + cds_total_length - cds_current_length - 1 #GEÄNDERT (-1 hinzugefügt)
-                                        print("Aktueller Exonstoppunkt: ", curr_exon_stop)
-                                        print("CDS Stoppunkt: ", cds_stop_genome)
+                                        #print("Aktueller Exonstoppunkt: ", curr_exon_stop)
+                                        #print("CDS Stoppunkt: ", cds_stop_genome)
                                         output.write(f"{seqname}\tPreGalba\tCDS\t{cds_start_genome}\t{cds_stop_genome}\t.\t{strand}\t.\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
                                         threePrimeUTR_start = cds_stop_genome + 1
                                         threePrimeUTR_stop = curr_exon_stop
@@ -1319,13 +1569,17 @@ def from_transcript_to_genome_coords(stringtie_gtf, transdecoder_id_dict, output
                                         continue
                                         
                     exon_coords_list.clear()
+                    spliced_transcript_length = 0
                         
                 if feature == 'exon':
                     output.write(f"{seqname}\tPreGalba\texon\t{start_genome}\t{stop_genome}\t.\t{strand}\t.\tgene_id \"{gene_id}\"; transcript_id \"{transcript_id}\";\n")
                     exon_number = re.search(r'exon_number "([^"]+)"', attributes)
                     exon_number = exon_number.group(1)
                     exon_coords_list.append((start_genome, stop_genome, transcript_id, gene_id, strand))
-    
+                    print(transcript_id, "Exon: ", start_genome, stop_genome)
+                    spliced_transcript_length += (int(stop_genome) - int(start_genome)) + 1
+                    count += 1
+
 def frame_in_annotation(annotation_file):
     try:
         command = [
@@ -1333,7 +1587,7 @@ def frame_in_annotation(annotation_file):
             "-F",
             annotation_file,
             "-o",
-            "annotation_with_frame.gtf"
+            "annotation_with_frame.gff3"
         ]
         result = subprocess.run(command, capture_output=True)
 
@@ -1349,7 +1603,7 @@ def frame_in_annotation(annotation_file):
 
 def only_cds_in_annotation(annotation_file):
     try:
-        command = "grep 'CDS' " + annotation_file + " > annotation_only_cds.gtf" 
+        command = "grep 'CDS' " + annotation_file + " > annotation_only_cds.gff3" 
 
         result = os.system(command)
     
@@ -1458,44 +1712,56 @@ if process_rnaseq:
         alignment_rnaseq = file_name(alignments_list[0]) + ".bam"
 else:
     alignment_rnaseq = None
-
-if process_isoseq:
-    alignment_isoseq = mapping_long(genome_file, isoseq_sets)
-    sam_file_list = [alignment_isoseq]
-    sam_to_bam(sam_file_list) 
-    alignment_isoseq = file_name(alignment_isoseq) + ".bam"
-else:
-    alignment_isoseq = None
 '''
+#if process_isoseq:
+ #   alignment_isoseq = mapping_long(genome_file, isoseq_sets)
+   # sam_file_list = [alignment_isoseq]
+    #sam_to_bam(sam_file_list) 
+    #alignment_isoseq = file_name(alignment_isoseq) + ".bam"
+#else:
+ #   alignment_isoseq = None
+
 #assembling(alignment_rnaseq, alignment_isoseq)  #Für alleine testen leer machen
 #orfsearching(genome_file, "transcripts.gtf")  #Vielleicht eher Was returned wurde als input übergeben
+#convert_gtf_to_gff3("transcripts.gtf")
 #protein_aligning(genome_file, protein_file, "/home/s-amknut/GALBA/tools/blosum62_1.csv") 
-#protein_aligning2(genome_file, protein_file)
-#short_start_dict = shorten_incomplete_Orfs("transcripts.fasta.transdecoder.pep")
+short_start_dict = shorten_incomplete_Orfs("transcripts.fasta.transdecoder.pep")
 #make_diamond_db(protein_file)
 #validating_ORFs("shortened_candidates.pep", "diamond_shortened.tsv")
 #make_diamond_db(protein_file)
 #validating_ORFs("transcripts.fasta.transdecoder.pep", "diamond_normal.tsv")
-#classifications_dict = get_cds_classification("diamond_normal.tsv", "diamond_shortened.tsv", short_start_dict)
+classifications_dict = get_cds_classification("diamond_normal.tsv", "diamond_shortened.tsv", short_start_dict)
 #get_optimized_pep_file("transcripts.fasta.transdecoder.pep", "shortened_candidates.pep", classifications_dict, short_start_dict)
 #make_diamond_db(protein_file)
 #validating_ORFs("revised_candidates.pep", "diamond_revised.tsv")
 
-###already_hc_genes, q_dict = getting_hc_supported_by_proteins("diamond_revised.tsv", "revised_candidates.pep", protein_file)
-#already_hc_genes, t_dict = getting_hc_supported_by_proteins("diam_rev_test.tsv", "revised_candidates.pep", protein_file)
-#coord_dict = parse_transdecoder_dict(t_dict)
-#from_transcript_to_genome_coords("transcripts.gtf", coord_dict, "intrinsic_candidates.gtf")
-#getting_hc_supported_by_intrinsic(already_hc_genes, t_dict)
-###choose_one_isoform("hc_genes.pep")
-#choose_one_isoform("revised_candidates.pep")
-#choose_one_isoform("transcripts.fasta.transdecoder.pep")
-###transdecoder_id_dict = parse_transdecoder_file("one_chosen_isoform.pep")
-###from_transcript_to_genome_coords("transcripts.gtf", transdecoder_id_dict, "annotation.gtf")
-###frame_in_annotation("annotation.gtf")
-###only_cds_in_annotation("annotation_with_frame.gtf")
-###control_annotation("annotation_only_cds.gtf", reference_annotation, proj_name) #noch testen
-
-control_annotation("/home/s-amknut/GALBA/braker/GeneMark-ETP/training_cds.gtf", reference_annotation, "new_braker_cds")
+#from_pep_file_to_gff3("transcripts.fasta.transdecoder.pep", "transcripts.gtf", "transcripts.fasta.transdecoder_test.gff3")
+#from_transcript_to_genome("transcripts.fasta.transdecoder_test.gff3", "transcripts.gff3", "transcripts.fasta", "transcripts.fasta.transdecoder_gentest.gff3")
+#q_dict = getting_hc_supported_by_proteins("diamond_revised.tsv", "revised_candidates.pep", protein_file)
+#getting_hc_supported_by_intrinsic(q_dict)
+#choose_one_isoform("intrinsic_candidates.pep", "intrinsic_one_isoform.pep")
+#from_pep_file_to_gff3("intrinsic_one_isoform.pep", "transcripts.gtf", "intrinsic_candidates.gff3")
+#from_transcript_to_genome("intrinsic_candidates.gff3", "transcripts.gff3", "transcripts.fasta", "intrinsic_candidates_genome.gff3")
+#preparing_candidates_for_conflict_comparison("intrinsic_candidates_genome.gff3", "transcripts.gtf")
+#preparing_miniprot_gff_for_conflict_comparison("miniprot_parsed.gff")
+#finding_protein_conflicts("bedtools_candidates.bed", "miniprot_parsed.gff")
+#choose_one_isoform("hc_genes.pep", "one_chosen_isoform.pep")
+#choose_one_isoform("revised_candidates.pep", "one_chosen_isoform.pep")
+#choose_one_isoform("transcripts.fasta.transdecoder.pep", "one_chosen_isoform.pep")
+#transdecoder_id_dict = parse_transdecoder_file("one_chosen_isoform.pep")
+#from_transcript_to_genome_coords("transcripts.gtf", transdecoder_id_dict, "annotation.gtf")
+#from_pep_file_to_gff3("one_chosen_isoform.pep", "transcripts.gtf", "one_chosen_isoform.gff3")
+#from_pep_file_to_gff3("revised_candidates.pep", "transcripts.gtf", "revised_candidates.gff3")
+#from_transcript_to_genome("one_chosen_isoform.gff3","transcripts.gff3","transcripts.fasta", "transcripts.fasta.transdecoder.genome.gff3")
+#frame_in_annotation("transcripts.fasta.transdecoder.genome.gff3")
+#only_cds_in_annotation("annotation_with_frame.gff3")
+#control_annotation("annotation_only_cds.gff3", reference_annotation, proj_name) #noch testen
+#frame_in_annotation("annotation.gtf")
+#only_cds_in_annotation("annotation_with_frame.gtf")
+#control_annotation("annotation_only_cds.gtf", reference_annotation, proj_name) #noch testen
+#only_cds_in_annotation("transcripts.fasta.transdecoder.genome.gff3")
+#control_annotation("annotation_only_cds.gtf", reference_annotation, proj_name) #noch testen
+#control_annotation("/home/s-amknut/GALBA/braker/GeneMark-ETP/training_cds.gtf", reference_annotation, "new_braker_cds")
 #preparing_miniprot_gff_for_conflict_comparison("miniprot_parsed.gff")
 #preparing_candidates_for_conflict_comparison(t_dict)
 #finding_protein_conflicts("bedtools_reference.bed", "bedtools_candidates.bed")
@@ -1654,15 +1920,6 @@ Intron chain level:    30.9     |    60.6    |
   Transcript level:    26.9     |    58.7    |
        Locus level:    39.5     |    58.9    |
        
-#main.py mit rnaseq (mit Kategorisierung und mit hc Filter(ohne intrinsic und incomplete)), nur CDS in file, nur eine Isoform pro Gen mit FRAME mit Korrektur vom 17.11.:
-#-----------------| Sensitivity | Precision  |
-        Base level:    57.8     |    89.6    |
-        Exon level:    55.3     |    85.2    |
-      Intron level:    66.4     |    92.0    |
-Intron chain level:    25.4     |    63.6    |
-  Transcript level:    22.2     |    62.2    |
-       Locus level:    32.7     |    62.3    |
-
 #main.py mit allen rnaseq und isoseq Daten (mit Kategorisierung und mit hc Filter(ohne intrinsic und incomplete)), nur CDS in file, nur eine Isoform pro Gen mit FRAME mit Diamond-Spalten Korrektur vom 18.11.: 
 #-----------------| Sensitivity | Precision  |
         Base level:    65.7     |    88.0    |
@@ -1681,6 +1938,15 @@ Intron chain level:    28.3     |    60.7    |
   Transcript level:    24.8     |    59.0    |
        Locus level:    36.4     |    59.2    |
 
+#main.py mit allen rnaseq und isoseq Daten (mit Kategorisierung und mit hc Filter(ohne intrinsic und incomplete)), nur CDS in file, nur eine Isoform pro Gen mit FRAME mit (-) STrang in Annotation Korrektur 28.11.: 
+#-----------------| Sensitivity | Precision  |
+        Base level:    69.5     |    90.3    |
+        Exon level:    69.4     |    93.5    |
+      Intron level:    77.2     |    93.9    |
+Intron chain level:    33.0     |    70.5    |
+  Transcript level:    29.0     |    69.0    |
+       Locus level:    42.6     |    69.5    |
+
 #main.py mit allen rnaseq und isoseq Daten (mit Kategorisierung und mit hc Filter mit abs()(ohne intrinsic und incomplete)), nur CDS in file, nur eine Isoform pro Gen mit FRAME mit Diamond-Spalten Korrektur + short Korrektur + cds vom 27.11.:
 #-----------------| Sensitivity | Precision  |
         Base level:    63.9     |    88.5    |
@@ -1690,8 +1956,106 @@ Intron chain level:    27.9     |    62.5    |
   Transcript level:    24.4     |    61.2    |
        Locus level:    35.8     |    61.3    |
 
+#main.py mit rnaseq (mit Kategorisierung und mit hc Filter(ohne intrinsic und incomplete)), nur CDS in file, nur eine Isoform pro Gen mit FRAME mit Korrektur vom 17.11.:
+#-----------------| Sensitivity | Precision  |
+        Base level:    57.8     |    89.6    |
+        Exon level:    55.3     |    85.2    |
+      Intron level:    66.4     |    92.0    |
+Intron chain level:    25.4     |    63.6    |
+  Transcript level:    22.2     |    62.2    |
+       Locus level:    32.7     |    62.3    |
+
+#main.py mit rnaseq (mit Kategorisierung und mit hc Filter(ohne intrinsic und incomplete)), nur CDS in file, nur eine Isoform pro Gen mit FRAME mit Korrektur vom 28.11.:     
+#-----------------| Sensitivity | Precision  |
+        Base level:    63.0     |    91.4    |
+        Exon level:    63.5     |    93.4    |
+      Intron level:    71.0     |    94.0    |
+Intron chain level:    29.9     |    71.1    |
+  Transcript level:    26.3     |    69.5    |
+       Locus level:    38.6     |    69.9    |
+
+#rnaseq combi 0 und 0
+#-----------------| Sensitivity | Precision  |
+        Base level:    59.0     |    92.1    |
+        Exon level:    60.3     |    95.1    |
+      Intron level:    67.1     |    95.1    |
+Intron chain level:    28.9     |    74.4    |
+  Transcript level:    25.4     |    73.2    |
+       Locus level:    37.3     |    73.5    |
+
+#rnaseq Combi 6 und 21 und aaident > 95 und (t_length-t_end)<15:
+#-----------------| Sensitivity | Precision  |
+        Base level:    60.1     |    92.3    |
+        Exon level:    61.6     |    94.4    |
+      Intron level:    68.9     |    94.7    |
+Intron chain level:    29.1     |    73.1    |
+  Transcript level:    25.6     |    71.8    |
+       Locus level:    37.5     |    72.1    |
+
+#rnaseq Combi 6 und 21 und (t_length-t_end)<15:
+#-----------------| Sensitivity | Precision  |
+        Base level:    61.6     |    91.8    |
+        Exon level:    62.7     |    94.0    |
+      Intron level:    70.0     |    94.4    |
+Intron chain level:    29.6     |    72.2    |
+  Transcript level:    26.0     |    70.8    |
+       Locus level:    38.2     |    71.1    |
+
+#mixed mit transdecoder genome coords funktion und nur transdecoder outout ohne categories und hc alle isoforms
+#-----------------| Sensitivity | Precision  |
+        Base level:    81.3     |    96.0    |
+        Exon level:    79.0     |    87.3    |
+      Intron level:    85.6     |    94.3    |
+Intron chain level:    57.7     |    50.0    |
+  Transcript level:    55.2     |    49.7    |
+       Locus level:    70.4     |    89.5    |
+
+#mixed mit transdecoder genome coords funktion und nur transdecoder mit categories und ohne hc, nur eine isoform:
+#-----------------| Sensitivity | Precision  |
+        Base level:    78.3     |    97.7    |
+        Exon level:    74.0     |    97.0    |
+      Intron level:    81.1     |    99.0    |
+Intron chain level:    46.1     |    91.8    |
+  Transcript level:    45.1     |    89.5    |
+       Locus level:    66.3     |    89.6    |
+
+#mixed mit transdecoder genome coords funktion und nur transdecoder mit categories und hc, nur eine isoform:
+#-----------------| Sensitivity | Precision  |
+        Base level:    73.7     |    98.2    |
+        Exon level:    70.6     |    97.9    |
+      Intron level:    77.0     |    99.0    |
+Intron chain level:    42.8     |    92.6    |
+  Transcript level:    42.1     |    90.8    |
+       Locus level:    61.9     |    90.9    |
+
+#mixed mit transdecoder genome coords funktion und nur transdecoder mit categories und hc (protein & intrinsic mit cond1 und 3), nur eine isoform:
+#-----------------| Sensitivity | Precision  |
+        Base level:    73.8     |    98.2    |
+        Exon level:    70.6     |    97.9    |
+      Intron level:    77.1     |    99.0    |
+Intron chain level:    42.9     |    92.6    |
+  Transcript level:    42.2     |    90.7    |
+       Locus level:    61.9     |    90.8    |
+    
+#mixed mit transdecoder genome coords funktion und nur transdecoder mit categories und hc (protein & intrinsic mit cond1, cond2=70 und cond3), nur eine isoform:
+#-----------------| Sensitivity | Precision  |
+        Base level:    73.8     |    98.2    |
+        Exon level:    70.6     |    97.9    |
+      Intron level:    77.1     |    99.0    |
+Intron chain level:    42.9     |    92.6    |
+  Transcript level:    42.2     |    90.7    |
+       Locus level:    61.9     |    90.8    |
 
 
+
+#mixed mit transdecoder genome coords funktion und nur transdecoder mit categories und hc (start< 6 and stop< 21 aaident > 95 (t_length-t_end)<15 t_start < 5:), nur eine isoform:     
+#-----------------| Sensitivity | Precision  |
+        Base level:    66.7     |    99.4    |
+        Exon level:    65.5     |    99.2    |
+      Intron level:    71.4     |    99.5    |
+Intron chain level:    40.5     |    96.7    |
+  Transcript level:    39.5     |    96.2    |
+       Locus level:    58.1     |    96.2    |
 
 -Gibt hier auch unter hc noch ein paar wenige doppelte cds pro gen. Die werden rausgelöscht aus output file
     -> Idee: Wenn zwei hc cds in einem Gen sind, dann die mit dem besseren score behalten
