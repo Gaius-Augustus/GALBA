@@ -6,65 +6,12 @@ import sys
 import os
 import re
 import yaml
-import fileinput
 import pandas as pd
 import math
 from Bio import SeqIO
 from Bio.SeqRecord import SeqRecord
 
 #FUNCTIONS
-def check_input(genome_file, reads_file):
-    if not os.path.isfile(genome_file):
-        print("Error: Could not find the genome file.")
-        sys.exit(1)
-    if not os.path.isfile(reads_file):
-        print("Error: Could not find the reads file.")
-        sys.exit(1)
-    if file_format(reads_file) == "fastq":
-        print("Input reads file is in fastq format")
-        print("Converting reads file to fasta format...")
-        fastq_to_fasta(reads_file)
-    if file_format(genome_file) == "fastq":
-        print("Input genome file is in fastq format.")
-        print("Converting genome file to fasta format...")
-        fastq_to_fasta(genome_file)
-    if file_format(reads_file) == "unknown":
-        sys.exit("Error Reads file: Unknown file format")
-    if file_format(genome_file) == "unknown":
-        sys.exit("Error Genome file: Unknown file format")
-
-#dont know if needed 
-def fastq_to_fasta(fastqFile):
-    output_file = fastqFile.split(".")[0] + ".fasta"
-    output = output_path + "/" + proj_name + "/" + output_file
-    try:
-        seqtk_command = [
-            "/home/s-amknut/GALBA/tools/seqtk/seqtk", #Neuen Pfad angeben
-            "seq",
-            "-a",
-            fastqFile,
-            "> ",
-            output
-        ]
-
-        print("Converting .fastq to .fasta file...")
-
-        with open(output_file, 'w') as output:
-            result = subprocess.run(seqtk_command, stdout=output, capture_output=False)
-
-        if result.returncode == 0:
-            print("Conversion from .fastq to .fasta file completed successfully")
-            return output_file
-
-        else:
-            print("Error in converting .fastq to .fasta file: ")
-            print(result.stderr)
-            sys.exit(1)
-    
-    except Exception:
-        print("Could not run seqtk command.")
-        sys.exit(1)
-
 def file_format(file):
     with open(file, 'r') as f:
         #read and save first line in string & remove whitespaces with strip()
@@ -123,10 +70,9 @@ def first_or_second(path):
         return "second"
 
 def indexing(genome_fasta):
-    hisat2_build_path = "hisat2-build"
     try:
         hisat2_build_command = [
-            hisat2_build_path, 
+            "hisat2-build", 
             "--quiet",
             "-p",
             str(threads),        
@@ -136,7 +82,7 @@ def indexing(genome_fasta):
 
         print("Building genome index...")
     
-        result = subprocess.run(hisat2_build_command, capture_output=True)
+        result = subprocess.run(hisat2_build_command, capture_output=False)
     
         if result.returncode == 0:
             print("Indexing completed successfully.")
@@ -146,6 +92,7 @@ def indexing(genome_fasta):
 
     except Exception:
         print("Could not run hisat2-build command.") 
+        
 
 def mapping_short(rnaseq_paired_sets, rnaseq_single_sets):
     alignments_list = []
@@ -358,19 +305,21 @@ def assembling(alignment_rnaseq, alignment_isoseq):
         print("Could not run stringtie command.")
 
 def orfsearching(genome_fa, transcripts_gtf):
-    output_fa = "transcripts.fasta" 
-    try:
+    try: 
+        
         output_fa = "transcripts.fasta" 
-        fasta_file_command = [
-            "/opt/TransDecoder/util/gtf_genome_to_cdna_fasta.pl",
-            transcripts_gtf,
+        '''
+        gffread_command = [
+            "gffread",
+            "-w",
+            output_fa,
+            "-g",
             genome_fa,
-            "-o",
-            output_fa
+            transcripts_gtf
         ]
-        print("Constructing the transcript fasta file using the genome and the transcripts.gtf")
-        print("Running command:", "".join(fasta_file_command))
-        result = subprocess.run(fasta_file_command, capture_output=True)
+        print("Construct a fasta file from the transcripts.gtf file given by Stringtie...")
+        #print("Running command:", "".join(gffread_command))
+        result = subprocess.run(gffread_command, capture_output=True)
 
         if result.returncode == 0:
             print("Transcripts prepared successfully")
@@ -379,6 +328,27 @@ def orfsearching(genome_fa, transcripts_gtf):
             print(result.stderr)    
     
     except Exception:
+        print("Could not run gffread command.")
+        sys.exit(1)
+        '''
+        
+        fasta_file_command = [
+            "/opt/TransDecoder/util/gtf_genome_to_cdna_fasta.pl",
+            transcripts_gtf,
+            genome_fa,
+        ]
+        print("Constructing the transcript fasta file using the genome and the transcripts.gtf")
+        print("Running command:", "".join(fasta_file_command))
+        with open("transcripts.fasta", "w") as output:
+            result = subprocess.run(fasta_file_command, stdout=output, stderr=subprocess.PIPE)
+
+        if result.returncode == 0:
+            print("Transcripts prepared successfully")
+        else:
+            print("Error during preparing transcripts")
+            print(result.stderr)    
+    
+    except Exception: #ÄNDERN
         print("Could not run gffread command.")
         import traceback
         traceback.print_exc()
@@ -391,7 +361,7 @@ def orfsearching(genome_fa, transcripts_gtf):
             "TransDecoder.LongOrfs",
             #"-S",
             "-t",
-            output_fa
+            "transcripts.fasta"
         ]
        
         #print("Running command:", "".join(transdecoder_command))
@@ -411,7 +381,7 @@ def orfsearching(genome_fa, transcripts_gtf):
         predict_command = [
             "TransDecoder.Predict",
             "-t",
-            output_fa
+            "transcripts.fasta"
         ]
        
         #print("Running command:", "".join(transdecoder_command))
@@ -516,8 +486,8 @@ def protein_aligning(genome, protein, alignment_scoring):
         command = [
             "/home/s-amknut/GALBA/tools/miniprot/miniprot",
            # "miniprot",
-            #"-t",
-            #str(threads),
+            "-t",       #NEU:threads
+            str(threads),
             "--genome",
             genome,
             "--protein",
@@ -540,9 +510,10 @@ def protein_aligning(genome, protein, alignment_scoring):
         sys.exit(1)
 
     try: 
+        #NEU: geändert von fstring zu liste
         command = f"/home/s-amknut/GALBA/tools/miniprot-boundary-scorer/miniprot_boundary_scorer -o miniprot_parsed.gff -s {alignment_scoring} < miniprot.aln"
         #command = [
-         #   "miniprot_boundary_scorer",
+         #   "/home/s-amknut/GALBA/tools/miniprot-boundary-scorer/miniprot_boundary_scorer",
           #  "-o",
            # "miniprot_parsed.gff",
             #"-s",
@@ -566,129 +537,6 @@ def protein_aligning(genome, protein, alignment_scoring):
         print("Could not run miniprot_boundary_scorer command.")
         sys.exit(1)
 
-    try:
-        command = [
-            "/home/s-amknut/GALBA/tools/miniprothint/miniprothint.py",
-            "miniprot_parsed.gff",
-            "--workdir",
-            "miniprothint"
-        ]
-
-        print("...")
-
-        result = subprocess.run(command, capture_output=True)
-
-        if result.returncode == 0:
-            print("Hints created successfully")
-        else:
-            print("Error during creating hints by miniprothint")
-            print("stdout:", result.stdout.decode())
-            print("stderr:", result.stderr.decode())
-            print(result.stderr)
-        
-    except Exception:
-        print("Could not run miniprothint command.")
-        sys.exit(1)
-
-
-def protein_aligning2(genome, protein):
-    try:
-        command = [
-            "/home/s-amknut/GALBA/tools/miniprothint/miniprothint.py",
-            "--genome",
-            genome,
-            "--protein",
-            protein,
-            "--workdir",
-            "miniprothint"
-        ]
-
-        print("Aligning proteins to genome...")
-        print("Running command:", command)
-        result = subprocess.run(command, capture_output=True)
-
-        if result.returncode == 0:
-            print("Proteins aligned successfully")
-        else:
-            print("Error during protein alignment with miniprothint")
-            print("stdout:", result.stdout.decode())
-            print("stderr:", result.stderr.decode())
-    except Exception:
-        print("Could not run miniprothint command.")
-        sys.exit(1)
-    
-    
-'''
-def protein_aligning(genome, protein, alignment_scoring):
-    try: 
-        #output_aln = "protein_alignment.aln"
-        command = [
-            "miniprot",
-            "-t",
-            str(threads),
-            genome,
-            protein,
-            "--aln"
-            "-o",
-            "miniprot.aln"
-        ]
-        print("Aligning proteins to genome...")
-
-        result = subprocess.run(command, capture_output=True)
-        if result.returncode == 0:
-            print("Proteins aligned successfully")
-        else:
-            print("Error during protein alignment with miniprot")
-            print("stdout:", result.stdout.decode())
-            print("stderr:", result.stderr.decode())
-
-    except Exception:
-        print("Could not run miniprot command.")
-        print(result.stderr)
-        sys.exit(1)
-
-    try: 
-        command = f"miniprot_boundary_scorer -o miniprot_parsed.gff -s {alignment_scoring} < miniprot.aln"
-        print("Running command:", command)
-        print("Scoring the alignment...")
-        
-        result = subprocess.run(command, shell=True, capture_output=True)
-
-        if result.returncode == 0:
-            print("Alignment scored successfully with miniprot_boundary_scorer!")
-        else:
-            print("Error during scoring the alignment with miniport_boundary_scorer!")
-            print("stdout:", result.stdout.decode())
-            print("stderr:", result.stderr.decode())
-    
-    except Exception:
-        print("Could not run miniprot_boundary_scorer command.")
-        sys.exit(1)
-
-    try:
-        command = [
-            "miniprothint.py",
-            "miniprot_parsed.gff",
-            "--workdir",
-            "miniprothint"
-        ]
-
-        print("Creating hints for Augustus...")
-
-        result = subprocess.run(command, capture_output=True)
-
-        if result.returncode == 0:
-            print("Hints created successfully")
-        else:
-            print("Error during creating hints by miniprothint")
-            print("stdout:", result.stdout.decode())
-            print("stderr:", result.stderr.decode())
-            print(result.stderr)
-        
-    except Exception:
-        print("Could not run miniprothint command.")
-        sys.exit(1)
-    '''
 def shorten_incomplete_Orfs(transdecoder_pep):
     try:
         short_start_dict = {}
@@ -761,55 +609,7 @@ def validating_ORFs(transdecoder_pep, output_tsv):
     except Exception:
         print("Could not run diamond blastp command.")
         sys.exit(1)
-'''
-def get_cds_classification(normal_tsv, shortened_tsv, short_start_dict):
-    #Weil hier nach CDS-ID und nach Protein gemerged wird, werden einzelne herausgefiltert, die nicht in beiden vorkommen. 
-    header_list = ["cdsID", "proteinID", "percIdentMatches", "alignLength", "mismatches", "gapOpenings", "alignStart", "alignEnd", "proteinStart", "proteinEnd", "eValue", "bitScore"]
-    df_shortened = pd.read_csv(shortened_tsv, delimiter='\t', header=None, names=header_list)
-    df_normal = pd.read_csv(normal_tsv, delimiter='\t', header=None, names=header_list)
-    merged_df = pd.merge(df_shortened, df_normal, on=["cdsID", "proteinID"], suffixes=('_short', '_normal'))
-    merged_df = merged_df.drop(columns=["alignLength_short", "alignLength_normal", "mismatches_short", "mismatches_normal", "gapOpenings_short", "gapOpenings_normal", "alignEnd_short", "alignEnd_normal", "proteinEnd_short", "proteinEnd_normal", "eValue_short", "eValue_normal"])
-    merged_df["shortStart"] = merged_df["cdsID"].map(short_start_dict)
-    merged_df["supportScore"] = None
-    #merged_df["classification"] = None
 
-    for i, cds in merged_df.iterrows():
-        q_incomplete_start = cds["proteinStart_normal"]
-        t_incomplete_start = cds["alignStart_normal"]
-        t_complete_start = cds["alignStart_short"] + cds["shortStart"]  #not -1 because alignmentstart is 1-based but Mposition not. +shortstart, weil Differenz von normal zu short gebraucht wird
-        aai_incomplete = cds["percIdentMatches_normal"] 
-        aai_complete = cds["percIdentMatches_short"] 
-        if aai_complete == 0:
-            aai_complete = 0.0001
-        #if aai_incomplete == 0:
-         #   aai_incomplete = 0.0001
-        match_log = math.log(aai_incomplete/aai_complete)
-        #maybe betrag nehmen
-        support_score = abs(t_complete_start - t_incomplete_start) - (q_incomplete_start - 1) + match_log**1000
-        merged_df.at[i, "supportScore"] = support_score
-        #if t_complete_start < t_incomplete_start:
-            #print("cdsID: ", cds["cdsID"] , "incomplete Start: ", t_incomplete_start, "complete Start: ", t_complete_start)
-    
-    merged_df["bitScore_max"] = merged_df[["bitScore_short", "bitScore_normal"]].max(axis=1) #FRAGE: Hier richtig über bitscore das beste alignment zu finden?
-    grouped = merged_df.groupby("cdsID")
-    #from here on it takes a lot of runtime because of .append() and .iterrows()
-    classifications = {}
-    for groupname, groupdata in grouped:
-        sorted_group = groupdata.sort_values(by="bitScore_max", ascending=False)
-        incomplete = False
-        for i, cds in sorted_group.head(25).iterrows():
-            if cds["supportScore"] > 0:
-                incomplete = True
-                break
-        if incomplete:
-            classifications[cds["cdsID"]] = "incomplete" #112 13.8%
-        else:
-            classifications[cds["cdsID"]] = "complete" #699 86.2%
-
-    pd.set_option('display.max_columns', None)
-    #print(merged_df.head())
-    return classifications
-'''
 def get_cds_classification(normal_tsv, shortened_tsv, short_start_dict):
     #Weil hier nach CDS-ID und nach Protein gemerged wird, werden einzelne herausgefiltert, die nicht in beiden vorkommen. 
     header_list = ["cdsID", "proteinID", "percIdentMatches", "alignLength", "mismatches", "gapOpenings", "queryStart", "queryEnd", "targetStart", "targetEnd", "eValue", "bitScore"]
@@ -1061,12 +861,41 @@ def finding_protein_conflicts(candidates_bed, reference_bed):
     except Exception:
         print("Could not run bedtools command.")
         sys.exit(1)
-    
-    with open("coverage.bed", "r") as coverage_file:
-        for line in coverage_file:
-            parts = line.split("\t")
-            if int(parts[4]) > 0:
-                print("Conflict found: ", parts[4])
+
+def finding_stop_in_utr(transcripts_fasta, intrinsic_candidates_genome):
+    stop_in_utr_dict = {}   
+    transcripts_dict = {}                   
+    stop_codons = ["TAA", "TAG", "TGA"]
+    for record in SeqIO.parse(transcripts_fasta, "fasta"):
+        transcripts_dict[record.id] = [record.description, record.seq]
+    with open(intrinsic_candidates_genome, "r") as candidates_file:
+        for line in candidates_file:
+            has_five_prime_utr = False
+            if line.startswith("#"):
+                continue
+
+            part = line.strip().split("\t")
+            if len(part) < 9:  # Skip empty lines
+                continue
+            feature_type = part[2]
+            start = int(part[3])
+            end = int(part[4])
+            attributes = part[8]
+            stringtie_id = re.search(r"ID=([^;]+?)\.p\d+\b", attributes)
+            if stringtie_id:
+                stringtie_id = stringtie_id.group(1)
+
+            if feature_type == "five_prime_UTR":
+                has_five_prime_utr = True
+                utr_length = end - start + 1
+                utr_sequence = transcripts_dict[stringtie_id][1][utr_length:]
+                for codon in stop_codons:                       
+                    stop_codon_position = utr_sequence.find(codon)
+                    if stop_codon_position != -1:
+                        stop_in_utr_dict[stringtie_id] = True
+                        break
+
+    return stop_in_utr_dict 
 
 def getting_hc_supported_by_proteins(diamond_tsv, transdecoder_pep, protein_file):
     t_length_dict = {}
@@ -1085,7 +914,7 @@ def getting_hc_supported_by_proteins(diamond_tsv, transdecoder_pep, protein_file
             id = part[0] #Query ID
             protein_id = part[1] #Target ID
             aaident = float(part[2])
-            #align_length = int(part[3])
+            align_length = int(part[3])
             #t_start = int(part[6]) #Bis 18.11. dachte ich es wäre t zuerst und dann q, dann auf website von diamond was anderes gelesen
             #t_end = int(part[7])
             #q_start = int(part[8])
@@ -1107,7 +936,7 @@ def getting_hc_supported_by_proteins(diamond_tsv, transdecoder_pep, protein_file
                 start_condition = (q_start - t_start)
                 stop_condition = (q_length - q_end) - (t_length - t_end) 
                 #print("Start Condition: ", start_condition, "Stop Condition: ", stop_condition)
-
+                
                 if "type:complete" in record.description: #28490 complete & hc von insgesamt 42797 complete candidates 
                     #Combi 0 und 0:    62.7     |    88.7    |
                     #Combi 3 und 10:   66.4     |    87.9    |
@@ -1132,7 +961,11 @@ def getting_hc_supported_by_proteins(diamond_tsv, transdecoder_pep, protein_file
                     #Combi 6 und 21 und aaident > 95 und (t_length-t_end)<15 und t_start < 5:   60.3     |    88.9    |
                     #Combi 6 und 21 und aaident > 95 und (t_length-t_end)<15 und t_start < 25:     60.8     |    88.8    |
                     #Combi 0 und 0 und aaident == 100 und (t_length-t_end)==0 und q_start == 1:     31.6     |    88.1    
-                    if start_condition < 6 and stop_condition < 21 and aaident > 95 and (t_length-t_end)<15: #abs() AUSTESTEN # Eigentlich 6 und 21 aber neu getestet mit 3 und 10
+                    #and aaident > 95 and (t_length-t_end)<15
+                    #if start_condition < 6 and stop_condition < 21 : #abs() AUSTESTEN # Eigentlich 6 und 21 aber neu getestet mit 3 und 10
+                    #if aaident > 95 and (t_length-t_end)<10:
+                    if (t_length - align_length) < 15 and start_condition < 6 and aaident > 95:
+                    #if (align_length/t_length) > 0.94:
                         SeqIO.write(record, output, "fasta")
                         gene_id = id.split(".")[0] + "." + id.split(".")[1] 
                         del q_dict[id]
@@ -1163,71 +996,16 @@ def getting_hc_supported_by_proteins(diamond_tsv, transdecoder_pep, protein_file
         print(len(q_dict))
 
     return q_dict
-'''
-def getting_hc_supported_by_proteins(diamond_tsv, transdecoder_pep, protein_file):
-    q_length_dict = {}
-    for record in SeqIO.parse(protein_file, "fasta"):
-        q_length_dict[record.id] = len(record.seq) 
-    t_dict = {}
-    already_hc_genes = []
-    count = 0
-    for record in SeqIO.parse(transdecoder_pep, "fasta"):
-       # t_length_dict[record.id] = len(record.seq) - 1 # -1 damit * nicht gezählt wird
-        t_dict[record.id] = [record.description, record.seq] #46187 Elemente in t_dict
-    with open(diamond_tsv, "r") as tsv, open("hc_genes.pep", "w") as output:
-        for line in tsv:    #7580 Elemente in tsv
-            part = line.strip().split('\t')
-            id = part[0]
-            protein_id = part[1]
-            #align_length = int(part[3])
-            #t_start = int(part[6]) #Bis 18.11. dachte ich es wäre t zuerst und dann q, dann auf website von diamond was anderes gelesen
-            #t_end = int(part[7])
-            #q_start = int(part[8])
-            #q_end = int(part[9])
-            q_start = int(part[6])
-            q_end = int(part[7])
-            t_start = int(part[8])
-            t_end = int(part[9])
-            if id in t_dict:
-                record.id = id
-                record.description = t_dict[id][0]
-                record.seq = t_dict[id][1]
-                #t_length = int(re.search(r"len:(\d+)", record.description).group(1)) #geht auch, weil len genau sequenzlänge der AS angibt
-                t_length = len(record.seq) - 1 # -1 damit * nicht gezählt wird
-                q_length = q_length_dict[protein_id]
-                start_condition = q_start - t_start 
-                stop_condition = (q_length - q_end) - (t_length - t_end) 
-                if "type:complete" in record.description: #28490 complete & hc von insgesamt 42797 complete candidates 
-                    if start_condition < 6 and stop_condition < 21:
-                        print("Reingeschrieben, wegen Protein: ", protein_id)
-                        SeqIO.write(record, output, "fasta")
-                        gene_id = id.split(".")[0] + "." + id.split(".")[1] 
-                        count += 1
-                        #del t_dict[id]
-                        already_hc_genes.append(gene_id)
-                    else:
-                        print("Nicht erfüllt für: ", protein_id)
-                if "type:5prime_partial" in record.description or "type:internal" in record.description or "type:3prime_partial" in record.description:
-                    del t_dict[id]
-                        #print("StringTie ID ist hc: ", stringtie_id)
-                        #keys_to_delete = [key for key in t_dict if key.startswith(gene_id)]
-                        #for key in keys_to_delete:
-                            #print("Key wird gelöscht: ", key)
-                           # del t_dict[key]
-                        #continue
-                    #else:
-                     #   if gene_id not in hc_genes:   
-                        #Hier intrinsic, complete schon abgehakt. 
-    return already_hc_genes, t_dict
-'''
+
 def getting_hc_supported_by_intrinsic(q_dict):
-    #from_dict_to_pep_file(q_dict, "intrinsic_candidates.pep")
-    #choose_one_isoform("intrinsic_candidates.pep", "intrinsic_one_isoform.pep")
-    #from_pep_file_to_gff3("intrinsic_one_isoform.pep", "transcripts.gtf", "intrinsic_candidates.gff3")
-    #from_transcript_to_genome("intrinsic_candidates.gff3", "transcripts.gff3", "transcripts.fasta", "intrinsic_candidates_genome.gff3")
-    #preparing_candidates_for_conflict_comparison("intrinsic_candidates_genome.gff3", "transcripts.gtf")
-    #preparing_miniprot_gff_for_conflict_comparison("miniprot_parsed.gff")
-    #finding_protein_conflicts("candidates.bed", "reference.bed")
+    from_dict_to_pep_file(q_dict, "intrinsic_candidates.pep")
+    choose_one_isoform("intrinsic_candidates.pep", "intrinsic_one_isoform.pep")
+    from_pep_file_to_gff3("intrinsic_one_isoform.pep", "transcripts.gtf", "intrinsic_candidates.gff3")
+    from_transcript_to_genome("intrinsic_candidates.gff3", "transcripts.gff3", "transcripts.fasta", "intrinsic_candidates_genome.gff3")
+    preparing_candidates_for_conflict_comparison("intrinsic_candidates_genome.gff3", "transcripts.gtf")
+    preparing_miniprot_gff_for_conflict_comparison("miniprot_parsed.gff")
+    finding_protein_conflicts("candidates.bed", "reference.bed")
+    stop_in_utr_dict= finding_stop_in_utr("transcripts.fasta", "intrinsic_candidates_genome.gff3")
     count2 = 0
     count1 = 0
     no_conflicts_dict = {}
@@ -1235,12 +1013,18 @@ def getting_hc_supported_by_intrinsic(q_dict):
         for line in conflicts_file:
             part = line.split('\t')
             transcript_id = part[3]
-            if int(part[6]) > 0: 
+            if int(part[6]) == 0: 
                 no_conflicts_dict[transcript_id] = True
             else:
                 no_conflicts_dict[transcript_id] = False
 
-    with open("hc_genes.pep", "a") as output, open("intrinsic_one_isoform.pep") as candidates_file: 
+    with open("hc_genes.pep", "a") as output, open("intrinsic_one_isoform.pep") as candidates_file:
+        cond1_true = 0
+        cond2_true = 0 
+        cond3_true = 0
+        cond4_true = 0 
+        generell = 0
+        bestehen = 0
         for record in SeqIO.parse(candidates_file, "fasta"):
             count1 += 1
             transcript_id = record.id
@@ -1249,10 +1033,33 @@ def getting_hc_supported_by_intrinsic(q_dict):
             score = float(re.search(r"score=(-?[\d.]+)", record.description).group(1))
             if transcript_id in no_conflicts_dict: #falls gegen Genom gemapped wurde
                 condition1 = (length_cds >= 300)
-                condition2 = (score >= 70)  #Muss noch niedriger werden
+                condition2 = (score > 50) 
                 condition3 = (no_conflicts_dict[transcript_id])
-                if condition1 and condition2 and condition3:
+                id_stringtie = transcript_id.split(".p")
+                id_stringtie = id_stringtie[0]
+                if id_stringtie in stop_in_utr_dict:
+                    condition4 = (stop_in_utr_dict[id_stringtie])
+                else:
+                    condition4 = False
+                if condition1 and condition2 and condition3 and condition4:
                     SeqIO.write(record, output, "fasta")
+                    bestehen += 1
+                if condition1 == True: 
+                    cond1_true += 1
+                if condition2 == True: 
+                    cond2_true += 1
+                if condition3 == True: 
+                    cond3_true += 1
+                if condition4 == True: 
+                    cond4_true += 1
+                generell += 1
+    print("Score 70")
+    print("Insgesamt: ", generell)
+    print("Condition 1: ", cond1_true)
+    print("Condition 2: ", cond2_true)
+    print("Condition 3: ", cond3_true)
+    print("Condition 4: ", cond4_true)
+    print("HC: ", bestehen)
 
         
                
@@ -1294,6 +1101,7 @@ def choose_one_isoform(transdecoder_pep, output_name):
     isoform_dict = {}
     sum_of_scores = 0
     amount_of_entrys = 0
+    smallest_score = 1000000
     with open(output_name, "w") as output:
         for record in SeqIO.parse(transdecoder_pep, "fasta"):
             transdecoder_id = record.id
@@ -1318,6 +1126,8 @@ def choose_one_isoform(transdecoder_pep, output_name):
                 SeqIO.write(record, output, "fasta")
                 sum_of_scores += isoform_dict[gene_id][0][3]
                 amount_of_entrys += 1
+                if isoform_dict[gene_id][0][3] < smallest_score:
+                    smallest_score = isoform_dict[gene_id][0][3]
             else:
                 #takes the longest isoform, if there are two longest, it takes the first, because that indicates the highest expression rate
                 longest_isoform = max(isoform_dict[gene_id], key=lambda x: x[1] - x[0]) 
@@ -1331,8 +1141,8 @@ def choose_one_isoform(transdecoder_pep, output_name):
     print("Sum scores: ", sum_of_scores) #1408841.4800000126
     print("Amount entrys: ", amount_of_entrys) #18844
     #Mean: 74.76
+    print("Smallest Score: ", smallest_score)
     
-
 def parse_transdecoder_file(transdecoder_pep):
     stringtie_id_dict = {} 
     for record in SeqIO.parse(transdecoder_pep, "fasta"):
@@ -1393,7 +1203,7 @@ def from_transcript_to_genome(orf_gff3, transcripts_gff3, transcripts_fasta, out
             print(result.stderr)
     
     except Exception:
-        print("Could not run miniprothint command.")
+        print("Could not run cdna_alignment_orf_to_genome_orf.pl")
         sys.exit(1)
 
 def from_transcript_to_genome_coords(stringtie_gtf, transdecoder_id_dict, output_file): #better name: creating_annotation_file
@@ -1701,7 +1511,7 @@ if args.genome:
 
 if args.proteins:
     protein_file = args.proteins
-'''
+
 if process_rnaseq:
     indexing(genome_file)
     alignments_list = mapping_short(rnaseq_paired_sets, rnaseq_single_sets)
@@ -1712,50 +1522,44 @@ if process_rnaseq:
         alignment_rnaseq = file_name(alignments_list[0]) + ".bam"
 else:
     alignment_rnaseq = None
-'''
-#if process_isoseq:
- #   alignment_isoseq = mapping_long(genome_file, isoseq_sets)
-   # sam_file_list = [alignment_isoseq]
-    #sam_to_bam(sam_file_list) 
-    #alignment_isoseq = file_name(alignment_isoseq) + ".bam"
-#else:
- #   alignment_isoseq = None
 
-#assembling(alignment_rnaseq, alignment_isoseq)  #Für alleine testen leer machen
-#orfsearching(genome_file, "transcripts.gtf")  #Vielleicht eher Was returned wurde als input übergeben
-#convert_gtf_to_gff3("transcripts.gtf")
-#protein_aligning(genome_file, protein_file, "/home/s-amknut/GALBA/tools/blosum62_1.csv") 
+if process_isoseq:
+    alignment_isoseq = mapping_long(genome_file, isoseq_sets)
+    sam_file_list = [alignment_isoseq]
+    sam_to_bam(sam_file_list) 
+    alignment_isoseq = file_name(alignment_isoseq) + ".bam"
+else:
+    alignment_isoseq = None
+
+assembling(alignment_rnaseq, alignment_isoseq)  #Für alleine testen leer machen
+orfsearching(genome_file, "transcripts.gtf")  #Vielleicht eher Was returned wurde als input übergeben
+convert_gtf_to_gff3("transcripts.gtf")
 short_start_dict = shorten_incomplete_Orfs("transcripts.fasta.transdecoder.pep")
-#make_diamond_db(protein_file)
-#validating_ORFs("shortened_candidates.pep", "diamond_shortened.tsv")
-#make_diamond_db(protein_file)
-#validating_ORFs("transcripts.fasta.transdecoder.pep", "diamond_normal.tsv")
+make_diamond_db(protein_file)
+validating_ORFs("shortened_candidates.pep", "diamond_shortened.tsv")
+make_diamond_db(protein_file)
+validating_ORFs("transcripts.fasta.transdecoder.pep", "diamond_normal.tsv")
 classifications_dict = get_cds_classification("diamond_normal.tsv", "diamond_shortened.tsv", short_start_dict)
-#get_optimized_pep_file("transcripts.fasta.transdecoder.pep", "shortened_candidates.pep", classifications_dict, short_start_dict)
-#make_diamond_db(protein_file)
-#validating_ORFs("revised_candidates.pep", "diamond_revised.tsv")
+get_optimized_pep_file("transcripts.fasta.transdecoder.pep", "shortened_candidates.pep", classifications_dict, short_start_dict)
+make_diamond_db(protein_file)
+validating_ORFs("revised_candidates.pep", "diamond_revised.tsv")
 
-#from_pep_file_to_gff3("transcripts.fasta.transdecoder.pep", "transcripts.gtf", "transcripts.fasta.transdecoder_test.gff3")
-#from_transcript_to_genome("transcripts.fasta.transdecoder_test.gff3", "transcripts.gff3", "transcripts.fasta", "transcripts.fasta.transdecoder_gentest.gff3")
 #q_dict = getting_hc_supported_by_proteins("diamond_revised.tsv", "revised_candidates.pep", protein_file)
+#protein_aligning(genome_file, protein_file, "/home/s-amknut/GALBA/tools/blosum62_1.csv") 
 #getting_hc_supported_by_intrinsic(q_dict)
-#choose_one_isoform("intrinsic_candidates.pep", "intrinsic_one_isoform.pep")
-#from_pep_file_to_gff3("intrinsic_one_isoform.pep", "transcripts.gtf", "intrinsic_candidates.gff3")
-#from_transcript_to_genome("intrinsic_candidates.gff3", "transcripts.gff3", "transcripts.fasta", "intrinsic_candidates_genome.gff3")
-#preparing_candidates_for_conflict_comparison("intrinsic_candidates_genome.gff3", "transcripts.gtf")
-#preparing_miniprot_gff_for_conflict_comparison("miniprot_parsed.gff")
-#finding_protein_conflicts("bedtools_candidates.bed", "miniprot_parsed.gff")
+
 #choose_one_isoform("hc_genes.pep", "one_chosen_isoform.pep")
-#choose_one_isoform("revised_candidates.pep", "one_chosen_isoform.pep")
+choose_one_isoform("revised_candidates.pep", "one_chosen_isoform.pep")
 #choose_one_isoform("transcripts.fasta.transdecoder.pep", "one_chosen_isoform.pep")
 #transdecoder_id_dict = parse_transdecoder_file("one_chosen_isoform.pep")
 #from_transcript_to_genome_coords("transcripts.gtf", transdecoder_id_dict, "annotation.gtf")
-#from_pep_file_to_gff3("one_chosen_isoform.pep", "transcripts.gtf", "one_chosen_isoform.gff3")
-#from_pep_file_to_gff3("revised_candidates.pep", "transcripts.gtf", "revised_candidates.gff3")
-#from_transcript_to_genome("one_chosen_isoform.gff3","transcripts.gff3","transcripts.fasta", "transcripts.fasta.transdecoder.genome.gff3")
-#frame_in_annotation("transcripts.fasta.transdecoder.genome.gff3")
+from_pep_file_to_gff3("one_chosen_isoform.pep", "transcripts.gtf", "one_chosen_isoform.gff3")
+#from_transcript_to_genome("transcripts.fasta.transdecoder.gff3","transcripts.gff3","transcripts.fasta", "transcripts.fasta.transdecoder.genome.gff3")
+from_transcript_to_genome("one_chosen_isoform.gff3","transcripts.gff3","transcripts.fasta", "transcripts.fasta.transdecoder.genome.gff3")
+###frame_in_annotation("transcripts.fasta.transdecoder.genome.gff3")
 #only_cds_in_annotation("annotation_with_frame.gff3")
-#control_annotation("annotation_only_cds.gff3", reference_annotation, proj_name) #noch testen
+only_cds_in_annotation("transcripts.fasta.transdecoder.genome.gff3")
+control_annotation("annotation_only_cds.gff3", reference_annotation, proj_name) #noch testen
 #frame_in_annotation("annotation.gtf")
 #only_cds_in_annotation("annotation_with_frame.gtf")
 #control_annotation("annotation_only_cds.gtf", reference_annotation, proj_name) #noch testen
@@ -1765,6 +1569,7 @@ classifications_dict = get_cds_classification("diamond_normal.tsv", "diamond_sho
 #preparing_miniprot_gff_for_conflict_comparison("miniprot_parsed.gff")
 #preparing_candidates_for_conflict_comparison(t_dict)
 #finding_protein_conflicts("bedtools_reference.bed", "bedtools_candidates.bed")
+
 
 
 #TO DOs:
@@ -2046,8 +1851,6 @@ Intron chain level:    42.9     |    92.6    |
   Transcript level:    42.2     |    90.7    |
        Locus level:    61.9     |    90.8    |
 
-
-
 #mixed mit transdecoder genome coords funktion und nur transdecoder mit categories und hc (start< 6 and stop< 21 aaident > 95 (t_length-t_end)<15 t_start < 5:), nur eine isoform:     
 #-----------------| Sensitivity | Precision  |
         Base level:    66.7     |    99.4    |
@@ -2104,4 +1907,5 @@ Schließlich entscheiden wir uns ja nur wegen dieser CDS für die Isoform.
 
 Zu tun:
 Bedtools in die Dockerfile schreiben
+miniprot in dockerfile nutzen
 '''
