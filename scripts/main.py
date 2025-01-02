@@ -623,9 +623,7 @@ def get_cds_classification(normal_tsv, shortened_tsv, short_start_dict):
     count = 0 
     
     for i, cds in merged_df.iterrows():
-        print("Short start: ", cds["shortStart"])
         if count >= 0 :
-            print("-----------cdsID: ", cds["cdsID"], "Protein:", cds["proteinID"], "------------------")
             count += 1
             #print(cds["shortStart"])
             q_incomplete_start = cds["queryStart_normal"]
@@ -633,7 +631,6 @@ def get_cds_classification(normal_tsv, shortened_tsv, short_start_dict):
             t_complete_start = cds["targetStart_short"] #+ cds["shortStart"]  doch nicht weil eh in Protein#not -1 because alignmentstart is 1-based but Mposition not. +shortstart, weil Differenz von normal zu short gebraucht wird
             aai_incomplete = cds["percIdentMatches_normal"] 
             aai_complete = cds["percIdentMatches_short"] 
-            print("Query_start incomp: ", q_incomplete_start, "T Start incomp: ",t_incomplete_start,"T Start comp: ", t_complete_start, "AAI incomp: ",aai_incomplete, "AAI comp: ", aai_complete)
             if aai_complete == 0:
                 aai_complete = 0.0001
             #if aai_incomplete == 0:
@@ -641,7 +638,6 @@ def get_cds_classification(normal_tsv, shortened_tsv, short_start_dict):
             match_log = math.log(aai_incomplete/aai_complete)
             #maybe betrag nehmen
             support_score = (t_complete_start - t_incomplete_start) - (q_incomplete_start - 1) + match_log**1000
-            print("Support Score: ", support_score)
             merged_df.at[i, "supportScore"] = support_score
             #if t_complete_start < t_incomplete_start:
                 #print("cdsID: ", cds["cdsID"] , "incomplete Start: ", t_incomplete_start, "complete Start: ", t_complete_start)
@@ -662,7 +658,6 @@ def get_cds_classification(normal_tsv, shortened_tsv, short_start_dict):
             classifications[cds["cdsID"]] = "incomplete" #112 13.8% NEU 354 
         else:
             classifications[cds["cdsID"]] = "complete" #699 86.2% NEU 4714 
-        print ("Klassifikation: ", classifications[cds["cdsID"]], " von ", cds["cdsID"])
         
     #18.11.:
     #Es gab in shortened.pep file 5192 Einträge 
@@ -886,7 +881,6 @@ def finding_stop_in_utr(transcripts_fasta, intrinsic_candidates_genome):
                 stringtie_id = stringtie_id.group(1)
 
             if feature_type == "five_prime_UTR":
-                has_five_prime_utr = True
                 utr_length = end - start + 1
                 utr_sequence = transcripts_dict[stringtie_id][1][utr_length:]
                 for codon in stop_codons:                       
@@ -962,10 +956,10 @@ def getting_hc_supported_by_proteins(diamond_tsv, transdecoder_pep, protein_file
                     #Combi 6 und 21 und aaident > 95 und (t_length-t_end)<15 und t_start < 25:     60.8     |    88.8    |
                     #Combi 0 und 0 und aaident == 100 und (t_length-t_end)==0 und q_start == 1:     31.6     |    88.1    
                     #and aaident > 95 and (t_length-t_end)<15
-                    #if start_condition < 6 and stop_condition < 21 : #abs() AUSTESTEN # Eigentlich 6 und 21 aber neu getestet mit 3 und 10
+                    #if start_condition < 6 and stop_condition < 21: #abs() AUSTESTEN # Eigentlich 6 und 21 aber neu getestet mit 3 und 10
                     #if aaident > 95 and (t_length-t_end)<10:
                     if (t_length - align_length) < 15 and start_condition < 6 and aaident > 95:
-                    #if (align_length/t_length) > 0.94:
+                    #if start_condition < 6 and (t_length - align_length) < 15:
                         SeqIO.write(record, output, "fasta")
                         gene_id = id.split(".")[0] + "." + id.split(".")[1] 
                         del q_dict[id]
@@ -1511,7 +1505,7 @@ if args.genome:
 
 if args.proteins:
     protein_file = args.proteins
-
+'''
 if process_rnaseq:
     indexing(genome_file)
     alignments_list = mapping_short(rnaseq_paired_sets, rnaseq_single_sets)
@@ -1530,26 +1524,26 @@ if process_isoseq:
     alignment_isoseq = file_name(alignment_isoseq) + ".bam"
 else:
     alignment_isoseq = None
+'''
+#assembling(alignment_rnaseq, alignment_isoseq)  #Für alleine testen leer machen
+#orfsearching(genome_file, "transcripts.gtf")  #Vielleicht eher Was returned wurde als input übergeben
+#convert_gtf_to_gff3("transcripts.gtf")
+#short_start_dict = shorten_incomplete_Orfs("transcripts.fasta.transdecoder.pep")
+#make_diamond_db(protein_file)
+#validating_ORFs("shortened_candidates.pep", "diamond_shortened.tsv")
+#make_diamond_db(protein_file)
+#validating_ORFs("transcripts.fasta.transdecoder.pep", "diamond_normal.tsv")
+#classifications_dict = get_cds_classification("diamond_normal.tsv", "diamond_shortened.tsv", short_start_dict)
+#get_optimized_pep_file("transcripts.fasta.transdecoder.pep", "shortened_candidates.pep", classifications_dict, short_start_dict)
+#make_diamond_db(protein_file)
+#validating_ORFs("revised_candidates.pep", "diamond_revised.tsv")
 
-assembling(alignment_rnaseq, alignment_isoseq)  #Für alleine testen leer machen
-orfsearching(genome_file, "transcripts.gtf")  #Vielleicht eher Was returned wurde als input übergeben
-convert_gtf_to_gff3("transcripts.gtf")
-short_start_dict = shorten_incomplete_Orfs("transcripts.fasta.transdecoder.pep")
-make_diamond_db(protein_file)
-validating_ORFs("shortened_candidates.pep", "diamond_shortened.tsv")
-make_diamond_db(protein_file)
-validating_ORFs("transcripts.fasta.transdecoder.pep", "diamond_normal.tsv")
-classifications_dict = get_cds_classification("diamond_normal.tsv", "diamond_shortened.tsv", short_start_dict)
-get_optimized_pep_file("transcripts.fasta.transdecoder.pep", "shortened_candidates.pep", classifications_dict, short_start_dict)
-make_diamond_db(protein_file)
-validating_ORFs("revised_candidates.pep", "diamond_revised.tsv")
-
-#q_dict = getting_hc_supported_by_proteins("diamond_revised.tsv", "revised_candidates.pep", protein_file)
+q_dict = getting_hc_supported_by_proteins("diamond_revised.tsv", "revised_candidates.pep", protein_file)
 #protein_aligning(genome_file, protein_file, "/home/s-amknut/GALBA/tools/blosum62_1.csv") 
-#getting_hc_supported_by_intrinsic(q_dict)
+getting_hc_supported_by_intrinsic(q_dict)
 
-#choose_one_isoform("hc_genes.pep", "one_chosen_isoform.pep")
-choose_one_isoform("revised_candidates.pep", "one_chosen_isoform.pep")
+choose_one_isoform("hc_genes.pep", "one_chosen_isoform.pep")
+#choose_one_isoform("revised_candidates.pep", "one_chosen_isoform.pep")
 #choose_one_isoform("transcripts.fasta.transdecoder.pep", "one_chosen_isoform.pep")
 #transdecoder_id_dict = parse_transdecoder_file("one_chosen_isoform.pep")
 #from_transcript_to_genome_coords("transcripts.gtf", transdecoder_id_dict, "annotation.gtf")
