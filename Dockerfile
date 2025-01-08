@@ -147,7 +147,7 @@ RUN cd /opt && \
     wget -O bedtools.tar.gz https://github.com/arq5x/bedtools2/archive/refs/tags/v2.31.1.tar.gz && \
     tar -xzvf bedtools.tar.gz && \
     rm -rf bedtools.tar.gz && \
-    cd bedtools2 && \
+    cd bedtools2-2.31.1 && \
     make 
 
 RUN cd /opt && \
