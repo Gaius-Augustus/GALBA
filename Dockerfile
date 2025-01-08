@@ -138,10 +138,16 @@ RUN cd /opt && \
     rm stringtie-2.2.3.Linux_x86_64.tar.gz && \
     mv stringtie-2.2.3.Linux_x86_64 stringtie    
     
+#RUN cd /opt && \
+ #   git clone https://github.com/arq5x/bedtools2.git && \
+  #  cd bedtools2 && \ 
+   # make
+
 RUN cd /opt && \
-    git clone https://github.com/arq5x/bedtools2.git && \
-    cd bedtools2 && \ 
-    make
+    wget https://github.com/arq5x/bedtools2/releases/download/v2.31.1/bedtools-2.31.1.tar.gz && \
+    tar -zxvf bedtools-2.31.1.tar.gz && \
+    rm bedtools-2.31.1.tar.gz && \
+    mv bedtools-2.31.1 bedtools2   
 
 RUN cd /opt && \
     git clone https://github.com/TransDecoder/TransDecoder.git && \
