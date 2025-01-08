@@ -138,11 +138,10 @@ RUN cd /opt && \
     rm stringtie-2.2.3.Linux_x86_64.tar.gz && \
     mv stringtie-2.2.3.Linux_x86_64 stringtie    
     
-
-#RUN cd /opt && \
- #   git clone https://github.com/lh3/seqtk.git && \
-  #  cd seqtk && \ #seqtk auch aus ENV Path rausgenommen
-   # make
+RUN cd /opt && \
+    git clone https://github.com/arq5x/bedtools2.git && \
+    cd bedtools2 && \ #seqtk auch aus ENV Path rausgenommen
+    make
 
 RUN cd /opt && \
     git clone https://github.com/TransDecoder/TransDecoder.git && \
@@ -166,7 +165,7 @@ USER root
 COPY --from=base /opt/ /opt/
 
 #ENV PATH=${PATH}:/opt/seqstats:/opt/cdbfasta:/opt/hisat2:/opt/diamond:/opt/TSEBRA/bin:/opt/MakeHub:/opt/miniprot:/opt/GALBA/scripts:/opt/miniprot-boundary-scorer:/opt/miniprothint
-ENV PATH=${PATH}:/opt/seqstats:/opt/cdbfasta:/opt/hisat2:/opt/stringtie:/opt/TransDecoder:/opt/TransDecoder/util:/opt/minimap2:/opt/gffread:/opt/diamond:/opt/TSEBRA/bin:/opt/MakeHub:/opt/miniprot:/opt/GALBA/scripts:/opt/miniprot-boundary-scorer:/opt/miniprothint
+ENV PATH=${PATH}:/opt/seqstats:/opt/cdbfasta:/opt/hisat2:/opt/stringtie:/opt/TransDecoder:/opt/TransDecoder/util:/opt/minimap2:/opt/bedtools2/bin:/opt/gffread:/opt/diamond:/opt/TSEBRA/bin:/opt/MakeHub:/opt/miniprot:/opt/GALBA/scripts:/opt/miniprot-boundary-scorer:/opt/miniprothint
 
 # AUGUSTUS does need several libraries that are now gone, re-install them:
 RUN apt-get update --yes && \
