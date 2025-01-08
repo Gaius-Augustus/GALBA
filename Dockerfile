@@ -140,7 +140,7 @@ RUN cd /opt && \
     
 RUN cd /opt && \
     git clone https://github.com/arq5x/bedtools2.git && \
-    cd bedtools2 && \ #seqtk auch aus ENV Path rausgenommen
+    cd bedtools2 && \ 
     make
 
 RUN cd /opt && \
