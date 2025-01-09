@@ -144,11 +144,10 @@ RUN cd /opt && \
    # make
 
 RUN cd /opt && \
-    wget -O bedtools.tar.gz https://github.com/arq5x/bedtools2/archive/refs/tags/v2.31.1.tar.gz && \
+    wget https://github.com/arq5x/bedtools2/archive/refs/tags/v2.31.1.tar.gz && \
     tar -xzvf bedtools.tar.gz && \
-    rm -rf bedtools.tar.gz && \
-    mv bedtools2-2.31.1 bedtools2
-
+    cd bedtools2 && \
+    make
 
 RUN cd /opt && \
     git clone https://github.com/TransDecoder/TransDecoder.git && \
