@@ -8,6 +8,7 @@ import re
 import yaml
 import pandas as pd
 import math
+import shutil
 from Bio import SeqIO
 from Bio.SeqRecord import SeqRecord
 
@@ -16,6 +17,7 @@ from Bio.SeqRecord import SeqRecord
 #Version: "1.0"
 #Email:"amrei.knuth@gmail.com"
 #Date: "Janurary 2025"
+#Usage (easiest): singularity exec -B ${PWD}:${PWD} galba.sif pregalba.py -y config.yaml 
 
 ''' Getting the file format of a FASTA or FASTQ input file. '''
 def file_format(file): 
@@ -47,8 +49,9 @@ def file_name(path):
 ''' Indexing with hisat2-build in preparation of the short read mapping '''
 def indexing(genome_fasta):
     try:
-        hisat2_build_command = [
-            "hisat2-build", 
+        path = hisat + "/hisat2-build"
+        command = [
+            path, 
             "--quiet",
             "-p",
             str(threads),        
@@ -58,7 +61,7 @@ def indexing(genome_fasta):
 
         print("Building genome index...")
     
-        result = subprocess.run(hisat2_build_command, capture_output=False)
+        result = subprocess.run(command, capture_output=False)
     
         if result.returncode == 0:
             print("Indexing completed successfully.")
@@ -75,6 +78,7 @@ def indexing(genome_fasta):
 '''Mapping short reads to the genome using Hisat2'''
 def mapping_short(rnaseq_paired_sets, rnaseq_single_sets):
     alignments_list = []
+    path = hisat + "/hisat2"
     try:
         if not rnaseq_single_sets == []:
             #Selecting an option for the hisat2 command based on the file format of the input files
@@ -87,8 +91,8 @@ def mapping_short(rnaseq_paired_sets, rnaseq_single_sets):
                 sys.exit(1)
             string_with_sets = ",".join(rnaseq_single_sets)
             output_1 = "alignment_single_rnaseq.sam" 
-            hisat2_command = [
-                    "hisat2",  
+            hisat2_single_command = [
+                    path,  
                     format_option,                       
                     "-x", "genome",            
                     "-U", string_with_sets,
@@ -98,7 +102,7 @@ def mapping_short(rnaseq_paired_sets, rnaseq_single_sets):
                 ]
             print("Mapping single-end short reads to the genome...")
             
-            result = subprocess.run(hisat2_command, capture_output=True)
+            result = subprocess.run(hisat2_single_command, capture_output=True)
             
             if result.returncode == 0:
                 print("Mapping of single-end short reads completed successfully.")
@@ -120,14 +124,14 @@ def mapping_short(rnaseq_paired_sets, rnaseq_single_sets):
                 format_option = "-f"
             if file_format(rnaseq_paired_sets[0]) == "fastq":
                 format_option = ""
-            if file_format(rnaseq_single_sets[0]) == "unknown":
+            if file_format(rnaseq_paired_sets[0]) == "unknown":
                 print("Error: Unknown file format for paired-end short reads. Please provide a FASTA or FASTQ file.")
                 sys.exit(1)
             string_with_first = ",".join(rnaseq_paired_sets[0::2])
             string_with_second = ",".join(rnaseq_paired_sets[1::2])
             output_2 = "alignment_paired_rnaseq.sam"  
-            hisat2_command = [
-                    "hisat2", 
+            hisat2_paired_command = [
+                    path, 
                     format_option,                       
                     "-x", "genome",            
                     "-1", string_with_first,
@@ -138,7 +142,7 @@ def mapping_short(rnaseq_paired_sets, rnaseq_single_sets):
                 ]
             print("Mapping of paired-end short reads to the genome...")
             
-            result = subprocess.run(hisat2_command, capture_output=True)
+            result = subprocess.run(hisat2_paired_command, capture_output=True)
             
             if result.returncode == 0:
                 print("Mapping of paired-end short reads completed successfully")
@@ -158,12 +162,13 @@ def mapping_short(rnaseq_paired_sets, rnaseq_single_sets):
 ''' Mapping long reads to the genome using Minimap2 '''
 def mapping_long(genome, isoseq_sets):
     try :
-        output_sam = "alignment_isoseq.sam" 
-        minimap2_command = ["minimap2", "-ax", "splice:hq", "-uf", genome, "-t", str(threads)] + isoseq_sets + ["-o", output_sam]
+        output_sam = "alignment_isoseq.sam"
+        path = minimap + "/minimap2" 
+        command = [path,  "-ax", "splice:hq", "-uf", genome, "-t", str(threads)] + isoseq_sets + ["-o", output_sam]
 
         print("Mapping long reads to the genome...")
 
-        result = subprocess.run(minimap2_command, capture_output=True)
+        result = subprocess.run(command, capture_output=True)
 
         if result.returncode == 0:
             print("Mapping of long reads completed successfully.")
@@ -180,11 +185,12 @@ def mapping_long(genome, isoseq_sets):
 
 ''' Converting files in SAM format into files in BAM format using SAMtools'''
 def sam_to_bam(sam_file_list):
-    try:    
+    try:  
+        path = samtools + "/samtools"  
         for samfile in sam_file_list:
             output_bam = file_name(samfile) + ".bam"
-            samtools_command = [
-                "samtools",
+            command = [
+                path,
                 "sort",
                 "-@",
                 str(threads), 
@@ -194,7 +200,7 @@ def sam_to_bam(sam_file_list):
             ]
 
             print("Converting " + samfile +" to " + output_bam + "...")
-            result = subprocess.run(samtools_command, capture_output=True)
+            result = subprocess.run(command, capture_output=True)
 
             if result.returncode == 0:
                 print("Conversion from SAM to BAM file completed successfully.")
@@ -213,8 +219,9 @@ def sam_to_bam(sam_file_list):
 def merge_bam_files(bamfile_1, bamfile_2): 
     try:
         output_bam = "alignment_merged_rnaseq.bam"
+        path = samtools + "/samtools"
         command = [
-            "samtools",
+            path,
             "merge",
             "-f", #-f to override the output file if it exists already
             "-o",
@@ -243,10 +250,11 @@ def assembling(alignment_rnaseq, alignment_isoseq):
     try:
         print("Assembling the reads...")
         output_gtf = "transcripts.gtf"
+        path = stringtie + "/stringtie"
 
         if args.mixed:
             command_mixed = [  
-                "stringtie",
+                path,
                 "-p",
                 str(threads),
                 "-o",
@@ -269,7 +277,7 @@ def assembling(alignment_rnaseq, alignment_isoseq):
 
         if args.rnaseq:
             command_rnaseq = [
-                "stringtie",
+                path,
                 "-p",
                 str(threads),
                 "-o",
@@ -288,7 +296,7 @@ def assembling(alignment_rnaseq, alignment_isoseq):
             
         if args.isoseq:
             command_isoseq = [
-                "stringtie",
+                path,
                 "-L",
                 "-p",
                 str(threads),
@@ -339,8 +347,10 @@ def orfsearching(genome_fa, transcripts_gtf):
         print("Could not run gffread command.")
         sys.exit(1)
         '''    
+        path = transdecoder2 + "/gtf_genome_to_cdna_fasta.pl"
         fasta_file_command = [
-            "/util/gtf_genome_to_cdna_fasta.pl",
+            path,
+            #"gtf_genome_to_cdna_fasta.pl",
             #"/opt/TransDecoder/util/gtf_genome_to_cdna_fasta.pl",
             transcripts_gtf,
             genome_fa,
@@ -366,8 +376,10 @@ def orfsearching(genome_fa, transcripts_gtf):
         #sys.exit(1)
     
     try:
+        path = transdecoder + "/TransDecoder.LongOrfs"
         longORF_command = [
-            "TransDecoder.LongOrfs",
+            path,
+            #"TransDecoder.LongOrfs",
             "-t",
             "transcripts.fasta"
         ]
@@ -388,8 +400,9 @@ def orfsearching(genome_fa, transcripts_gtf):
         sys.exit(1)
 
     try:
+        path = transdecoder + "/TransDecoder.Predict"
         predict_command = [
-            "TransDecoder.Predict",
+            path,
             "-t",
             "transcripts.fasta"
         ]
@@ -409,16 +422,18 @@ def orfsearching(genome_fa, transcripts_gtf):
         print("Could not run TransDecoder.Predict module.") 
         sys.exit(1)
 
-def convert_gtf_to_gff3(transcripts_gtf):
+def convert_gtf_to_gff3(transcripts_gtf, output_name):
     try:
+        path = transdecoder2 + "/gtf_to_alignment_gff3.pl"
         command = [
-            "util/gtf_to_alignment_gff3.pl",
+            path,
+            #"gtf_to_alignment_gff3.pl",
             #"/opt/TransDecoder/util/gtf_to_alignment_gff3.pl",
-            transcripts_gtf,
+            transcripts_gtf
         ]
         print("Converting GTF file " + transcripts_gtf + " into GFF3 format...")
     
-        with open("transcripts.gff3", "w") as output:
+        with open(output_name, "w") as output:
             result = subprocess.run(command, stdout=output, stderr=subprocess.PIPE)
 
         if result.returncode == 0:
@@ -436,16 +451,17 @@ def convert_gtf_to_gff3(transcripts_gtf):
 
 def protein_aligning(genome, protein, alignment_scoring):
     try: 
+        path = miniprot + "/miniprot"
         command = [
-            "/home/s-amknut/GALBA/tools/miniprot/miniprot",
-           # "miniprot",
+            #"/home/s-amknut/GALBA/tools/miniprot/miniprot",
+            "miniprot",
             "-t",       #NEU:threads
             str(threads),
             "--genome",
             genome,
             "--protein",
             protein,
-            "--aln",
+            "--aln"
         ]
         print("Aligning proteins to the genome...")
         with open("miniprot.aln", "w") as output:
@@ -463,8 +479,10 @@ def protein_aligning(genome, protein, alignment_scoring):
         sys.exit(1)
 
     try: 
-        command = f"/home/s-amknut/GALBA/tools/miniprot-boundary-scorer/miniprot_boundary_scorer -o miniprot_parsed.gff -s {alignment_scoring} < miniprot.aln"
-
+        #command = f"/home/s-amknut/GALBA/tools/miniprot-boundary-scorer/miniprot_boundary_scorer -o miniprot_parsed.gff -s {alignment_scoring} < miniprot.aln"
+        path = miniprot_boundary_scorer + "/miniprot_boundary_scorer"
+        #command = f"miniprot_boundary_scorer -o miniprot_parsed.gff -s {alignment_scoring} < miniprot.aln"
+        command = f"{path} -o miniprot_parsed.gff -s {alignment_scoring} < miniprot.aln"
         print("Scoring the protein to genome alignment...")
         
         result = subprocess.run(command, shell=True, capture_output=True)
@@ -499,6 +517,8 @@ def shorten_incomplete_Orfs(transdecoder_pep):
                     #Find the coordinates of the old start and stop positions within the description of the incomplete ORF
                     description = record.description.split(" ")
                     coords = re.search(r":(\d+)-(\d+)\([\+\-]\)", description[7])
+                    #Calculate new ORF length with the new start position. Use -1 so that the Stop * is not taken into account
+                    new_length = len(record.seq) - 1 
                     if coords:
                         old_start = int(coords.group(1)) 
                         #The coordinates within the description are nucleotide coordinates, so the new start position 
@@ -511,15 +531,15 @@ def shorten_incomplete_Orfs(transdecoder_pep):
                         description = re.sub(r"len:\d+", f"len:{new_length}", description)
                         record.description = description
                         SeqIO.write(record, output, "fasta")
-                    #Calculate new ORF length with the new start position. Use -1 so that the Stop * is not taken into account
-                    new_length = len(record.seq) - 1 
+
         print("Created file with shortened ORFs successfully.")
 
 ''' Creating a protein database from the protein input file using DIAMOND. '''
 def make_diamond_db(protein_file):
     try:
+        path = diamond + "/diamond"
         command = [
-            "diamond",
+            path,
             "makedb",
             "--in",
             protein_file,
@@ -544,8 +564,9 @@ def make_diamond_db(protein_file):
 ''' Searching for proteins that align with the CDS predictions made by TransDecoder using DIAMOND '''
 def validating_ORFs(transdecoder_pep, output_tsv):
     try:
+        path = diamond + "/diamond"
         command = [
-            "diamond",
+            path,
             "blastp",
             "-d",
             "protein_db",
@@ -667,9 +688,10 @@ def get_optimized_pep_file(normal_pep, shortened_pep, classifications):
         print("Created revised CDS file successfully.")
 
 ''' Creating a GFF3 file from the TransDecoder PEP and the StringTie GTF files with transcript coordinates. '''
-def from_pep_file_to_gff3(orf_pep, transcript_gtf, output_name):
-    print("Creating a GFF3 file from the " + file_name(orf_pep) + " and " + file_name(transcript_gtf) + "files...")
-    transcript_lengths = {}
+'''In training mode the GFF3 file only contains complete gene structures, in hints mode all predictions are included.'''
+def from_pep_file_to_gff3(orf_pep, transcript_gtf, output_name, mode):
+    print("Creating a GFF3 file from the " + file_name(orf_pep) + ".pep file...")
+    transcripts = {}
     transcript_length = 0
     with open(transcript_gtf, "r") as transcript_file:
         #Calculate the total length of each transcript by summing up the exon lengths and store it in a dictonary.
@@ -682,9 +704,13 @@ def from_pep_file_to_gff3(orf_pep, transcript_gtf, output_name):
                     start = int(part[3])
                     stop = int(part[4])
                     length = stop - start + 1 
+                    #Store the entire length of a transcript by adding up the exon lengths
                     transcript_length += length
                     transcript_id = re.search(r'transcript_id "([^"]+)"', part[8]).group(1)
-                    transcript_lengths[transcript_id] = transcript_length
+                    strand = part[6]
+                    #For each transcript store in the dictionary the length of the transcript, if it was written 
+                    # to the output file already and its strand.
+                    transcripts[transcript_id] = [transcript_length, False, strand]
                 else:
                     transcript_length = 0
     #Fill the output GFF3 file with the records for each gene: mRNA, exon, CDS, 5' UTR and 3' UTR (if present).
@@ -693,31 +719,51 @@ def from_pep_file_to_gff3(orf_pep, transcript_gtf, output_name):
             id_transdecoder = record.id
             id_stringtie = id_transdecoder.split(".p")
             id_stringtie = id_stringtie[0]
-            tool = "transdecoder"
+            tool1 = "StringTie"
+            tool2 = "TransDecoder"
             description = record.description
             coords = re.search(r":(\d+)-(\d+)\([\+\-]\)", description)
             orf_start = int(coords.group(1))
             orf_stop = int(coords.group(2))
-            transcript_length = transcript_lengths[id_stringtie]
+            transcript_length = transcripts[id_stringtie][0]
+            transcripts[id_stringtie][1] = True
             strand = re.search(r"\((\+|-)\)", description) 
             strand = strand.group(1) 
             description_parts = description.split()
             gene_id = description_parts[1]
             gene_name = description_parts[2] + " "+ description_parts[3] +" "+ description_parts[4]  
-            output.write(f"{id_stringtie}\t{tool}\tgene\t1\t{transcript_length}\t.\t{strand}\t.\tID={gene_id};Name=\"{gene_name}\"\n")
-            output.write(f"{id_stringtie}\t{tool}\tmRNA\t1\t{transcript_length}\t.\t{strand}\t.\tID={id_transdecoder};Parent={gene_id};Name=\"{gene_name}\"\n")
+            output.write(f"{id_stringtie}\t{tool1}\tgene\t1\t{transcript_length}\t.\t{strand}\t.\tID={gene_id};Name=\"{gene_name}\"\n")
+            output.write(f"{id_stringtie}\t{tool1}\tmRNA\t1\t{transcript_length}\t.\t{strand}\t.\tID={id_transdecoder};Parent={gene_id};Name=\"{gene_name}\"\n")
             if strand == "+" and orf_start > 1:
-                output.write(f"{id_stringtie}\t{tool}\tfive_prime_UTR\t1\t{orf_start-1}\t.\t{strand}\t.\tID={id_transdecoder}.utr5p1;Parent={id_transdecoder}\n")
+                output.write(f"{id_stringtie}\t{tool2}\tfive_prime_UTR\t1\t{orf_start-1}\t.\t{strand}\t.\tID={id_transdecoder}.utr5p1;Parent={id_transdecoder}\n")
             if strand == "-" and orf_stop < transcript_length:
-                output.write(f"{id_stringtie}\t{tool}\tfive_prime_UTR\t{orf_stop+1}\t{transcript_length}\t.\t{strand}\t.\tID={id_transdecoder}.utr5p1;Parent={id_transdecoder}\n")
-            output.write(f"{id_stringtie}\t{tool}\texon\t1\t{transcript_length}\t.\t{strand}\t.\tID={id_transdecoder}.exon1;Parent={id_transdecoder}\n")
-            output.write(f"{id_stringtie}\t{tool}\tCDS\t{orf_start}\t{orf_stop}\t.\t{strand}\t0\tID=cds.{id_transdecoder};Parent={id_transdecoder}\n")
+                output.write(f"{id_stringtie}\t{tool2}\tfive_prime_UTR\t{orf_stop+1}\t{transcript_length}\t.\t{strand}\t.\tID={id_transdecoder}.utr5p1;Parent={id_transdecoder}\n")
+            output.write(f"{id_stringtie}\t{tool1}\texon\t1\t{transcript_length}\t.\t{strand}\t.\tID={id_transdecoder}.exon1;Parent={id_transdecoder}\n")
+            output.write(f"{id_stringtie}\t{tool2}\tCDS\t{orf_start}\t{orf_stop}\t.\t{strand}\t0\tID=cds.{id_transdecoder};Parent={id_transdecoder}\n")
             if strand == "-" and orf_start > 1:
-                output.write(f"{id_stringtie}\t{tool}\tthree_prime_UTR\t1\t{orf_start-1}\t.\t{strand}\t.\tID={id_transdecoder}.utr3p1;Parent={id_transdecoder}\n")
+                output.write(f"{id_stringtie}\t{tool2}\tthree_prime_UTR\t1\t{orf_start-1}\t.\t{strand}\t.\tID={id_transdecoder}.utr3p1;Parent={id_transdecoder}\n")
             if strand == "+" and orf_stop < transcript_length:
-                output.write(f"{id_stringtie}\t{tool}\tthree_prime_UTR\t{orf_stop+1}\t{transcript_length}\t.\t{strand}\t.\tID={id_transdecoder}.utr3p1;Parent={id_transdecoder}\n")
+                output.write(f"{id_stringtie}\t{tool2}\tthree_prime_UTR\t{orf_stop+1}\t{transcript_length}\t.\t{strand}\t.\tID={id_transdecoder}.utr3p1;Parent={id_transdecoder}\n")
             output.write("\n")
-        print("Created GFF3 file successfully.")
+                
+        #Include StringTie hints in which TransDecoder didn't give a CDS prediction
+        if mode == "hints":
+            for id_stringtie in transcripts:
+                if transcripts[id_stringtie][1] == False:
+                    tool = "StringTie"
+                    transcript_length = transcripts[id_stringtie][0]
+                    strand = transcripts[id_stringtie][2]
+                    parts = id_stringtie.split(".")
+                    gene_id = parts[0] + "." + parts[1]
+                    output.write(f"{id_stringtie}\t{tool}\tgene\t1\t{transcript_length}\t.\t{strand}\t.\tID={gene_id}\n")
+                    output.write(f"{id_stringtie}\t{tool}\tmRNA\t1\t{transcript_length}\t.\t{strand}\t.\tParent={gene_id}\n")
+                    output.write(f"{id_stringtie}\t{tool}\texon\t1\t{transcript_length}\t.\t{strand}\t.\tParent={gene_id}\n")
+                    output.write("\n")
+            print("Created GFF3 file with all gene prediction hints successfully.")
+        
+        if mode == "training":
+            print("Created GFF3 file with complete gene structures successfully.")
+
 
 ''' Creating a FASTA file from the records stored in a dictionary. '''
 def from_dict_to_pep_file(input_dict, output_name):
@@ -777,8 +823,10 @@ def preparing_candidates_for_conflict_comparison(candidates_gff3, transcripts_gt
 ''' Identifying CDS candidates that overlap with miniprot gene predictions using bedtools. '''
 def finding_protein_conflicts(candidates_bed, reference_bed):
     try:
+        path = bedtools + "/bedtools"
         command = [
-            "/home/s-amknut/GALBA/tools/bedtools2/bin/bedtools",
+            path,
+            #"/home/s-amknut/GALBA/tools/bedtools2/bin/bedtools",
             "coverage",
             "-a",
             candidates_bed,
@@ -859,7 +907,7 @@ def getting_hc_supported_by_proteins(diamond_tsv, transdecoder_pep, protein_file
     already_hc_genes = []
 
     for record in SeqIO.parse(transdecoder_pep, "fasta"):
-        q_dict[record.id] = [record.description, record.seq] #46187 Elemente in t_dict
+        q_dict[record.id] = [record.description, record.seq] 
 
     #Go through the DIAMOND results and check if the CDS candidates are supported by protein evidence by using the equations.
     with open(diamond_tsv, "r") as tsv, open("hc_genes.pep", "w") as output:
@@ -965,7 +1013,7 @@ def choose_one_isoform(transdecoder_pep, output_name):
     isoform_dict = {}
     #Write a new file with just one isoform per a gene.
     with open(output_name, "w") as output:
-        #First all isoforms of each gene are stored in a list in the dictionary with the gene id as key. 
+        #First, all isoforms of each gene are stored in a list in the dictionary with the gene id as key. 
         for record in SeqIO.parse(transdecoder_pep, "fasta"):
             transdecoder_id = record.id
             stringtie_id = transdecoder_id.split(".p")[0]
@@ -979,7 +1027,7 @@ def choose_one_isoform(transdecoder_pep, output_name):
             else:
                 isoform_dict[gene_id].append((start_cds, stop_cds, record))
 
-        #Second one isoform is selected for each gene and written to the output file.
+        #Secondly, one isoform is selected for each gene and written to the output file.
         for gene_id in isoform_dict:
             if len(isoform_dict[gene_id]) == 1:
                 record = isoform_dict[gene_id][0][2]
@@ -1017,8 +1065,10 @@ def parse_transdecoder_file(transdecoder_pep):
     This function transforms the transcript coordinates into genome coordinates using a TransDecoder module. '''
 def from_transcript_to_genome(orf_gff3, transcripts_gff3, transcripts_fasta, output_name):
     try:
+        path = transdecoder + "/util/cdna_alignment_orf_to_genome_orf.pl"
         command = [
-            "/opt/TransDecoder/util/cdna_alignment_orf_to_genome_orf.pl",
+            path,
+            #"cdna_alignment_orf_to_genome_orf.pl",
             orf_gff3,
             transcripts_gff3,
             transcripts_fasta,
@@ -1224,6 +1274,105 @@ def from_transcript_to_genome_coords(stringtie_gtf, transdecoder_id_dict, output
                     spliced_transcript_length += (int(stop_genome) - int(start_genome)) + 1
                     count += 1
 
+''' Creating a hints file with CDS, start and stop codon and intron hints, using the hints file with 
+    genome coordinates that contains mRNA, exon, CDS and UTR features. '''
+def creating_intron_hints_file(hints_genome_gff3, output_name):
+    with open(hints_genome_gff3, "r") as hints_file, open(output_name, "w") as output:
+        print("Creating a hints file with intron hints...")
+        #List to store exon and CDS features in order determine the introns and start/stop codons.
+        exon_list = []
+        cds_list = []
+        for line in hints_file:
+            part = line.strip().split('\t')
+            if len(part) < 9:
+                continue
+            feature = part[2]
+            #If a new mRNA is listed, the intron and start/stop features of the last mRNA are added to the file.
+            if feature == "mRNA":
+                if len(exon_list) > 1:
+                    strand = exon_list[0][6]
+                    if strand == "+":
+                        for i in range(len(exon_list) - 1):
+                            current_exon = exon_list[i]
+                            next_exon = exon_list[i + 1]
+                            intron_start = int(current_exon[4]) + 1
+                            intron_stop = int(next_exon[3]) - 1
+                            chromosome = current_exon[0]
+                            attributes = current_exon[8]
+                            updated_attributes = re.sub(r'exon(\d+)', r'intron\1', attributes)
+                            output.write(f"{chromosome}\tStringTie\tintron\t{intron_start}\t{intron_stop}\t.\t{strand}\t.\t{updated_attributes}\n")
+                    if strand == "-":
+                         for i in range(len(exon_list) - 1, 0, -1):
+                            current_exon = exon_list[i]
+                            next_exon = exon_list[i - 1]
+                            intron_start = int(current_exon[4]) + 1
+                            intron_stop = int(next_exon[3]) - 1
+                            chromosome = current_exon[0]
+                            attributes = current_exon[8]
+                            updated_attributes = re.sub(r'exon(\d+)', r'intron\1', attributes)
+                            output.write(f"{chromosome}\tStringTie\tintron\t{intron_start}\t{intron_stop}\t.\t{strand}\t.\t{updated_attributes}\n")
+                exon_list.clear()
+                if len(cds_list) > 0:
+                    first_cds = cds_list[0]
+                    start_codon_start = first_cds[3]
+                    start_codon_stop = int(first_cds[3]) + 2
+                    last_cds = cds_list[-1]
+                    stop_codon_start = int(last_cds[4]) - 2
+                    stop_codon_stop = last_cds[4]
+                    chromosome = first_cds[0]
+                    strand = first_cds[6]
+                    attributes_first = first_cds[8]
+                    attributes_last = last_cds[8]
+                    output.write(f"{chromosome}\tTransDecoder\tstart\t{start_codon_start}\t{start_codon_stop}\t.\t{strand}\t.\t{attributes_first}\n")
+                    output.write(f"{chromosome}\tTransDecoder\tstop\t{stop_codon_start}\t{stop_codon_stop}\t.\t{strand}\t.\t{attributes_last}\n")
+                cds_list.clear()
+            else:
+                if feature == "exon":
+                    exon_list.append(part)
+                
+                if feature == "CDS":
+                    cds_list.append(part)
+                    output.write(line)
+
+        #Add the intron and start/stop features of the last mRNA in the file.
+        if len(exon_list) > 1:
+            strand = exon_list[0]
+            if strand == "+":
+                for i in range(len(exon_list) - 1):
+                    current_exon = exon_list[i]
+                    next_exon = exon_list[i + 1]
+                    intron_start = int(current_exon[4]) + 1
+                    intron_stop = int(next_exon[3]) - 1
+                    chromosome = current_exon[0]
+                    attributes = current_exon[8]
+                    updated_attributes = re.sub(r'exon(\d+)', r'intron\1', attributes)
+                    output.write(f"{chromosome}\tStringTie\tintron\t{intron_start}\t{intron_stop}\t.\t{strand}\t.\t{updated_attributes}\n")
+            if strand == "-":
+                for i in range(len(exon_list) - 1, 0, -1):
+                    current_exon = exon_list[i]
+                    next_exon = exon_list[i - 1]
+                    intron_start = int(current_exon[4]) + 1
+                    intron_stop = int(next_exon[3]) - 1
+                    chromosome = current_exon[0]
+                    attributes = current_exon[8]
+                    updated_attributes = re.sub(r'exon(\d+)', r'intron\1', attributes)
+                    output.write(f"{chromosome}\tStringTie\tintron\t{intron_start}\t{intron_stop}\t.\t{strand}\t.\t{updated_attributes}\n")
+        if len(cds_list) > 0:
+            first_cds = cds_list[0]
+            start_codon_start = first_cds[3]
+            start_codon_stop = int(first_cds[3]) + 2
+            last_cds = cds_list[-1]
+            stop_codon_start = int(last_cds[4]) - 2
+            stop_codon_stop = first_cds[4]
+            chromosome = first_cds[0]
+            strand = first_cds[6]
+            attributes_first = first_cds[8]
+            attributes_last = last_cds[8]
+            output.write(f"{chromosome}\tTransDecoder\tstart\t{start_codon_start}\t{start_codon_stop}\t.\t{strand}\t.\t{attributes_first}\n")
+            output.write(f"{chromosome}\tTransDecoder\tstop\t{stop_codon_start}\t{stop_codon_stop}\t.\t{strand}\t.\t{attributes_last}\n")
+
+    print("Created intron hints file successfully.")
+
 def frame_in_annotation(annotation_file):
     try:
         command = [
@@ -1245,9 +1394,9 @@ def frame_in_annotation(annotation_file):
         print("Could not run gffread command.")
         sys.exit(1)
 
-def only_cds_in_annotation(annotation_file):
+def only_cds_in_annotation(annotation_file, output_name):
     try:
-        command = "grep 'CDS' " + annotation_file + " > annotation_only_cds.gff3" 
+        command = "grep 'CDS' " + annotation_file + " > " + output_name 
 
         result = os.system(command)
     
@@ -1255,6 +1404,16 @@ def only_cds_in_annotation(annotation_file):
         print("Could not run grep command.")
         sys.exit(1)
     
+def only_introns_in_annotation(annotation_file, output_name):
+    try:
+        command = "grep 'intron' " + annotation_file + " > " + output_name 
+
+        result = os.system(command)
+    
+    except Exception:
+        print("Could not run grep command.")
+        sys.exit(1)
+
 def control_annotation(annotation_file, reference, projname):
     try:
         command = [
@@ -1278,14 +1437,92 @@ def control_annotation(annotation_file, reference, projname):
         print("Could not run gffcompare command.")
         sys.exit(1)
 
+def prepare_hints_compare(hints_file, name):
+    # Open the input file in read mode and the output file in write mode
+    with open(hints_file, "r") as infile, open(name, "w") as outfile:
+        # Iterate through each line in the input file
+        for line in infile:
+            # Skip lines that are comments or empty
+            if line.startswith("#") or not line.strip():
+                continue
+
+            # Split the line into fields based on tab characters
+            fields = line.strip().split("\t")
+            
+            if fields[2] == "intron":
+                # Extract chromosome, start, stop, and strand information
+                chromosome = fields[0]
+                start = fields[3]
+                stop = fields[4]
+                strand = fields[6]
+
+                # Combine these fields into a single string without spaces
+                result = f"{chromosome}{start}{stop}{strand}"
+
+                # Write the result to the output file followed by a newline
+                outfile.write(result + "\n")
+
+    print("Prepared file with intron strings")
+
+def prepare_hints_cds(hints_file, name):
+    # Open the input file in read mode and the output file in write mode
+    with open(hints_file, "r") as infile, open(name, "w") as outfile:
+        # Iterate through each line in the input file
+        for line in infile:
+            # Skip lines that are comments or empty
+            if line.startswith("#") or not line.strip():
+                continue
+
+            # Split the line into fields based on tab characters
+            fields = line.strip().split("\t")
+            
+            if fields[2] == "CDS":
+                # Extract chromosome, start, stop, and strand information
+                chromosome = fields[0]
+                start = fields[3]
+                stop = fields[4]
+                strand = fields[6]
+
+                # Combine these fields into a single string without spaces
+                result = f"{chromosome}{start}{stop}{strand}"
+
+                # Write the result to the output file followed by a newline
+                outfile.write(result + "\n")
+    print("Prepared file with cds strings")
+
+def control_hints(hints_file, reference, output):
+    try:
+        command = [
+            "/home/s-amknut/GALBA/tools/ag/scripts/overlapStat.pl",
+            reference,
+            hints_file,
+            "--snsp"
+        ]
+        with open(output, "w") as output:
+            result = subprocess.run(command, stdout=output, stderr=subprocess.PIPE)
+        #result = subprocess.run(command, capture_output=True)
+
+        if result.returncode == 0:
+            print("Hints file was compared successfully.")
+        else:
+            print("Error during comparison of hints file.")
+            print(result.stderr)
+
+    except Exception:
+        print("Could not run overlapStat.pl command.")
+        sys.exit(1)
+
 ''' Opening the config file with the input data. '''
 def load_config(config_file):
-    print("Loading the input config file...")
+    print("Loading input config file...")
     with open(config_file, "r") as config_file:
         input_files = yaml.safe_load(config_file)
         return input_files
 
-''' MAIN '''
+''' CONFIGURATIONS '''
+print("*************************************************************************************")
+print("                                     PreGalba                                        ")
+print("*************************************************************************************")
 parser = argparse.ArgumentParser(description='Genome annotation with protein and transcriptomic evidence auch as RNA-seq and Iso-seq reads')  
 parser.add_argument('-t', '--threads', default=4, help='Number of threads (default=4)', required=False)
 parser.add_argument('-y', '--config', help='Config file input', metavar='<config.yaml>', required=False) 
@@ -1301,6 +1538,16 @@ parser.add_argument('--rnaseq', action='store_true', help='Use this option if yo
 parser.add_argument('--mixed', action='store_true', help='Use this option if you want to process both rnaseq and isoseq data')
 parser.add_argument('--projname', help='Name the output folder', required=False)
 parser.add_argument('--output_path',  help='Specify the path you want the output folder to be created in if it should differ from the current working directory', required=False)
+
+parser.add_argument('--HISAT', help='Provide the path to the HISAT2 directory', required=False)
+parser.add_argument('--MINIMAP', help='Provide the path to the Minimap2 directory', required=False)
+parser.add_argument('--STRINGTIE', help='Provide the path to the StringTie2 directory', required=False)
+parser.add_argument('--SAMTOOLS', help='Provide the path to the samtools directory', required=False)
+parser.add_argument('--TRANSDECODER', help='Provide the path to the TransDecoder directory', required=False)
+parser.add_argument('--DIAMOND', help='Provide the path to the DIAMOND directory', required=False)
+parser.add_argument('--BEDTOOLS', help='Provide the path to the bedtools2 directory', required=False)
+parser.add_argument('--MINIPROT', help='Provide the path to the miniprot directory', required=False)
+parser.add_argument('--MINIPROT_BOUNDARY_SCORER', help='Provide the path to the miniprot-boundary-scorer directory', required=False)
 
 args = parser.parse_args()
 
@@ -1328,8 +1575,19 @@ if args.config:
     scoring_matrix = input_files.get("scoring_matrix", None)
     reference_annotation = input_files.get("annotation", None) #noch rausnehmen
 
+    hisat = input_files.get("hisat", None) 
+    minimap = input_files.get("minimap", None) 
+    stringtie = input_files.get("stringtie", None)
+    samtools = input_files.get("samtools", None)
+    transdecoder = input_files.get("transdecoder", None)
+    diamond = input_files.get("diamond", None)
+    bedtools = input_files.get("bedtools", None)
+    miniprot = input_files.get("miniprot", None)
+    miniprot_boundary_scorer = input_files.get("miniprot_boundary_scorer", None) 
+
 #Option 2: Providing the data with the program call
 #If both is given, the program will use the data provided with the program call
+
 if args.genome:
     genome_file = args.genome
 
@@ -1352,10 +1610,6 @@ threads = args.threads
 
 if args.projname:
     projname = args.projname
-
-print("***********************************************************************")
-print("                              PreGalba                                 ")
-print("***********************************************************************")
 
 if args.output_path:
     output_path = args.output_path
@@ -1386,6 +1640,7 @@ if scoring_matrix == None:
 if rnaseq_paired_sets == [] and rnaseq_single_sets == [] and isoseq_sets == []:
     print("Error: No transcriptomic data found in config file. Please provide at least one set of RNA-Seq or Iso-Seq data.")
     sys.exit(1)
+    
 if not args.rnaseq and not args.isoseq and not args.mixed:
     if (rnaseq_paired_sets != [] or rnaseq_single_sets != []) and isoseq_sets == []:
         args.rnaseq = True
@@ -1394,6 +1649,8 @@ if not args.rnaseq and not args.isoseq and not args.mixed:
     if (rnaseq_paired_sets != [] or rnaseq_single_sets != []) and isoseq_sets != []:
         args.mixed = True
     print("You did not specify which data you want to process. The mode is set based on the data provided.")
+if (args.rnaseq and args.isoseq) or (args.rnaseq and args.mixed) or (args.isoseq and args.mixed):
+    print("You selected multiple modes. The mode was set to mixed.")
 if rnaseq_paired_sets == [] and rnaseq_single_sets == [] and args.rnaseq:
     print("Error: No RNA-Seq data found in config file. Please provide at least one set of RNA-Seq data.")
     sys.exit(1)
@@ -1407,8 +1664,209 @@ if (rnaseq_paired_sets == [] and rnaseq_single_sets == []) or (isoseq_sets == []
 process_rnaseq = args.rnaseq or args.mixed
 process_isoseq = args.isoseq or args.mixed
 
-print("Starting the genome annotation for" + species_name + ":")
+if args.rnaseq:
+    mode = "rnaseq"
+if args.isoseq:
+    mode = "isoseq"
+if args.mixed:
+    mode = "mixed"
 
+if args.HISAT:
+    hisat = args.HISAT 
+
+if args.HISAT or (args.config and hisat != None):
+    find_hisat = hisat + "/hisat2"
+    if not (os.access(find_hisat, os.X_OK)):
+        print("Error: HISAT2 is not found or not executable at given path!")
+        exit(1)
+    else:
+        print("HISAT2 path was set to: " + hisat)
+else:
+    if shutil.which("hisat2") is not None:
+        hisat =  os.path.dirname(shutil.which("hisat2"))
+        print(hisat)
+        print("HISAT2 path was set to based on docker file")
+    else:
+        print("Error: hisat2 file wasn't found.")
+        print("Please provide the path to the StringTie2 directory in your config file or use option --HISAT2.")
+        print("Also you can use the docker file available.")
+        exit(1)
+
+if args.MINIMAP:
+    minimap = args.MINIMAP 
+
+if args.MINIMAP or (args.config and minimap != None):
+    find_minimap = minimap + "/minimap2"
+    if not (os.access(find_minimap, os.X_OK)):
+        print("Error: Minimap2 is not found or not executable at given path!")
+        exit(1)
+    else:
+        print("Minimap2 path was set to: " + minimap)
+else:
+    if shutil.which("minimap2") is not None:
+        minimap =  os.path.dirname(shutil.which("minimap2"))
+        print("Minimap2 path was set to based on docker file")
+    else:
+        print("Error: minimap2 file wasn't found.")
+        print("Please provide the path to the Minimap2 directory in your config file or use option --Minimap2.")
+        print("Also you can use the docker file available.")
+        exit(1)
+
+if args.STRINGTIE:
+    stringtie = args.STRINGTIE 
+
+if args.STRINGTIE or (args.config and stringtie != None):
+    find_stringtie = stringtie + "/stringtie"
+    if not (os.access(find_stringtie, os.X_OK)):
+        print("Error: StringTie2 is not found or not executable at given path!")
+        exit(1)
+    else:
+        print("StringTie2 path was set to: " + stringtie)
+else:
+    if shutil.which("stringtie") is not None:
+        stringtie =  os.path.dirname(shutil.which("stringtie"))
+        print("StringTie2 path was set to based on docker file")
+    else:
+        print("Error: stringtie file wasn't found.")
+        print("Please provide the path to the StringTie2 directory in your config file or use option --STRINGTIE.")
+        print("Also you can use the docker file available.")
+        exit(1)
+
+if args.SAMTOOLS:
+    samtools = args.SAMTOOLS
+
+if args.SAMTOOLS or (args.config and samtools != None):
+    find_samtools = samtools + "/samtools"
+    if not (os.access(find_samtools, os.X_OK)):
+        print("Error: samtools is not found or not executable at given path!")
+        exit(1)
+    else:
+        print("Samtools path was set to: " + samtools)
+else:
+    if shutil.which("samtools") is not None:
+        samtools =  os.path.dirname(shutil.which("samtools"))
+        print(samtools)
+        print("samtools path was set to based on docker file")
+    else:
+        print("Error: samtools file wasn't found.")
+        print("Please provide the path to the samtools directory in your config file or use option --SAMTOOLS.")
+        print("Also you can use the docker file available.")
+        exit(1)
+
+if args.TRANSDECODER:
+    transdecoder = args.TRANSDECODER
+
+if args.TRANSDECODER or (args.config and transdecoder != None):
+    find_transdecoder1 = transdecoder + "/TransDecoder.LongOrfs"
+    if not (os.access(find_transdecoder1, os.X_OK)):
+        print("Error: Neccessary TransDecoder modules are not found or not executable at given path!")
+        exit(1)
+    else:
+        print("TransDecoder path was set to: " + transdecoder)
+        transdecoder2 = transdecoder + "/util"
+else:
+    if shutil.which("TransDecoder.LongOrfs") is not None:
+        transdecoder =  os.path.dirname(shutil.which("TransDecoder.LongOrfs"))
+        transdecoder2 =  os.path.dirname(shutil.which("gtf_genome_to_cdna_fasta.pl"))
+        print(transdecoder2)
+        print(transdecoder)
+        print("transdecoder path was set to based on docker file")
+    else:
+        print("Error: TransDecoder modules weren't found.")
+        print("Please provide the path to the TransDecoder directory in your config file or use option --TRANSDECODER.")
+        print("Also you can use the docker file available.")
+        exit(1)
+
+if args.DIAMOND:
+    diamond = args.DIAMOND 
+
+if args.DIAMOND or (args.config and diamond != None):
+    find_diamond = diamond + "/diamond"
+    if not (os.access(find_diamond, os.X_OK)):
+        print("Error: DIAMOND is not found or not executable at given path!")
+        exit(1)
+    else:
+        print("DIAMOND path was set to: " + diamond)
+else:
+    if shutil.which("diamond") is not None:
+        diamond =  os.path.dirname(shutil.which("diamond"))
+        print(diamond)
+        print("DIAMOND path was set to based on docker file")
+    else:
+        print("Error: DIAMOND file wasn't found.")
+        print("Please provide the path to the DIAMOND directory in your config file or use option --DIAMOND.")
+        print("Also you can use the docker file available.")
+        exit(1)
+
+if args.BEDTOOLS:
+    bedtools = args.BEDTOOLS
+
+if args.BEDTOOLS or (args.config and bedtools != None):
+    find_bedtools = bedtools + "/bin/bedtools"
+    if not (os.access(find_bedtools, os.X_OK)):
+        print("Error: bedtools is not found or not executable at given path!")
+        exit(1)
+    else:
+        bedtools = bedtools + "/bin"
+        print("Bedtools path was set to: " + bedtools)
+else:
+    if shutil.which("bedtools") is not None:
+        bedtools =  os.path.dirname(shutil.which("bedtools"))
+        print(bedtools)
+        print("bedtools path was set to based on docker file")
+    else:
+        print("Error: bedtools file wasn't found.")
+        print("Please provide the path to the bedtools directory in your config file or use option --BEDTOOLS.")
+        print("Also you can use the docker file available.")
+        exit(1)
+
+if args.MINIPROT:
+    miniprot = args.MINIPROT
+
+if args.MINIPROT or (args.config and miniprot != None):
+    find_miniprot = miniprot + "/miniprot"
+    if not (os.access(find_miniprot, os.X_OK)):
+        print("Error: miniprot is not found or not executable at given path!")
+        exit(1)
+    else:
+        print("Miniprot path was set to: " + miniprot)
+else:
+    if shutil.which("miniprot") is not None:
+        miniprot =  os.path.dirname(shutil.which("miniprot"))
+        print(miniprot)
+        print("miniprot path was set to based on docker file")
+    else:
+        print("Error: miniprot file wasn't found.")
+        print("Please provide the path to the miniprot directory in your config file or use option --MINIPROT.")
+        print("Also you can use the docker file available.")
+        exit(1)
+    
+if args.MINIPROT_BOUNDARY_SCORER:
+    miniprot_boundary_scorer = args.MINIPROT_BOUNDARY_SCORER
+
+if args.MINIPROT_BOUNDARY_SCORER or (args.config and miniprot_boundary_scorer != None):
+    find_miniprot_boundary_scorer = miniprot_boundary_scorer + "/miniprot_boundary_scorer"
+    if not (os.access(find_miniprot_boundary_scorer, os.X_OK)):
+        print("Error: miniprot-boundary-scorer is not found or not executable at given path!")
+        exit(1)
+    else:
+        print("Miniprot-boundary-scorer path was set to: " + miniprot_boundary_scorer)
+else:
+    if shutil.which("miniprot_boundary_scorer") is not None:
+        miniprot =  os.path.dirname(shutil.which("miniprot_boundary_scorer"))
+        print(miniprot_boundary_scorer)
+        print("miniprot_boundary_scorer path was set to based on docker file")
+    else:
+        print("Error: miniprot_boundary_scorer file wasn't found.")
+        print("Please provide the path to the miniprot_boundary_scorer directory in your config file or use option --MINIPROT_BOUNDARY_SCORER.")
+        print("Also you can use the docker file available.")
+        exit(1)
+
+''' MAIN '''
+print("                                                                             ")
+print("Starting the genome annotation for " + species_name + " in " + mode + " mode:")
+print("                                                                             ")
+'''
 if process_rnaseq:
     indexing(genome_file)
     alignments_list = mapping_short(rnaseq_paired_sets, rnaseq_single_sets)
@@ -1428,9 +1886,11 @@ if process_isoseq:
 else:
     alignment_isoseq = None
 
-assembling(alignment_rnaseq, alignment_isoseq)  
+assembling("alignment_paired_rnaseq.bam", "alignment_isoseq.bam")
+#assembling(alignment_rnaseq, alignment_isoseq)
+convert_gtf_to_gff3("transcripts.gtf", "transcripts.gff3") 
 orfsearching(genome_file, "transcripts.gtf")  
-convert_gtf_to_gff3("transcripts.gtf")
+'''
 shorten_incomplete_Orfs("transcripts.fasta.transdecoder.pep")
 make_diamond_db(protein_file)
 validating_ORFs("shortened_candidates.pep", "diamond_shortened.tsv")
@@ -1440,16 +1900,31 @@ classifications_dict = get_cds_classification("diamond_normal.tsv", "diamond_sho
 get_optimized_pep_file("transcripts.fasta.transdecoder.pep", "shortened_candidates.pep", classifications_dict)
 make_diamond_db(protein_file)
 validating_ORFs("revised_candidates.pep", "diamond_revised.tsv")
+
+#Getting first final output: hints.gff3
+from_pep_file_to_gff3("revised_candidates.pep", "transcripts.gtf", "revised_candidates.gff3", "hints")
+from_transcript_to_genome("revised_candidates.gff3","transcripts.gff3","transcripts.fasta", "hints.gff3")
+creating_intron_hints_file("hints.gff3", "intron_hints.gff3")
+prepare_hints_compare(reference_annotation, "intron_reference.txt")
+prepare_hints_compare("intron_hints.gff3", "intron_query.txt")
+#prepare_hints_cds(reference_annotation, "cds_reference.txt")
+#prepare_hints_cds("hints.gff3", "cds_hints.txt") 
+#control_hints("cds_hints.txt", "cds_reference.txt", "cds_overlap.txt")
+control_hints("intron_query.txt", "intron_reference.txt", "intron_overlap.txt")
+
+
+#Getting second final output: high-confidence training.gff3
 q_dict = getting_hc_supported_by_proteins("diamond_revised.tsv", "revised_candidates.pep", protein_file)
 protein_aligning(genome_file, protein_file, scoring_matrix) 
 getting_hc_supported_by_intrinsic(q_dict)
 choose_one_isoform("hc_genes.pep", "one_chosen_isoform.pep")
 from_pep_file_to_gff3("one_chosen_isoform.pep", "transcripts.gtf", "one_chosen_isoform.gff3")
 from_transcript_to_genome("one_chosen_isoform.gff3","transcripts.gff3","transcripts.fasta", "transcripts.fasta.transdecoder.genome.gff3")
-only_cds_in_annotation("transcripts.fasta.transdecoder.genome.gff3")
-print("***********************************************************************")
-print("                              Finished                                 ")
-print("***********************************************************************")
+only_cds_in_annotation("transcripts.fasta.transdecoder.genome.gff3", "training.gff3")
+
+print("                                                                                     ")
+print("                                     Finished                                        ")
+print("*************************************************************************************")
 #choose_one_isoform("revised_candidates.pep", "one_chosen_isoform.pep")
 #choose_one_isoform("transcripts.fasta.transdecoder.pep", "one_chosen_isoform.pep")
 #transdecoder_id_dict = parse_transdecoder_file("one_chosen_isoform.pep")
@@ -1464,12 +1939,14 @@ print("***********************************************************************")
 #frame_in_annotation("annotation.gtf")
 #only_cds_in_annotation("annotation_with_frame.gtf")
 #control_annotation("annotation_only_cds.gtf", reference_annotation, projname) #noch testen
+#only_cds_in_annotation("/home/s-amknut/GALBA/braker_ara_isoseq/GeneMark-ETP/training.gtf", "training_cds.gtf")
+#control_annotation("training_cds.gtf", reference_annotation, projname) #noch testen
 #only_cds_in_annotation("transcripts.fasta.transdecoder.genome.gff3")
 #control_annotation("annotation_only_cds.gtf", reference_annotation, projname) #noch testen
 #control_annotation("/home/s-amknut/GALBA/braker/GeneMark-ETP/training_cds.gtf", reference_annotation, "new_braker_cds")
 #preparing_miniprot_gff_for_conflict_comparison("miniprot_parsed.gff")
 #preparing_candidates_for_conflict_comparison(t_dict)
-#finding_protein_conflicts("bedtools_reference.bed", "bedtools_candidates.bed")
+#finding_protein_conflicts("candidates.bed", "reference.bed")
 
 #TO DOs:
 #-Variablen und Funktionsnamen anpassen
