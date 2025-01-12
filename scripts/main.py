@@ -223,7 +223,7 @@ def merge_bam_files(bamfile_1, bamfile_2):
         command = [
             path,
             "merge",
-            "-f", #-f to override the output file if it exists already
+            "-f", 
             "-o",
             output_bam,
             bamfile_1,
@@ -496,8 +496,6 @@ def shorten_incomplete_Orfs(transdecoder_pep):
                         record.description = description
                         SeqIO.write(record, output, "fasta")
 
-        print("Created file with shortened ORFs successfully.")
-
 ''' Creating a protein database from the protein input file using DIAMOND. '''
 def make_diamond_db(protein_file):
     try:
@@ -606,7 +604,6 @@ def get_cds_classification(normal_tsv, shortened_tsv):
             classifications[cds["cdsID"]] = "complete"  
 
     return classifications
-    print("Classified originally incomplete CDS as complete or incomplete successfully.")
    
 ''' Creating revised file with translated ORFs, containing the originally and newly complete ORFs and the incomplete ORFs. '''
 def get_optimized_pep_file(normal_pep, shortened_pep, classifications):
@@ -649,11 +646,10 @@ def get_optimized_pep_file(normal_pep, shortened_pep, classifications):
             #If the ORF is originally complete or 3' partial, the record is written to the output file.
             else:
                 SeqIO.write(record, output, "fasta")
-        print("Created revised CDS file successfully.")
 
 ''' Creating a GFF3 file from the TransDecoder PEP and the StringTie GTF files with transcript coordinates. '''
 '''In training mode the GFF3 file only contains complete gene structures, in hints mode all predictions are included.'''
-def from_pep_file_to_gff3(orf_pep, transcript_gtf, output_name, mode):
+def from_pep_file_to_gff3(orf_pep, transcript_gtf, output_name):
     print("Creating a GFF3 file from the " + file_name(orf_pep) + ".pep file...")
     transcripts = {}
     transcript_length = 0
@@ -671,10 +667,7 @@ def from_pep_file_to_gff3(orf_pep, transcript_gtf, output_name, mode):
                     #Store the entire length of a transcript by adding up the exon lengths
                     transcript_length += length
                     transcript_id = re.search(r'transcript_id "([^"]+)"', part[8]).group(1)
-                    strand = part[6]
-                    #For each transcript store in the dictionary the length of the transcript, if it was written 
-                    # to the output file already and its strand.
-                    transcripts[transcript_id] = [transcript_length, False, strand]
+                    transcripts[transcript_id] = transcript_length
                 else:
                     transcript_length = 0
     #Fill the output GFF3 file with the records for each gene: mRNA, exon, CDS, 5' UTR and 3' UTR (if present).
@@ -689,8 +682,7 @@ def from_pep_file_to_gff3(orf_pep, transcript_gtf, output_name, mode):
             coords = re.search(r":(\d+)-(\d+)\([\+\-]\)", description)
             orf_start = int(coords.group(1))
             orf_stop = int(coords.group(2))
-            transcript_length = transcripts[id_stringtie][0]
-            transcripts[id_stringtie][1] = True
+            transcript_length = transcripts[id_stringtie]
             strand = re.search(r"\((\+|-)\)", description) 
             strand = strand.group(1) 
             description_parts = description.split()
@@ -709,24 +701,6 @@ def from_pep_file_to_gff3(orf_pep, transcript_gtf, output_name, mode):
             if strand == "+" and orf_stop < transcript_length:
                 output.write(f"{id_stringtie}\t{tool2}\tthree_prime_UTR\t{orf_stop+1}\t{transcript_length}\t.\t{strand}\t.\tID={id_transdecoder}.utr3p1;Parent={id_transdecoder}\n")
             output.write("\n")
-                
-        #Include StringTie hints in which TransDecoder didn't give a CDS prediction
-        if mode == "hints":
-            for id_stringtie in transcripts:
-                if transcripts[id_stringtie][1] == False:
-                    tool = "StringTie"
-                    transcript_length = transcripts[id_stringtie][0]
-                    strand = transcripts[id_stringtie][2]
-                    parts = id_stringtie.split(".")
-                    gene_id = parts[0] + "." + parts[1]
-                    output.write(f"{id_stringtie}\t{tool}\tgene\t1\t{transcript_length}\t.\t{strand}\t.\tID={gene_id}\n")
-                    output.write(f"{id_stringtie}\t{tool}\tmRNA\t1\t{transcript_length}\t.\t{strand}\t.\tParent={gene_id}\n")
-                    output.write(f"{id_stringtie}\t{tool}\texon\t1\t{transcript_length}\t.\t{strand}\t.\tParent={gene_id}\n")
-                    output.write("\n")
-            print("Created GFF3 file with all gene prediction hints successfully.")
-        
-        if mode == "training":
-            print("Created GFF3 file with complete gene structures successfully.")
 
 ''' Creating FASTA file from the records stored in dictionary. '''
 def from_dict_to_pep_file(input_dict, output_name):
@@ -789,7 +763,6 @@ def finding_protein_conflicts(candidates_bed, reference_bed):
         path = bedtools + "/bedtools"
         command = [
             path,
-            #"/home/s-amknut/GALBA/tools/bedtools2/bin/bedtools",
             "coverage",
             "-a",
             candidates_bed,
@@ -855,7 +828,6 @@ def finding_stop_in_utr(transcripts_fasta, intrinsic_candidates_genome):
                         stop_in_utr_dict[stringtie_id] = True
                         break
     return stop_in_utr_dict 
-    print("Identified the CDS with a stop codon in the 5' UTR successfully.")
 
 ''' Selecting a set of high-confidence genes based on protein evidence. '''
 def getting_hc_supported_by_proteins(diamond_tsv, transdecoder_pep, protein_file):
@@ -913,7 +885,6 @@ def getting_hc_supported_by_proteins(diamond_tsv, transdecoder_pep, protein_file
 
     #Return the CDS candidates that are left for further intrinsic analysis.
     return q_dict
-    print("Selected a set of high confidence genes sucessfully.")
 
 ''' Appending the set of protein supported high-confidence genes with high-confidence genes supported by intrinsic criteria. '''
 def getting_hc_supported_by_intrinsic(q_dict):
@@ -923,7 +894,7 @@ def getting_hc_supported_by_intrinsic(q_dict):
     #Select only one isoform for each gene.
     choose_one_isoform("intrinsic_candidates.pep", "intrinsic_one_isoform.pep")
     #Create a GFF3 file from the PEP file.
-    from_pep_file_to_gff3("intrinsic_one_isoform.pep", "transcripts.gtf", "intrinsic_candidates.gff3", "training")
+    from_pep_file_to_gff3("intrinsic_one_isoform.pep", "transcripts.gtf", "intrinsic_candidates.gff3")
     #Transform the transcript coordinates of the candidates into genome coordinates.
     from_transcript_to_genome("intrinsic_candidates.gff3", "transcripts.gff3", "transcripts.fasta", "intrinsic_candidates_genome.gff3")
     #Prepare a file with the candidates for conflict comparison with the miniprot predictions.
@@ -967,7 +938,7 @@ def getting_hc_supported_by_intrinsic(q_dict):
                 #If a CDS meets the criteria it is added to the set of high-confidence CDS. 
                 if condition1 and condition2 and condition3 and condition4:
                     SeqIO.write(record, output, "fasta")
-    print("Appended set of high-confidence genes with genes supported by intrinsic criteria successfully.")
+    print("Appended set of high-confidence genes with genes supported by intrinsic criteria.")
 
 ''' Select only one isoform for each gene. '''
 def choose_one_isoform(transdecoder_pep, output_name):
@@ -1001,7 +972,6 @@ def choose_one_isoform(transdecoder_pep, output_name):
                 longest_isoform = max(isoform_dict[gene_id], key=lambda x: x[1] - x[0]) 
                 record = longest_isoform[2]
                 SeqIO.write(record, output, "fasta")
-    print("Selected one isoform for each gene successfully.")
 
 ''' StringTie provides transcript and exon boundaries in genome coordinates, while TransDecoder provides CDS boundaries in transcript coordinates. 
     This function transforms the transcript coordinates into genome coordinates using a TransDecoder module. '''
@@ -1010,10 +980,9 @@ def from_transcript_to_genome(orf_gff3, transcripts_gff3, transcripts_fasta, out
         path = transdecoder + "/util/cdna_alignment_orf_to_genome_orf.pl"
         command = [
             path,
-            #"cdna_alignment_orf_to_genome_orf.pl",
             orf_gff3,
             transcripts_gff3,
-            transcripts_fasta,
+            transcripts_fasta
         ]
         print("Transforming transcript coordinates into genome coordinates...")
         with open(output_name, "w") as output:
@@ -1128,8 +1097,6 @@ def creating_intron_hints_file(hints_genome_gff3, output_name):
             attributes_last = last_cds[8]
             output.write(f"{chromosome}\tTransDecoder\tstart\t{start_codon_start}\t{start_codon_stop}\t.\t{strand}\t.\t{attributes_first}\n")
             output.write(f"{chromosome}\tTransDecoder\tstop\t{stop_codon_start}\t{stop_codon_stop}\t.\t{strand}\t.\t{attributes_last}\n")
-
-    print("Created intron hints file successfully.")
 
 def only_cds_in_annotation(annotation_file, output_name):
     try:
@@ -1629,7 +1596,7 @@ make_diamond_db(protein_file)
 validating_ORFs("revised_candidates.pep", "diamond_revised.tsv")
 
 #Getting first final output: hints.gff3
-from_pep_file_to_gff3("revised_candidates.pep", "transcripts.gtf", "revised_candidates.gff3", "hints")
+from_pep_file_to_gff3("revised_candidates.pep", "transcripts.gtf", "revised_candidates.gff3")
 from_transcript_to_genome("revised_candidates.gff3","transcripts.gff3","transcripts.fasta", "pre_hints.gff3")
 creating_intron_hints_file("pre_hints.gff3", "hints.gff3")
 prepare_hints_compare(reference_annotation, "intron_reference.txt")
@@ -1644,7 +1611,7 @@ q_dict = getting_hc_supported_by_proteins("diamond_revised.tsv", "revised_candid
 protein_aligning(genome_file, protein_file, scoring_matrix) 
 getting_hc_supported_by_intrinsic(q_dict)
 choose_one_isoform("hc_genes.pep", "one_chosen_isoform.pep")
-from_pep_file_to_gff3("one_chosen_isoform.pep", "transcripts.gtf", "one_chosen_isoform.gff3", "training")
+from_pep_file_to_gff3("one_chosen_isoform.pep", "transcripts.gtf", "one_chosen_isoform.gff3")
 from_transcript_to_genome("one_chosen_isoform.gff3","transcripts.gff3","transcripts.fasta", "training.gff3")
 only_cds_in_annotation("training.gff3", "training_cds.gff3")
 
@@ -1763,16 +1730,6 @@ Schließlich entscheiden wir uns ja nur wegen dieser CDS für die Isoform.
 -CDS getrimmt?
 -Kategorisierung macht gerade keinen Unterschied 
 
-27.11.:
--Was kann ich zu den Daten schreiben?
--Was zitiere ich bei BRAKER3
--Kommt Pandas und Biopython mit in Tabelle?
 -Dockerfile in Material erklären?
--Graphic tool / VS code und so erwähnen?
--Wie noch confidence erhöhen?
-
-
-Zu tun:
-Bedtools in die Dockerfile schreiben
-miniprot in dockerfile nutzen
+-Bedtools in die Dockerfile schreiben
 '''
