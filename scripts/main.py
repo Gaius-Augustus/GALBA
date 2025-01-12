@@ -321,39 +321,12 @@ def assembling(alignment_rnaseq, alignment_isoseq):
 
 ''' Identifying ORFs within the transcripts predicted by StringTie using TransDecoder '''
 def orfsearching(genome_fa, transcripts_gtf):
-    try: 
-        
-        '''   
-        output_fa = "transcripts.fasta" 
-        gffread_command = [
-            "gffread",
-            "-w",
-            output_fa,
-            "-g",
-            genome_fa,
-            transcripts_gtf
-        ]
-        print("Construct a fasta file from the transcripts.gtf file given by Stringtie...")
-        #print("Running command:", "".join(gffread_command))
-        result = subprocess.run(gffread_command, capture_output=True)
-
-        if result.returncode == 0:
-            print("Transcripts prepared successfully")
-        else:
-            print("Error during preparing transcripts")
-            print(result.stderr)    
-    
-    except Exception:
-        print("Could not run gffread command.")
-        sys.exit(1)
-        '''    
+    try:   
         path = transdecoder2 + "/gtf_genome_to_cdna_fasta.pl"
         fasta_file_command = [
             path,
-            #"gtf_genome_to_cdna_fasta.pl",
-            #"/opt/TransDecoder/util/gtf_genome_to_cdna_fasta.pl",
             transcripts_gtf,
-            genome_fa,
+            genome_fa
         ]
         print("Creating a FASTA file using the genome and the transcripts.gtf files...")
 
@@ -371,15 +344,11 @@ def orfsearching(genome_fa, transcripts_gtf):
     except Exception: 
         print("Could not run TransDecoder module gtf_genome_to_cdna_fasta.pl.")
         sys.exit(1)
-        #import traceback
-        #traceback.print_exc()
-        #sys.exit(1)
     
     try:
         path = transdecoder + "/TransDecoder.LongOrfs"
         longORF_command = [
             path,
-            #"TransDecoder.LongOrfs",
             "-t",
             "transcripts.fasta"
         ]
@@ -427,8 +396,6 @@ def convert_gtf_to_gff3(transcripts_gtf, output_name):
         path = transdecoder2 + "/gtf_to_alignment_gff3.pl"
         command = [
             path,
-            #"gtf_to_alignment_gff3.pl",
-            #"/opt/TransDecoder/util/gtf_to_alignment_gff3.pl",
             transcripts_gtf
         ]
         print("Converting GTF file " + transcripts_gtf + " into GFF3 format...")
@@ -453,9 +420,8 @@ def protein_aligning(genome, protein, alignment_scoring):
     try: 
         path = miniprot + "/miniprot"
         command = [
-            #"/home/s-amknut/GALBA/tools/miniprot/miniprot",
-            "miniprot",
-            "-t",       #NEU:threads
+            path,
+            "-t",      
             str(threads),
             "--genome",
             genome,
@@ -479,9 +445,7 @@ def protein_aligning(genome, protein, alignment_scoring):
         sys.exit(1)
 
     try: 
-        #command = f"/home/s-amknut/GALBA/tools/miniprot-boundary-scorer/miniprot_boundary_scorer -o miniprot_parsed.gff -s {alignment_scoring} < miniprot.aln"
         path = miniprot_boundary_scorer + "/miniprot_boundary_scorer"
-        #command = f"miniprot_boundary_scorer -o miniprot_parsed.gff -s {alignment_scoring} < miniprot.aln"
         command = f"{path} -o miniprot_parsed.gff -s {alignment_scoring} < miniprot.aln"
         print("Scoring the protein to genome alignment...")
         
@@ -764,8 +728,7 @@ def from_pep_file_to_gff3(orf_pep, transcript_gtf, output_name, mode):
         if mode == "training":
             print("Created GFF3 file with complete gene structures successfully.")
 
-
-''' Creating a FASTA file from the records stored in a dictionary. '''
+''' Creating FASTA file from the records stored in dictionary. '''
 def from_dict_to_pep_file(input_dict, output_name):
     with open(output_name, "w") as output:
         for entry in input_dict:
@@ -960,7 +923,7 @@ def getting_hc_supported_by_intrinsic(q_dict):
     #Select only one isoform for each gene.
     choose_one_isoform("intrinsic_candidates.pep", "intrinsic_one_isoform.pep")
     #Create a GFF3 file from the PEP file.
-    from_pep_file_to_gff3("intrinsic_one_isoform.pep", "transcripts.gtf", "intrinsic_candidates.gff3")
+    from_pep_file_to_gff3("intrinsic_one_isoform.pep", "transcripts.gtf", "intrinsic_candidates.gff3", "training")
     #Transform the transcript coordinates of the candidates into genome coordinates.
     from_transcript_to_genome("intrinsic_candidates.gff3", "transcripts.gff3", "transcripts.fasta", "intrinsic_candidates_genome.gff3")
     #Prepare a file with the candidates for conflict comparison with the miniprot predictions.
@@ -1514,7 +1477,6 @@ def control_hints(hints_file, reference, output):
 
 ''' Opening the config file with the input data. '''
 def load_config(config_file):
-    print("Loading input config file...")
     with open(config_file, "r") as config_file:
         input_files = yaml.safe_load(config_file)
         return input_files
@@ -1610,6 +1572,7 @@ threads = args.threads
 
 if args.projname:
     projname = args.projname
+    print("P R O J E C T: " + projname)
 
 if args.output_path:
     output_path = args.output_path
@@ -1684,8 +1647,7 @@ if args.HISAT or (args.config and hisat != None):
 else:
     if shutil.which("hisat2") is not None:
         hisat =  os.path.dirname(shutil.which("hisat2"))
-        print(hisat)
-        print("HISAT2 path was set to based on docker file")
+
     else:
         print("Error: hisat2 file wasn't found.")
         print("Please provide the path to the StringTie2 directory in your config file or use option --HISAT2.")
@@ -1705,7 +1667,7 @@ if args.MINIMAP or (args.config and minimap != None):
 else:
     if shutil.which("minimap2") is not None:
         minimap =  os.path.dirname(shutil.which("minimap2"))
-        print("Minimap2 path was set to based on docker file")
+
     else:
         print("Error: minimap2 file wasn't found.")
         print("Please provide the path to the Minimap2 directory in your config file or use option --Minimap2.")
@@ -1725,7 +1687,7 @@ if args.STRINGTIE or (args.config and stringtie != None):
 else:
     if shutil.which("stringtie") is not None:
         stringtie =  os.path.dirname(shutil.which("stringtie"))
-        print("StringTie2 path was set to based on docker file")
+
     else:
         print("Error: stringtie file wasn't found.")
         print("Please provide the path to the StringTie2 directory in your config file or use option --STRINGTIE.")
@@ -1745,8 +1707,7 @@ if args.SAMTOOLS or (args.config and samtools != None):
 else:
     if shutil.which("samtools") is not None:
         samtools =  os.path.dirname(shutil.which("samtools"))
-        print(samtools)
-        print("samtools path was set to based on docker file")
+
     else:
         print("Error: samtools file wasn't found.")
         print("Please provide the path to the samtools directory in your config file or use option --SAMTOOLS.")
@@ -1768,9 +1729,7 @@ else:
     if shutil.which("TransDecoder.LongOrfs") is not None:
         transdecoder =  os.path.dirname(shutil.which("TransDecoder.LongOrfs"))
         transdecoder2 =  os.path.dirname(shutil.which("gtf_genome_to_cdna_fasta.pl"))
-        print(transdecoder2)
-        print(transdecoder)
-        print("transdecoder path was set to based on docker file")
+
     else:
         print("Error: TransDecoder modules weren't found.")
         print("Please provide the path to the TransDecoder directory in your config file or use option --TRANSDECODER.")
@@ -1790,8 +1749,7 @@ if args.DIAMOND or (args.config and diamond != None):
 else:
     if shutil.which("diamond") is not None:
         diamond =  os.path.dirname(shutil.which("diamond"))
-        print(diamond)
-        print("DIAMOND path was set to based on docker file")
+
     else:
         print("Error: DIAMOND file wasn't found.")
         print("Please provide the path to the DIAMOND directory in your config file or use option --DIAMOND.")
@@ -1812,8 +1770,7 @@ if args.BEDTOOLS or (args.config and bedtools != None):
 else:
     if shutil.which("bedtools") is not None:
         bedtools =  os.path.dirname(shutil.which("bedtools"))
-        print(bedtools)
-        print("bedtools path was set to based on docker file")
+
     else:
         print("Error: bedtools file wasn't found.")
         print("Please provide the path to the bedtools directory in your config file or use option --BEDTOOLS.")
@@ -1833,8 +1790,7 @@ if args.MINIPROT or (args.config and miniprot != None):
 else:
     if shutil.which("miniprot") is not None:
         miniprot =  os.path.dirname(shutil.which("miniprot"))
-        print(miniprot)
-        print("miniprot path was set to based on docker file")
+
     else:
         print("Error: miniprot file wasn't found.")
         print("Please provide the path to the miniprot directory in your config file or use option --MINIPROT.")
@@ -1853,9 +1809,8 @@ if args.MINIPROT_BOUNDARY_SCORER or (args.config and miniprot_boundary_scorer !=
         print("Miniprot-boundary-scorer path was set to: " + miniprot_boundary_scorer)
 else:
     if shutil.which("miniprot_boundary_scorer") is not None:
-        miniprot =  os.path.dirname(shutil.which("miniprot_boundary_scorer"))
-        print(miniprot_boundary_scorer)
-        print("miniprot_boundary_scorer path was set to based on docker file")
+        miniprot_boundary_scorer =  os.path.dirname(shutil.which("miniprot_boundary_scorer"))
+
     else:
         print("Error: miniprot_boundary_scorer file wasn't found.")
         print("Please provide the path to the miniprot_boundary_scorer directory in your config file or use option --MINIPROT_BOUNDARY_SCORER.")
@@ -1864,9 +1819,9 @@ else:
 
 ''' MAIN '''
 print("                                                                             ")
-print("Starting the genome annotation for " + species_name + " in " + mode + " mode:")
+print("Starting genome annotation for " + species_name + " in " + mode + " mode:")
 print("                                                                             ")
-'''
+
 if process_rnaseq:
     indexing(genome_file)
     alignments_list = mapping_short(rnaseq_paired_sets, rnaseq_single_sets)
@@ -1886,11 +1841,9 @@ if process_isoseq:
 else:
     alignment_isoseq = None
 
-assembling("alignment_paired_rnaseq.bam", "alignment_isoseq.bam")
-#assembling(alignment_rnaseq, alignment_isoseq)
+assembling(alignment_rnaseq, alignment_isoseq)
 convert_gtf_to_gff3("transcripts.gtf", "transcripts.gff3") 
 orfsearching(genome_file, "transcripts.gtf")  
-'''
 shorten_incomplete_Orfs("transcripts.fasta.transdecoder.pep")
 make_diamond_db(protein_file)
 validating_ORFs("shortened_candidates.pep", "diamond_shortened.tsv")
@@ -1903,24 +1856,23 @@ validating_ORFs("revised_candidates.pep", "diamond_revised.tsv")
 
 #Getting first final output: hints.gff3
 from_pep_file_to_gff3("revised_candidates.pep", "transcripts.gtf", "revised_candidates.gff3", "hints")
-from_transcript_to_genome("revised_candidates.gff3","transcripts.gff3","transcripts.fasta", "hints.gff3")
-creating_intron_hints_file("hints.gff3", "intron_hints.gff3")
+from_transcript_to_genome("revised_candidates.gff3","transcripts.gff3","transcripts.fasta", "pre_hints.gff3")
+creating_intron_hints_file("pre_hints.gff3", "hints.gff3")
 prepare_hints_compare(reference_annotation, "intron_reference.txt")
-prepare_hints_compare("intron_hints.gff3", "intron_query.txt")
-#prepare_hints_cds(reference_annotation, "cds_reference.txt")
-#prepare_hints_cds("hints.gff3", "cds_hints.txt") 
-#control_hints("cds_hints.txt", "cds_reference.txt", "cds_overlap.txt")
+prepare_hints_compare("hints.gff", "intron_query.txt")
+prepare_hints_cds(reference_annotation, "cds_reference.txt")
+prepare_hints_cds("hints.gff3", "cds_hints.txt") 
+control_hints("cds_hints.txt", "cds_reference.txt", "cds_overlap.txt")
 control_hints("intron_query.txt", "intron_reference.txt", "intron_overlap.txt")
-
 
 #Getting second final output: high-confidence training.gff3
 q_dict = getting_hc_supported_by_proteins("diamond_revised.tsv", "revised_candidates.pep", protein_file)
 protein_aligning(genome_file, protein_file, scoring_matrix) 
 getting_hc_supported_by_intrinsic(q_dict)
 choose_one_isoform("hc_genes.pep", "one_chosen_isoform.pep")
-from_pep_file_to_gff3("one_chosen_isoform.pep", "transcripts.gtf", "one_chosen_isoform.gff3")
-from_transcript_to_genome("one_chosen_isoform.gff3","transcripts.gff3","transcripts.fasta", "transcripts.fasta.transdecoder.genome.gff3")
-only_cds_in_annotation("transcripts.fasta.transdecoder.genome.gff3", "training.gff3")
+from_pep_file_to_gff3("one_chosen_isoform.pep", "transcripts.gtf", "one_chosen_isoform.gff3", "training")
+from_transcript_to_genome("one_chosen_isoform.gff3","transcripts.gff3","transcripts.fasta", "training.gff3")
+only_cds_in_annotation("training.gff3", "training_cds.gff3")
 
 print("                                                                                     ")
 print("                                     Finished                                        ")
@@ -1935,7 +1887,7 @@ print("*************************************************************************
 ###frame_in_annotation("transcripts.fasta.transdecoder.genome.gff3")
 #only_cds_in_annotation("annotation_with_frame.gff3")
 #only_cds_in_annotation("transcripts.fasta.transdecoder.genome.gff3")
-#control_annotation("annotation_only_cds.gff3", reference_annotation, projname) #noch testen
+control_annotation("training.gff3", reference_annotation, projname) #noch testen
 #frame_in_annotation("annotation.gtf")
 #only_cds_in_annotation("annotation_with_frame.gtf")
 #control_annotation("annotation_only_cds.gtf", reference_annotation, projname) #noch testen
