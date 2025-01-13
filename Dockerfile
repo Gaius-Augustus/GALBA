@@ -153,13 +153,17 @@ RUN cd /opt && \
     cd minimap2 && \
     make
 
+#RUN cd /opt && \
+ #   wget https://github.com/arq5x/bedtools2/releases/download/v2.31.1/bedtools && \
+  #  tar -zxvf bedtools-2.31.1.tar.gz && \
+   # rm bedtools-2.31.1.tar.gz && \
+    #cd bedtools2 && \
+    #make
 RUN cd /opt && \
-    wget https://github.com/arq5x/bedtools2/releases/download/v2.31.1/bedtools-2.31.1.tar.gz && \
-    tar -zxvf bedtools-2.31.1.tar.gz && \
-    rm bedtools-2.31.1.tar.gz && \
-    cd bedtools2 && \
-    make
-    
+    wget https://github.com/arq5x/bedtools2/releases/download/v2.30.0/bedtools.static.binary && \
+    mv bedtools.static.binary bedtools2 && \
+    chmod a+x bedtools2
+
 RUN cd /opt && \
     git clone https://github.com/gpertea/gffread.git && \
     cd gffread && \
