@@ -77,8 +77,9 @@ def indexing(genome_fasta):
         
 '''Mapping short reads to the genome using Hisat2'''
 def mapping_short(rnaseq_paired_sets, rnaseq_single_sets):
-    alignments_list = []
+    #alignments_list = []
     path = hisat + "/hisat2"
+    output = "alignment_rnaseq.sam" 
     try:
         if not rnaseq_single_sets == []:
             #Selecting an option for the hisat2 command based on the file format of the input files
@@ -90,7 +91,7 @@ def mapping_short(rnaseq_paired_sets, rnaseq_single_sets):
                 print("Error: Unknown file format for single-end short reads. Please provide a FASTA or FASTQ file.")
                 sys.exit(1)
             string_with_sets = ",".join(rnaseq_single_sets)
-            output_1 = "alignment_single_rnaseq.sam" 
+            #output_1 = "alignment_single_rnaseq.sam" 
             hisat2_single_command = [
                     path,  
                     format_option,                       
@@ -98,7 +99,7 @@ def mapping_short(rnaseq_paired_sets, rnaseq_single_sets):
                     "-U", string_with_sets,
                     "--dta",
                     "-p", str(threads),
-                    "-S", output_1,                  
+                    "-S", output,                  
                 ]
             print("Mapping single-end short reads to the genome...")
             
@@ -106,7 +107,7 @@ def mapping_short(rnaseq_paired_sets, rnaseq_single_sets):
             
             if result.returncode == 0:
                 print("Mapping of single-end short reads completed successfully.")
-                alignments_list.append(output_1)
+                #alignments_list.append(output_1)
 
             else:
                 print("Error during mapping of single-end short-reads:")
@@ -129,7 +130,7 @@ def mapping_short(rnaseq_paired_sets, rnaseq_single_sets):
                 sys.exit(1)
             string_with_first = ",".join(rnaseq_paired_sets[0::2])
             string_with_second = ",".join(rnaseq_paired_sets[1::2])
-            output_2 = "alignment_paired_rnaseq.sam"  
+           # output_2 = "alignment_paired_rnaseq.sam"  
             hisat2_paired_command = [
                     path, 
                     format_option,                       
@@ -138,7 +139,7 @@ def mapping_short(rnaseq_paired_sets, rnaseq_single_sets):
                     "-2", string_with_second,   
                     "--dta",
                     "-p", str(threads),
-                    "-S", output_2,                  
+                    "-S", output,                  
                 ]
             print("Mapping of paired-end short reads to the genome...")
             
@@ -146,7 +147,7 @@ def mapping_short(rnaseq_paired_sets, rnaseq_single_sets):
             
             if result.returncode == 0:
                 print("Mapping of paired-end short reads completed successfully")
-                alignments_list.append(output_2)
+               # alignments_list.append(output_2)
             else:
                 print("Error during mapping of paired-end short reads:")
                 print(result.stdout)
@@ -157,7 +158,7 @@ def mapping_short(rnaseq_paired_sets, rnaseq_single_sets):
         print("Could not run hisat2 command for paired-end short read data.")
         sys.exit(1)
 
-    return alignments_list 
+   # return alignments_list 
 
 ''' Mapping long reads to the genome using Minimap2 '''
 def mapping_long(genome, isoseq_sets):
@@ -184,32 +185,31 @@ def mapping_long(genome, isoseq_sets):
         sys.exit(1)
 
 ''' Converting files in SAM format into files in BAM format using SAMtools'''
-def sam_to_bam(sam_file_list):
+def sam_to_bam(samfile):
     try:  
         path = samtools + "/samtools"  
-        for samfile in sam_file_list:
-            output_bam = file_name(samfile) + ".bam"
-            command = [
-                path,
-                "sort",
-                "-@",
-                str(threads), 
-                samfile,
-                "-o",
-                output_bam
-            ]
+        output_bam = file_name(samfile) + ".bam"
+        command = [
+            path,
+            "sort",
+            "-@",
+            str(threads), 
+            samfile,
+            "-o",
+            output_bam
+        ]
 
-            print("Converting " + samfile +" to " + output_bam + "...")
-            result = subprocess.run(command, capture_output=True)
+        print("Converting " + samfile +" to " + output_bam + "...")
+        result = subprocess.run(command, capture_output=True)
 
-            if result.returncode == 0:
-                print("Conversion from SAM to BAM file completed successfully.")
+        if result.returncode == 0:
+            print("Conversion from SAM to BAM file completed successfully.")
 
-            else:
-                print("Error during conversion:")
-                print(result.stdout)
-                print(result.stderr)
-                sys.exit(1)
+        else:
+            print("Error during conversion:")
+            print(result.stdout)
+            print(result.stderr)
+            sys.exit(1)
 
     except Exception:
         print("Could not run SAMtools command.")
@@ -975,12 +975,12 @@ def choose_one_isoform(transdecoder_pep, output_name):
 
 ''' StringTie provides transcript and exon boundaries in genome coordinates, while TransDecoder provides CDS boundaries in transcript coordinates. 
     This function transforms the transcript coordinates into genome coordinates using a TransDecoder module. '''
-def from_transcript_to_genome(orf_gff3, transcripts_gff3, transcripts_fasta, output_name):
+def from_transcript_to_genome(cds_gff3, transcripts_gff3, transcripts_fasta, output_name):
     try:
         path = transdecoder + "/util/cdna_alignment_orf_to_genome_orf.pl"
         command = [
             path,
-            orf_gff3,
+            cds_gff3,
             transcripts_gff3,
             transcripts_fasta
         ]
@@ -1001,12 +1001,43 @@ def from_transcript_to_genome(orf_gff3, transcripts_gff3, transcripts_fasta, out
         print("Could not run TransDecoder module cdna_alignment_orf_to_genome_orf.pl")
         sys.exit(1)
 
+def appending_hints_file(hints_genome_gff3, transcript_gtf):
+    with open(hints_genome_gff3, "r") as hints_file:
+        print("Appending hints file with exon hints without CDS prediction...")
+        exons_with_cds = []
+        for line in hints_file:
+            part = line.strip().split('\t')
+            if len(part) == 9:
+                if part[2] == "exon":
+                    attributes = part[8]
+                    transcript_id = re.search(r"ID=([^;]+?)\.p\d+\b", part[8]).group(1)
+                    exons_with_cds.append(transcript_id)
+
+    with open(hints_genome_gff3, "a") as hints_file, open(transcript_gtf, "r") as transcript_file:
+        for line in transcript_file:
+            if line.startswith("#"):
+                continue
+            part = line.strip().split('\t')
+            feature = part[2]
+            transcript_id = re.search(r'transcript_id "([^"]+)"', part[8]).group(1)
+            if transcript_id not in exons_with_cds:
+                if feature == "exon":
+                    hints_file.write(line)
+                if feature == "transcript":
+                    hints_file.write("\n")
+                    updated_line = re.sub(r'transcript', r'gene', line)
+                    hints_file.write(updated_line)
+                    updated_line = re.sub(r'transcript', r'mRNA', line)
+                    hints_file.write(updated_line)
+
+
 ''' Creating a hints file with CDS, start and stop codon and intron hints, using the hints file with 
     genome coordinates that contains mRNA, exon, CDS and UTR features. '''
-def creating_intron_hints_file(hints_genome_gff3, output_name):
-    with open(hints_genome_gff3, "r") as hints_file, open(output_name, "w") as output:
+def creating_intron_hints_file(hints_genome_gff3, transcript_gtf, output_name):
+    with open(hints_genome_gff3, "r") as hints_file, open(transcript_gtf, "r") as transcript_file, open(output_name, "w") as output:
         print("Creating a hints file with intron hints...")
         #List to store exon and CDS features in order determine the introns and start/stop codons.
+
         exon_list = []
         cds_list = []
         for line in hints_file:
@@ -1180,7 +1211,7 @@ def prepare_hints_cds(hints_file, name):
             # Split the line into fields based on tab characters
             fields = line.strip().split("\t")
             
-            if fields[2] == "CDS":
+            if fields[2] == "CDS" or "CDSpart":
                 # Extract chromosome, start, stop, and strand information
                 chromosome = fields[0]
                 start = fields[3]
@@ -1344,6 +1375,9 @@ if scoring_matrix == None:
 if rnaseq_paired_sets == [] and rnaseq_single_sets == [] and isoseq_sets == []:
     print("Error: No transcriptomic data found in config file. Please provide at least one set of RNA-Seq or Iso-Seq data.")
     sys.exit(1)
+if rnaseq_paired_sets != [] and rnaseq_single_sets != []:
+    print("Error: You provided both paired-end and single-end RNA-Seq data. Only the paired-end RNA-Seq data is processed.")
+    rnaseq_single_sets = []
     
 if not args.rnaseq and not args.isoseq and not args.mixed:
     if (rnaseq_paired_sets != [] or rnaseq_single_sets != []) and isoseq_sets == []:
@@ -1562,23 +1596,19 @@ else:
 print("                                                                             ")
 print("Starting genome annotation for " + species_name + " in " + mode + " mode:")
 print("                                                                             ")
-
+'''
 if process_rnaseq:
     indexing(genome_file)
-    alignments_list = mapping_short(rnaseq_paired_sets, rnaseq_single_sets)
-    sam_to_bam(alignments_list)    
-    if len(alignments_list) > 1:    
-        alignment_rnaseq = file_name(merge_bam_files(alignments_list[0], alignments_list[1])) + ".bam"
-    else:
-        alignment_rnaseq = file_name(alignments_list[0]) + ".bam"
+    mapping_short(rnaseq_paired_sets, rnaseq_single_sets)
+    sam_to_bam("alignment_rnaseq.sam")    
+    alignment_rnaseq = "alignment_rnaseq.bam"
 else:
     alignment_rnaseq = None
 
 if process_isoseq:
-    alignment_isoseq = mapping_long(genome_file, isoseq_sets)
-    sam_file_list = [alignment_isoseq]
-    sam_to_bam(sam_file_list) 
-    alignment_isoseq = file_name(alignment_isoseq) + ".bam"
+    mapping_long(genome_file, isoseq_sets)
+    sam_to_bam("alignment_isoseq.sam") 
+    alignment_isoseq = "alignment_isoseq.bam"
 else:
     alignment_isoseq = None
 
@@ -1594,26 +1624,28 @@ classifications_dict = get_cds_classification("diamond_normal.tsv", "diamond_sho
 get_optimized_pep_file("transcripts.fasta.transdecoder.pep", "shortened_candidates.pep", classifications_dict)
 make_diamond_db(protein_file)
 validating_ORFs("revised_candidates.pep", "diamond_revised.tsv")
+'''
 
 #Getting first final output: hints.gff3
-from_pep_file_to_gff3("revised_candidates.pep", "transcripts.gtf", "revised_candidates.gff3")
-from_transcript_to_genome("revised_candidates.gff3","transcripts.gff3","transcripts.fasta", "pre_hints.gff3")
-creating_intron_hints_file("pre_hints.gff3", "hints.gff3")
-prepare_hints_compare(reference_annotation, "intron_reference.txt")
-prepare_hints_compare("hints.gff", "intron_query.txt")
+#from_pep_file_to_gff3("revised_candidates.pep", "transcripts.gtf", "revised_candidates.gff3")
+#from_transcript_to_genome("revised_candidates.gff3","transcripts.gff3","transcripts.fasta", "pre_hints.gff3")
+#appending_hints_file("pre_hints.gff3", "transcripts.gtf")
+#creating_intron_hints_file("pre_hints.gff3", "hints.gff3", "hints.gff3")
+#prepare_hints_compare(reference_annotation, "intron_reference.txt")
+#prepare_hints_compare("hints.gff3", "intron_query.txt")
 prepare_hints_cds(reference_annotation, "cds_reference.txt")
-prepare_hints_cds("hints.gff3", "cds_hints.txt") 
+prepare_hints_cds("hintsfile.gff", "cds_hints.txt") 
 control_hints("cds_hints.txt", "cds_reference.txt", "cds_overlap.txt")
-control_hints("intron_query.txt", "intron_reference.txt", "intron_overlap.txt")
+#control_hints("intron_query.txt", "intron_reference.txt", "intron_overlap.txt")
 
 #Getting second final output: high-confidence training.gff3
-q_dict = getting_hc_supported_by_proteins("diamond_revised.tsv", "revised_candidates.pep", protein_file)
-protein_aligning(genome_file, protein_file, scoring_matrix) 
-getting_hc_supported_by_intrinsic(q_dict)
-choose_one_isoform("hc_genes.pep", "one_chosen_isoform.pep")
-from_pep_file_to_gff3("one_chosen_isoform.pep", "transcripts.gtf", "one_chosen_isoform.gff3")
-from_transcript_to_genome("one_chosen_isoform.gff3","transcripts.gff3","transcripts.fasta", "training.gff3")
-only_cds_in_annotation("training.gff3", "training_cds.gff3")
+#q_dict = getting_hc_supported_by_proteins("diamond_revised.tsv", "revised_candidates.pep", protein_file)
+#protein_aligning(genome_file, protein_file, scoring_matrix) 
+#getting_hc_supported_by_intrinsic(q_dict)
+#choose_one_isoform("hc_genes.pep", "one_chosen_isoform.pep")
+#from_pep_file_to_gff3("one_chosen_isoform.pep", "transcripts.gtf", "one_chosen_isoform.gff3")
+#from_transcript_to_genome("one_chosen_isoform.gff3","transcripts.gff3","transcripts.fasta", "training.gff3")
+#only_cds_in_annotation("training.gff3", "training_cds.gff3")
 
 print("                                                                                     ")
 print("                                     Finished                                        ")
@@ -1628,7 +1660,7 @@ print("*************************************************************************
 ###frame_in_annotation("transcripts.fasta.transdecoder.genome.gff3")
 #only_cds_in_annotation("annotation_with_frame.gff3")
 #only_cds_in_annotation("transcripts.fasta.transdecoder.genome.gff3")
-control_annotation("training.gff3", reference_annotation, projname) #noch testen
+#control_annotation("training_cds.gff3", reference_annotation, projname) #noch testen
 #frame_in_annotation("annotation.gtf")
 #only_cds_in_annotation("annotation_with_frame.gtf")
 #control_annotation("annotation_only_cds.gtf", reference_annotation, projname) #noch testen
