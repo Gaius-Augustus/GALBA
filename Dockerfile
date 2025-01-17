@@ -24,7 +24,7 @@ RUN apt update && \
     && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
-#RUN von Amrei für Transdecoder
+# neccessary for Transdecoder
 RUN apt install --yes && \
     cpan && \
     cpan URI::Escape && \
@@ -121,6 +121,7 @@ RUN cd /opt && \
     chmod a+x *.pl && \
     chmod a+x *.py
 
+# hisat2
 RUN cd /opt && \
     wget https://github.com/DaehwanKimLab/hisat2/archive/refs/tags/v2.2.1.tar.gz && \
     tar -xf v2.2.1.tar.gz && \
@@ -129,9 +130,7 @@ RUN cd /opt && \
     cd hisat2 && \
     make 
 
-#ENV PATH=${PATH}:/opt/hisat2
-
-
+# stringtie2
 RUN cd /opt && \
     wget https://github.com/gpertea/stringtie/releases/download/v2.2.3/stringtie-2.2.3.Linux_x86_64.tar.gz && \
     tar -zxvf stringtie-2.2.3.Linux_x86_64.tar.gz && \
@@ -143,11 +142,13 @@ RUN cd /opt && \
   #  cd bedtools2 && \ 
    # make
 
+# transdecoder
 RUN cd /opt && \
     git clone https://github.com/TransDecoder/TransDecoder.git && \
     cd TransDecoder && \
     make
 
+# minimap2
 RUN cd /opt && \
     git clone https://github.com/lh3/minimap2.git && \
     cd minimap2 && \
@@ -159,15 +160,11 @@ RUN cd /opt && \
    # rm bedtools-2.31.1.tar.gz && \
     #cd bedtools2 && \
     #make
+# bedtools2
 RUN cd /opt && \
     wget https://github.com/arq5x/bedtools2/releases/download/v2.30.0/bedtools.static.binary && \
     mv bedtools.static.binary bedtools2 && \
     chmod a+x bedtools2
-
-RUN cd /opt && \
-    git clone https://github.com/gpertea/gffread.git && \
-    cd gffread && \
-    make release
 
 FROM $BASE_CONTAINER
 
@@ -176,7 +173,7 @@ USER root
 COPY --from=base /opt/ /opt/
 
 #ENV PATH=${PATH}:/opt/seqstats:/opt/cdbfasta:/opt/hisat2:/opt/diamond:/opt/TSEBRA/bin:/opt/MakeHub:/opt/miniprot:/opt/GALBA/scripts:/opt/miniprot-boundary-scorer:/opt/miniprothint
-ENV PATH=${PATH}:/opt/seqstats:/opt/cdbfasta:/opt/hisat2:/opt/stringtie:/opt/TransDecoder:/opt/TransDecoder/util:/opt/minimap2:/opt/bedtools2/bin:/opt/gffread:/opt/diamond:/opt/TSEBRA/bin:/opt/MakeHub:/opt/miniprot:/opt/GALBA/scripts:/opt/miniprot-boundary-scorer:/opt/miniprothint
+ENV PATH=${PATH}:/opt/seqstats:/opt/cdbfasta:/opt/hisat2:/opt/stringtie:/opt/TransDecoder:/opt/TransDecoder/util:/opt/minimap2:/opt/bedtools2/bin:/opt/diamond:/opt/TSEBRA/bin:/opt/MakeHub:/opt/miniprot:/opt/GALBA/scripts:/opt/miniprot-boundary-scorer:/opt/miniprothint
 
 # AUGUSTUS does need several libraries that are now gone, re-install them:
 RUN apt-get update --yes && \
@@ -226,12 +223,10 @@ RUN pip install pygustus && \
     fix-permissions "${CONDA_DIR}" && \
     fix-permissions "/home/${NB_USER}"
 
-#From Amrei:
+# for yaml usage
 RUN pip install --no-cache-dir pandas && \
     fix-permissions "${CONDA_DIR}" && \
     fix-permissions "/home/${NB_USER}"
-#Amrei: Probably needed for yaml
-#RUN pip install pyyaml
 
 USER root
 
