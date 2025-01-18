@@ -17,7 +17,10 @@ from Bio.SeqRecord import SeqRecord
 #Version: "1.0"
 #Email:"amrei.knuth@gmail.com"
 #Date: "Janurary 2025"
-#Usage (easiest): singularity exec -B ${PWD}:${PWD} galba.sif pregalba.py -y config.yaml 
+
+#USAGE with docker container: 
+#First pull container: singularity build galba.sif docker://amreiknuth/galba-notebook:devel 
+#Second run pregalba.py: singularity exec -B ${PWD}:${PWD} galba.sif pregalba.py -y config.yaml
 
 ''' Getting the file format of a FASTA or FASTQ input file. '''
 def file_format(file): 
@@ -537,7 +540,7 @@ def validating_ORFs(transdecoder_pep, output_tsv):
             "-o",
             output_tsv
         ]
-        print("Searching for matches in the protein database for " + file_name(transdecoder_pep) + "...")
+        print("Searching for matches in protein database for " + file_name(transdecoder_pep) + "...")
         result = subprocess.run(command, capture_output=True)
 
         if result.returncode == 0:
@@ -998,7 +1001,7 @@ def from_transcript_to_genome(cds_gff3, transcripts_gff3, transcripts_fasta, out
             transcripts_gff3,
             transcripts_fasta
         ]
-        print("Transforming transcript coordinates into genome coordinates...")
+        print("Transforming transcript coordinates into genome coordinates of " + file_name(cds_gff3) + "...")
         with open(output_name, "w") as output:
             result = subprocess.run(command, stdout=output, stderr=subprocess.PIPE)
 
@@ -1452,7 +1455,7 @@ else:
 
 if process_isoseq:
     mapping_long(genome_file, isoseq_sets)
-    sam_to_bam("alignment_isoseq.sam") 
+    sam_to_bam(["alignment_isoseq.sam"]) 
     alignment_isoseq = "alignment_isoseq.bam"
 else:
     alignment_isoseq = None
@@ -1477,7 +1480,7 @@ getting_hc_supported_by_intrinsic(q_dict)
 choose_one_isoform("hc_genes.pep", "one_chosen_isoform.pep")
 from_pep_file_to_gff3("one_chosen_isoform.pep", "transcripts.gtf", "one_chosen_isoform.gff3")
 from_transcript_to_genome("one_chosen_isoform.gff3","transcripts.gff3","transcripts.fasta", "training.gff3")
-print("------> Training genes file 'training.gff3' was generated successfully!")
+print("------> Training genes file training.gff3 was generated successfully!")
 
 #Getting second final output: hints.gff3
 from_pep_file_to_gff3("hc_genes.pep", "transcripts.gtf", "hc_genes.gff3")
@@ -1485,7 +1488,7 @@ from_pep_file_to_gff3("lc_genes.pep", "transcripts.gtf", "lc_genes.gff3")
 from_transcript_to_genome("hc_genes.gff3","transcripts.gff3","transcripts.fasta", "pre_hc_hints.gff3")
 from_transcript_to_genome("lc_genes.gff3","transcripts.gff3","transcripts.fasta", "pre_lc_hints.gff3")
 creating_intron_hints_file("pre_hc_hints.gff3", "pre_lc_hints.gff3",  "hints.gff3")
-print("------> Hints file 'hints.gff3' was generated successfully!")
+print("------> Hints file hints.gff3 was generated successfully!")
 
 print("                                                                                     ")
 print("                                     Finished                                        ")
