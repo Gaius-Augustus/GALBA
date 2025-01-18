@@ -77,9 +77,8 @@ def indexing(genome_fasta):
         
 '''Mapping short reads to the genome using Hisat2'''
 def mapping_short(rnaseq_paired_sets, rnaseq_single_sets):
-    #alignments_list = []
-    path = hisat + "/hisat2"
-    output = "alignment_rnaseq.sam" 
+    alignments_list = []
+    path = hisat + "/hisat2" 
     try:
         if not rnaseq_single_sets == []:
             #Selecting an option for the hisat2 command based on the file format of the input files
@@ -91,7 +90,7 @@ def mapping_short(rnaseq_paired_sets, rnaseq_single_sets):
                 print("Error: Unknown file format for single-end short reads. Please provide a FASTA or FASTQ file.")
                 sys.exit(1)
             string_with_sets = ",".join(rnaseq_single_sets)
-            #output_1 = "alignment_single_rnaseq.sam" 
+            output_1 = "alignment_single_rnaseq.sam" 
             hisat2_single_command = [
                     path,  
                     format_option,                       
@@ -99,7 +98,7 @@ def mapping_short(rnaseq_paired_sets, rnaseq_single_sets):
                     "-U", string_with_sets,
                     "--dta",
                     "-p", str(threads),
-                    "-S", output,                  
+                    "-S", output_1,                  
                 ]
             print("Mapping single-end short reads to the genome...")
             
@@ -107,7 +106,7 @@ def mapping_short(rnaseq_paired_sets, rnaseq_single_sets):
             
             if result.returncode == 0:
                 print("Mapping of single-end short reads completed successfully.")
-                #alignments_list.append(output_1)
+                alignments_list.append(output_1)
 
             else:
                 print("Error during mapping of single-end short-reads:")
@@ -130,7 +129,7 @@ def mapping_short(rnaseq_paired_sets, rnaseq_single_sets):
                 sys.exit(1)
             string_with_first = ",".join(rnaseq_paired_sets[0::2])
             string_with_second = ",".join(rnaseq_paired_sets[1::2])
-           # output_2 = "alignment_paired_rnaseq.sam"  
+            output_2 = "alignment_paired_rnaseq.sam"  
             hisat2_paired_command = [
                     path, 
                     format_option,                       
@@ -139,7 +138,7 @@ def mapping_short(rnaseq_paired_sets, rnaseq_single_sets):
                     "-2", string_with_second,   
                     "--dta",
                     "-p", str(threads),
-                    "-S", output,                  
+                    "-S", output_2,                  
                 ]
             print("Mapping of paired-end short reads to the genome...")
             
@@ -147,7 +146,7 @@ def mapping_short(rnaseq_paired_sets, rnaseq_single_sets):
             
             if result.returncode == 0:
                 print("Mapping of paired-end short reads completed successfully")
-               # alignments_list.append(output_2)
+                alignments_list.append(output_2)
             else:
                 print("Error during mapping of paired-end short reads:")
                 print(result.stdout)
@@ -158,7 +157,7 @@ def mapping_short(rnaseq_paired_sets, rnaseq_single_sets):
         print("Could not run hisat2 command for paired-end short read data.")
         sys.exit(1)
 
-   # return alignments_list 
+    return alignments_list 
 
 ''' Mapping long reads to the genome using Minimap2 '''
 def mapping_long(genome, isoseq_sets):
@@ -465,7 +464,6 @@ def protein_aligning(genome, protein, alignment_scoring):
 
 ''' Creating a file with the originally incomplete CDS, shortened to begin at the first start codon. '''
 def shorten_incomplete_Orfs(transdecoder_pep):
-    print("Shortening ORFs that are 5' partial until the first start codon within the ORF sequence...")
     #File "shortened_candidates.pep" is used to store the shortened, originally incomplete (and now complete) ORFs
     with open("shortened_candidates.pep", "w") as output:
         #Parse the input file given by TransDecoder with all complete and incomplete ORFs
@@ -495,6 +493,7 @@ def shorten_incomplete_Orfs(transdecoder_pep):
                         description = re.sub(r"len:\d+", f"len:{new_length}", description)
                         record.description = description
                         SeqIO.write(record, output, "fasta")
+    print("Shortened ORFs that are 5' partial until the first start codon within the ORF sequence successfully.")
 
 ''' Creating a protein database from the protein input file using DIAMOND. '''
 def make_diamond_db(protein_file):
@@ -554,7 +553,7 @@ def validating_ORFs(transdecoder_pep, output_tsv):
 
 ''' Classifying originally incomplete predictions as complete or incomplete based on the DIAMOND database search '''
 def get_cds_classification(normal_tsv, shortened_tsv):
-    print("Comparing if the shortened or the original CDS has better protein support...")
+    print("Looking at the incomplete ORF predictions...")
     #Parse the DIAMOND results into a dataframe with headers equivalent to the DIAMOND output using pandas.
     #normal_tsv stored the path to the DIAMOND results for the original TransDecoder output with complete and incomplete candidates and
     #shortened_tsv stores the path to the DIAMOND results for the originally incomplete candidates shortened until the first M.
@@ -603,11 +602,11 @@ def get_cds_classification(normal_tsv, shortened_tsv):
         else:
             classifications[cds["cdsID"]] = "complete"  
 
+    print("Compared if the shortened or the original CDS has better protein support for each incomplete CDS candidate successfully.")
     return classifications
    
 ''' Creating revised file with translated ORFs, containing the originally and newly complete ORFs and the incomplete ORFs. '''
 def get_optimized_pep_file(normal_pep, shortened_pep, classifications):
-    print("Creating a revised CDS file using the classifications as complete or incomplete CDS...")
     with open("revised_candidates.pep", "w") as output:
         #Parse shortened ORFs into a dictonary 
         shortened_pep_dict = {record.id: (record.seq, record.description) for record in SeqIO.parse(shortened_pep, "fasta")}
@@ -646,11 +645,11 @@ def get_optimized_pep_file(normal_pep, shortened_pep, classifications):
             #If the ORF is originally complete or 3' partial, the record is written to the output file.
             else:
                 SeqIO.write(record, output, "fasta")
+    print("Created a revised CDS file using the classifications as complete or incomplete CDS successfully.")
 
 ''' Creating a GFF3 file from the TransDecoder PEP and the StringTie GTF files with transcript coordinates. '''
 '''In training mode the GFF3 file only contains complete gene structures, in hints mode all predictions are included.'''
 def from_pep_file_to_gff3(orf_pep, transcript_gtf, output_name):
-    print("Creating a GFF3 file from the " + file_name(orf_pep) + ".pep file...")
     transcripts = {}
     transcript_length = 0
     with open(transcript_gtf, "r") as transcript_file:
@@ -701,6 +700,7 @@ def from_pep_file_to_gff3(orf_pep, transcript_gtf, output_name):
             if strand == "+" and orf_stop < transcript_length:
                 output.write(f"{id_stringtie}\t{tool2}\tthree_prime_UTR\t{orf_stop+1}\t{transcript_length}\t.\t{strand}\t.\tID={id_transdecoder}.utr3p1;Parent={id_transdecoder}\n")
             output.write("\n")
+    print("Created a GFF3 file from the " + file_name(orf_pep) + ".pep file successfully.")
 
 ''' Creating FASTA file from the records stored in dictionary. '''
 def from_dict_to_pep_file(input_dict, output_name):
@@ -827,6 +827,7 @@ def finding_stop_in_utr(transcripts_fasta, intrinsic_candidates_genome):
                     if stop_codon_position != -1:
                         stop_in_utr_dict[stringtie_id] = True
                         break
+    print("Identified the stop codons in the 5' UTR of the candidates successfully.")
     return stop_in_utr_dict 
 
 ''' Selecting a set of high-confidence genes based on protein evidence. '''
@@ -872,9 +873,6 @@ def getting_hc_supported_by_proteins(diamond_tsv, transdecoder_pep, protein_file
                         #If a candidate is supported by protein evidence, it is excluded from further consideration. 
                         del q_dict[id]
                         already_hc_genes.append(gene_id)
-                #Incomplete CDS are excluded from further consideration.
-                if "type:5prime_partial" in record.description or "type:internal" in record.description or "type:3prime_partial" in record.description:
-                    del q_dict[id]
 
         #Only store the CDS in the dictionary that don't belong to a gene that is high-confidence with a different CDS
         q_dict = {
@@ -882,7 +880,7 @@ def getting_hc_supported_by_proteins(diamond_tsv, transdecoder_pep, protein_file
             for id, value in q_dict.items()
             if id.split(".")[0] + "." + id.split(".")[1] not in already_hc_genes
         }
-
+    print("Set of high-confidence genes was selected successfully.")
     #Return the CDS candidates that are left for further intrinsic analysis.
     return q_dict
 
@@ -918,7 +916,8 @@ def getting_hc_supported_by_intrinsic(q_dict):
             else:
                 no_conflicts_dict[transcript_id] = False
 
-    with open("hc_genes.pep", "a") as output, open("intrinsic_one_isoform.pep") as candidates_file:
+    with open("hc_genes.pep", "a") as output_hc, open("intrinsic_one_isoform.pep", "r") as candidates_file:
+        already_hc_genes = []
         #Go through the candidates and decide wether they meet the criteria for high-confidence genes.
         for record in SeqIO.parse(candidates_file, "fasta"):
             transcript_id = record.id
@@ -929,20 +928,33 @@ def getting_hc_supported_by_intrinsic(q_dict):
                 condition1 = (length_cds >= 300) #Minimum 300 nucleotides in length
                 condition2 = (score > 50) #Score higher than 50
                 condition3 = (no_conflicts_dict[transcript_id]) #No conflicts with any miniprot prediction
+                condition4 = "type:complete" in record.description #Only complete candidates are considered
                 id_stringtie = transcript_id.split(".p")
                 id_stringtie = id_stringtie[0]
                 if id_stringtie in stop_in_utr_dict:
-                    condition4 = (stop_in_utr_dict[id_stringtie]) #Must have stop codon in 5'UTR
+                    condition5 = (stop_in_utr_dict[id_stringtie]) #Must have stop codon in 5'UTR
                 else:
-                    condition4 = False
+                    condition5 = False
                 #If a CDS meets the criteria it is added to the set of high-confidence CDS. 
-                if condition1 and condition2 and condition3 and condition4:
-                    SeqIO.write(record, output, "fasta")
-    print("Appended set of high-confidence genes with genes supported by intrinsic criteria.")
+                if condition1 and condition2 and condition3 and condition4 and condition5:
+                    id_stringtie = transcript_id.split(".p")
+                    id_stringtie = id_stringtie[0]
+                    already_hc_genes.append(id_stringtie)
+                    SeqIO.write(record, output_hc, "fasta")
+        print("Appended set of high-confidence genes with genes supported by intrinsic criteria successfully.")
+
+        #File with low-confidence genes is filled: Every gene that contains no high-confidence CDS is added
+        with open("intrinsic_one_isoform.pep", "r") as candidates_file, open("lc_genes.pep", "w") as output_lc:
+            for record in SeqIO.parse(candidates_file, "fasta"):
+                transcript_id = record.id
+                id_stringtie = transcript_id.split(".p")
+                id_stringtie = id_stringtie[0]  
+                if id_stringtie not in already_hc_genes:
+                    SeqIO.write(record, output_lc, "fasta")
+            print("All not-high-confidence genes create the set of low-confidence genes.")
 
 ''' Select only one isoform for each gene. '''
 def choose_one_isoform(transdecoder_pep, output_name):
-    print("Selecting one isoform for each gene...") 
     #Dictionary to store a list of isoforms for each gene.
     isoform_dict = {}
     #Write a new file with just one isoform per a gene.
@@ -972,12 +984,13 @@ def choose_one_isoform(transdecoder_pep, output_name):
                 longest_isoform = max(isoform_dict[gene_id], key=lambda x: x[1] - x[0]) 
                 record = longest_isoform[2]
                 SeqIO.write(record, output, "fasta")
+    print("Selected one isoform for each gene successfully.") 
 
 ''' StringTie provides transcript and exon boundaries in genome coordinates, while TransDecoder provides CDS boundaries in transcript coordinates. 
     This function transforms the transcript coordinates into genome coordinates using a TransDecoder module. '''
 def from_transcript_to_genome(cds_gff3, transcripts_gff3, transcripts_fasta, output_name):
     try:
-        path = transdecoder + "/util/cdna_alignment_orf_to_genome_orf.pl"
+        path = transdecoder2 + "/cdna_alignment_orf_to_genome_orf.pl"
         command = [
             path,
             cds_gff3,
@@ -1001,251 +1014,81 @@ def from_transcript_to_genome(cds_gff3, transcripts_gff3, transcripts_fasta, out
         print("Could not run TransDecoder module cdna_alignment_orf_to_genome_orf.pl")
         sys.exit(1)
 
-def appending_hints_file(hints_genome_gff3, transcript_gtf):
-    with open(hints_genome_gff3, "r") as hints_file:
-        print("Appending hints file with exon hints without CDS prediction...")
-        exons_with_cds = []
-        for line in hints_file:
-            part = line.strip().split('\t')
-            if len(part) == 9:
-                if part[2] == "exon":
-                    attributes = part[8]
-                    transcript_id = re.search(r"ID=([^;]+?)\.p\d+\b", part[8]).group(1)
-                    exons_with_cds.append(transcript_id)
-
-    with open(hints_genome_gff3, "a") as hints_file, open(transcript_gtf, "r") as transcript_file:
-        for line in transcript_file:
-            if line.startswith("#"):
-                continue
-            part = line.strip().split('\t')
-            feature = part[2]
-            transcript_id = re.search(r'transcript_id "([^"]+)"', part[8]).group(1)
-            if transcript_id not in exons_with_cds:
-                if feature == "exon":
-                    hints_file.write(line)
-                if feature == "transcript":
-                    hints_file.write("\n")
-                    updated_line = re.sub(r'transcript', r'gene', line)
-                    hints_file.write(updated_line)
-                    updated_line = re.sub(r'transcript', r'mRNA', line)
-                    hints_file.write(updated_line)
-
-
-''' Creating a hints file with CDS, start and stop codon and intron hints, using the hints file with 
+        
+''' Creating a hints file with CDS, start and stop codon and intron hints, using the high-confidence and low-confidence files with 
     genome coordinates that contains mRNA, exon, CDS and UTR features. '''
-def creating_intron_hints_file(hints_genome_gff3, transcript_gtf, output_name):
-    with open(hints_genome_gff3, "r") as hints_file, open(transcript_gtf, "r") as transcript_file, open(output_name, "w") as output:
-        print("Creating a hints file with intron hints...")
+def creating_intron_hints_file(hints_hc_genome_gff3, hints_lc_genome_gff3, output_name):
+    with open(hints_hc_genome_gff3, "r") as hc_file, open(hints_lc_genome_gff3, "r") as lc_file, open(output_name, "w") as output:
         #List to store exon and CDS features in order determine the introns and start/stop codons.
-
         exon_list = []
         cds_list = []
-        for line in hints_file:
-            part = line.strip().split('\t')
-            if len(part) < 9:
-                continue
-            feature = part[2]
-            #If a new mRNA is listed, the intron and start/stop features of the last mRNA are added to the file.
-            if feature == "mRNA":
-                if len(exon_list) > 1:
-                    strand = exon_list[0][6]
-                    if strand == "+":
-                        for i in range(len(exon_list) - 1):
-                            current_exon = exon_list[i]
-                            next_exon = exon_list[i + 1]
-                            intron_start = int(current_exon[4]) + 1
-                            intron_stop = int(next_exon[3]) - 1
-                            chromosome = current_exon[0]
-                            attributes = current_exon[8]
-                            updated_attributes = re.sub(r'exon(\d+)', r'intron\1', attributes)
-                            output.write(f"{chromosome}\tStringTie\tintron\t{intron_start}\t{intron_stop}\t.\t{strand}\t.\t{updated_attributes}\n")
-                    if strand == "-":
-                         for i in range(len(exon_list) - 1, 0, -1):
-                            current_exon = exon_list[i]
-                            next_exon = exon_list[i - 1]
-                            intron_start = int(current_exon[4]) + 1
-                            intron_stop = int(next_exon[3]) - 1
-                            chromosome = current_exon[0]
-                            attributes = current_exon[8]
-                            updated_attributes = re.sub(r'exon(\d+)', r'intron\1', attributes)
-                            output.write(f"{chromosome}\tStringTie\tintron\t{intron_start}\t{intron_stop}\t.\t{strand}\t.\t{updated_attributes}\n")
-                exon_list.clear()
-                if len(cds_list) > 0:
-                    first_cds = cds_list[0]
-                    start_codon_start = first_cds[3]
-                    start_codon_stop = int(first_cds[3]) + 2
-                    last_cds = cds_list[-1]
-                    stop_codon_start = int(last_cds[4]) - 2
-                    stop_codon_stop = last_cds[4]
-                    chromosome = first_cds[0]
-                    strand = first_cds[6]
-                    attributes_first = first_cds[8]
-                    attributes_last = last_cds[8]
-                    output.write(f"{chromosome}\tTransDecoder\tstart\t{start_codon_start}\t{start_codon_stop}\t.\t{strand}\t.\t{attributes_first}\n")
-                    output.write(f"{chromosome}\tTransDecoder\tstop\t{stop_codon_start}\t{stop_codon_stop}\t.\t{strand}\t.\t{attributes_last}\n")
-                cds_list.clear()
-            else:
-                if feature == "exon":
-                    exon_list.append(part)
-                
-                if feature == "CDS":
-                    cds_list.append(part)
-                    output.write(line)
-
-        #Add the intron and start/stop features of the last mRNA in the file.
-        if len(exon_list) > 1:
-            strand = exon_list[0]
-            if strand == "+":
-                for i in range(len(exon_list) - 1):
-                    current_exon = exon_list[i]
-                    next_exon = exon_list[i + 1]
-                    intron_start = int(current_exon[4]) + 1
-                    intron_stop = int(next_exon[3]) - 1
-                    chromosome = current_exon[0]
-                    attributes = current_exon[8]
-                    updated_attributes = re.sub(r'exon(\d+)', r'intron\1', attributes)
-                    output.write(f"{chromosome}\tStringTie\tintron\t{intron_start}\t{intron_stop}\t.\t{strand}\t.\t{updated_attributes}\n")
-            if strand == "-":
-                for i in range(len(exon_list) - 1, 0, -1):
-                    current_exon = exon_list[i]
-                    next_exon = exon_list[i - 1]
-                    intron_start = int(current_exon[4]) + 1
-                    intron_stop = int(next_exon[3]) - 1
-                    chromosome = current_exon[0]
-                    attributes = current_exon[8]
-                    updated_attributes = re.sub(r'exon(\d+)', r'intron\1', attributes)
-                    output.write(f"{chromosome}\tStringTie\tintron\t{intron_start}\t{intron_stop}\t.\t{strand}\t.\t{updated_attributes}\n")
-        if len(cds_list) > 0:
-            first_cds = cds_list[0]
-            start_codon_start = first_cds[3]
-            start_codon_stop = int(first_cds[3]) + 2
-            last_cds = cds_list[-1]
-            stop_codon_start = int(last_cds[4]) - 2
-            stop_codon_stop = first_cds[4]
-            chromosome = first_cds[0]
-            strand = first_cds[6]
-            attributes_first = first_cds[8]
-            attributes_last = last_cds[8]
-            output.write(f"{chromosome}\tTransDecoder\tstart\t{start_codon_start}\t{start_codon_stop}\t.\t{strand}\t.\t{attributes_first}\n")
-            output.write(f"{chromosome}\tTransDecoder\tstop\t{stop_codon_start}\t{stop_codon_stop}\t.\t{strand}\t.\t{attributes_last}\n")
-
-def only_cds_in_annotation(annotation_file, output_name):
-    try:
-        command = "grep 'CDS' " + annotation_file + " > " + output_name 
-
-        result = os.system(command)
-    
-    except Exception:
-        print("Could not run grep command.")
-        sys.exit(1)
-    
-def only_introns_in_annotation(annotation_file, output_name):
-    try:
-        command = "grep 'intron' " + annotation_file + " > " + output_name 
-
-        result = os.system(command)
-    
-    except Exception:
-        print("Could not run grep command.")
-        sys.exit(1)
-
-def control_annotation(annotation_file, reference, projname):
-    try:
-        command = [
-            "/home/s-amknut/GALBA/tools/gffcompare-0.12.6.Linux_x86_64/gffcompare",
-            "-r",
-            reference,
-            "-o",
-            projname,
-            annotation_file
-        ]
-    
-        result = subprocess.run(command, capture_output=True)
-
-        if result.returncode == 0:
-            print("Annotation stats were determined successfully.")
-        else:
-            print("Error during determining annotation stats with gffcompare.")
-            print(result.stderr)
-
-    except Exception:
-        print("Could not run gffcompare command.")
-        sys.exit(1)
-
-def prepare_hints_compare(hints_file, name):
-    # Open the input file in read mode and the output file in write mode
-    with open(hints_file, "r") as infile, open(name, "w") as outfile:
-        # Iterate through each line in the input file
-        for line in infile:
-            # Skip lines that are comments or empty
-            if line.startswith("#") or not line.strip():
-                continue
-
-            # Split the line into fields based on tab characters
-            fields = line.strip().split("\t")
-            
-            if fields[2] == "intron":
-                # Extract chromosome, start, stop, and strand information
-                chromosome = fields[0]
-                start = fields[3]
-                stop = fields[4]
-                strand = fields[6]
-
-                # Combine these fields into a single string without spaces
-                result = f"{chromosome}{start}{stop}{strand}"
-
-                # Write the result to the output file followed by a newline
-                outfile.write(result + "\n")
-
-    print("Prepared file with intron strings")
-
-def prepare_hints_cds(hints_file, name):
-    # Open the input file in read mode and the output file in write mode
-    with open(hints_file, "r") as infile, open(name, "w") as outfile:
-        # Iterate through each line in the input file
-        for line in infile:
-            # Skip lines that are comments or empty
-            if line.startswith("#") or not line.strip():
-                continue
-
-            # Split the line into fields based on tab characters
-            fields = line.strip().split("\t")
-            
-            if fields[2] == "CDS" or "CDSpart":
-                # Extract chromosome, start, stop, and strand information
-                chromosome = fields[0]
-                start = fields[3]
-                stop = fields[4]
-                strand = fields[6]
-
-                # Combine these fields into a single string without spaces
-                result = f"{chromosome}{start}{stop}{strand}"
-
-                # Write the result to the output file followed by a newline
-                outfile.write(result + "\n")
-    print("Prepared file with cds strings")
-
-def control_hints(hints_file, reference, output):
-    try:
-        command = [
-            "/home/s-amknut/GALBA/tools/ag/scripts/overlapStat.pl",
-            reference,
-            hints_file,
-            "--snsp"
-        ]
-        with open(output, "w") as output:
-            result = subprocess.run(command, stdout=output, stderr=subprocess.PIPE)
-        #result = subprocess.run(command, capture_output=True)
-
-        if result.returncode == 0:
-            print("Hints file was compared successfully.")
-        else:
-            print("Error during comparison of hints file.")
-            print(result.stderr)
-
-    except Exception:
-        print("Could not run overlapStat.pl command.")
-        sys.exit(1)
+        for file in [hc_file, lc_file]:
+            if file == hc_file:
+                #Confidence level which is added to the attributes of the features. M indicated a high confidence and P a low confidence gene
+                confidence_level = "M"
+            if file == lc_file:
+                confidence_level = "P"
+            for line in file:
+                part = line.strip().split('\t')
+                if len(part) < 9: #Skip empty lines
+                    continue
+                feature = part[2]
+                #If a new mRNA is listed, the intron and start/stop features of the last mRNA are added to the file.
+                if feature == "mRNA":
+                    if len(exon_list) > 1:
+                        strand = exon_list[0][6]
+                        if strand == "+":
+                            for i in range(len(exon_list) - 1):
+                                current_exon = exon_list[i]
+                                next_exon = exon_list[i + 1]
+                                intron_start = int(current_exon[4]) + 1
+                                intron_stop = int(next_exon[3]) - 1
+                                chromosome = current_exon[0]
+                                attributes = current_exon[8]
+                                updated_attributes = re.sub(r'exon(\d+)', r'intron\1', attributes)
+                                updated_attributes_with_level =  "src="+ confidence_level + ";"+updated_attributes
+                                output.write(f"{chromosome}\tStringTie\tintron\t{intron_start}\t{intron_stop}\t.\t{strand}\t.\t{updated_attributes_with_level}\n")
+                        if strand == "-":
+                            for i in range(len(exon_list) - 1, 0, -1):
+                                current_exon = exon_list[i]
+                                next_exon = exon_list[i - 1]
+                                intron_start = int(current_exon[4]) + 1
+                                intron_stop = int(next_exon[3]) - 1
+                                chromosome = current_exon[0]
+                                attributes = current_exon[8]
+                                intron_number = "intron" + str(i)
+                                updated_attributes = re.sub(r'exon(\d+)', intron_number, attributes)
+                                updated_attributes_with_level =  "src="+ confidence_level + ";"+updated_attributes 
+                                output.write(f"{chromosome}\tStringTie\tintron\t{intron_start}\t{intron_stop}\t.\t{strand}\t.\t{updated_attributes_with_level}\n")
+                    if len(cds_list) > 0:
+                        first_cds = cds_list[0]
+                        start_codon_start = first_cds[3]
+                        start_codon_stop = int(first_cds[3]) + 2
+                        last_cds = cds_list[-1]
+                        stop_codon_start = int(last_cds[4]) - 2
+                        stop_codon_stop = last_cds[4]
+                        chromosome = first_cds[0]
+                        strand = first_cds[6]
+                        attributes_first = first_cds[8]
+                        attributes_last = last_cds[8]
+                        attributes_first_with_level =  "src="+ confidence_level + ";" + attributes_first
+                        attributes_last_with_level =  "src="+ confidence_level + ";" + attributes_last
+                        output.write(f"{chromosome}\tTransDecoder\tstart\t{start_codon_start}\t{start_codon_stop}\t.\t{strand}\t.\t{attributes_first_with_level}\n")
+                        output.write(f"{chromosome}\tTransDecoder\tstop\t{stop_codon_start}\t{stop_codon_stop}\t.\t{strand}\t.\t{attributes_last_with_level}\n")
+                    exon_list.clear()
+                    cds_list.clear()
+                else:
+                    if feature == "exon":
+                        #For each mRNA an exon list temporarily stores the exon coordinates until they are written to the file
+                        exon_list.append(part)
+                    
+                    if feature == "CDS":
+                        cds_list.append(part)
+                        updated_attributes = "src=" + confidence_level + ";" + part[8]
+                        updated_line = re.sub(part[8], updated_attributes, line)
+                        #Add CDS to the file
+                        output.write(updated_line)
+    print("Created a hints file with intron hints successfully.")
 
 ''' Opening the config file with the input data. '''
 def load_config(config_file):
@@ -1257,14 +1100,14 @@ def load_config(config_file):
 print("*************************************************************************************")
 print("                                     PreGalba                                        ")
 print("*************************************************************************************")
-parser = argparse.ArgumentParser(description='Genome annotation with protein and transcriptomic evidence auch as RNA-seq and Iso-seq reads')  
+parser = argparse.ArgumentParser(description='Genome annotation with protein and transcriptomic evidence auch as RNA-Seq and Iso-Seq reads')  
 parser.add_argument('-t', '--threads', default=4, help='Number of threads (default=4)', required=False)
-parser.add_argument('-y', '--config', help='Config file input', metavar='<config.yaml>', required=False) 
-parser.add_argument('-g', '--genome', help='Genome file input', metavar='<genome.fasta>', required=False)
-parser.add_argument('-p', '--proteins', help='Protein file input', metavar='<proteins.fasta>', required=False)
-parser.add_argument('-sp', '--short_paired', help='Comma separated paired-end short read file input', metavar='<set1.fasta,set2.fasta>', required=False)
-parser.add_argument('-ss', '--short_single', help='Comma separated single-end short read file input', metavar='<set1.fasta,set2.fasta>', required=False)
-parser.add_argument('-l', '--long', help='Comma separated long read file input', metavar='<set1.fasta,set2.fasta>', required=False)
+parser.add_argument('-y', '--config', help='Config file path', metavar='<config.yaml>', required=False) 
+parser.add_argument('-g', '--genome', help='Genome file path', metavar='<genome.fasta>', required=False)
+parser.add_argument('-p', '--proteins', help='Protein file path', metavar='<proteins.fasta>', required=False)
+parser.add_argument('-sp', '--short_paired', help='Comma separated paired-end short read file paths', metavar='<set1.fasta,set2.fasta>', required=False)
+parser.add_argument('-ss', '--short_single', help='Comma separated single-end short read file paths', metavar='<set1.fasta,set2.fasta>', required=False)
+parser.add_argument('-l', '--long', help='Comma separated long read file paths', metavar='<set1.fasta,set2.fasta>', required=False)
 parser.add_argument('-m', '--scoring_matrix', help='Alignment scoring matrix for amino acids', metavar='<blosum62.csv>', required=False)
 
 parser.add_argument('--isoseq', action='store_true', help='Use this option if you want to process isoseq data only')
@@ -1299,15 +1142,13 @@ if args.config:
     species_name = input_files.get("species", None)
     if species_name != None:
         projname = species_name + "_pregalba"
-    else:
-        species_name = "Species"
+
     genome_file = input_files.get("genome", None)
     rnaseq_paired_sets = input_files.get("rnaseq_paired_sets", []) 
     rnaseq_single_sets = input_files.get("rnaseq_single_sets", [])
     isoseq_sets = input_files.get("isoseq_sets", [])
     protein_file = input_files.get("protein", None) 
     scoring_matrix = input_files.get("scoring_matrix", None)
-    reference_annotation = input_files.get("annotation", None) #noch rausnehmen
 
     hisat = input_files.get("hisat", None) 
     minimap = input_files.get("minimap", None) 
@@ -1319,6 +1160,8 @@ if args.config:
     miniprot = input_files.get("miniprot", None)
     miniprot_boundary_scorer = input_files.get("miniprot_boundary_scorer", None) 
 
+else:
+    projname = "pregalba"
 #Option 2: Providing the data with the program call
 #If both is given, the program will use the data provided with the program call
 
@@ -1375,10 +1218,6 @@ if scoring_matrix == None:
 if rnaseq_paired_sets == [] and rnaseq_single_sets == [] and isoseq_sets == []:
     print("Error: No transcriptomic data found in config file. Please provide at least one set of RNA-Seq or Iso-Seq data.")
     sys.exit(1)
-if rnaseq_paired_sets != [] and rnaseq_single_sets != []:
-    print("Error: You provided both paired-end and single-end RNA-Seq data. Only the paired-end RNA-Seq data is processed.")
-    rnaseq_single_sets = []
-    
 if not args.rnaseq and not args.isoseq and not args.mixed:
     if (rnaseq_paired_sets != [] or rnaseq_single_sets != []) and isoseq_sets == []:
         args.rnaseq = True
@@ -1538,6 +1377,8 @@ if args.BEDTOOLS or (args.config and bedtools != None):
     find_bedtools = bedtools + "/bin/bedtools"
     if not (os.access(find_bedtools, os.X_OK)):
         print("Error: bedtools is not found or not executable at given path!")
+        print("If you provided the path to the bin directory: ")
+        print("Please provide the path to the bedtools directory, not to the bin directory within bedtools!")
         exit(1)
     else:
         bedtools = bedtools + "/bin"
@@ -1547,7 +1388,7 @@ else:
         bedtools =  os.path.dirname(shutil.which("bedtools"))
 
     else:
-        print("Error: bedtools file wasn't found.")
+        print("Error: bedtools wasn't found.")
         print("Please provide the path to the bedtools directory in your config file or use option --BEDTOOLS.")
         print("Also you can use the docker file available.")
         exit(1)
@@ -1594,14 +1435,17 @@ else:
 
 ''' MAIN '''
 print("                                                                             ")
-print("Starting genome annotation for " + species_name + " in " + mode + " mode:")
+print("Starting genome annotation in " + mode + " mode:")
 print("                                                                             ")
-'''
+
 if process_rnaseq:
     indexing(genome_file)
-    mapping_short(rnaseq_paired_sets, rnaseq_single_sets)
-    sam_to_bam("alignment_rnaseq.sam")    
-    alignment_rnaseq = "alignment_rnaseq.bam"
+    alignments_list = mapping_short(rnaseq_paired_sets, rnaseq_single_sets)
+    sam_to_bam(alignments_list)    
+    if len(alignments_list) > 1:    
+        alignment_rnaseq = file_name(merge_bam_files(alignments_list[0], alignments_list[1])) + ".bam"
+    else:
+        alignment_rnaseq = file_name(alignments_list[0]) + ".bam"
 else:
     alignment_rnaseq = None
 
@@ -1624,144 +1468,24 @@ classifications_dict = get_cds_classification("diamond_normal.tsv", "diamond_sho
 get_optimized_pep_file("transcripts.fasta.transdecoder.pep", "shortened_candidates.pep", classifications_dict)
 make_diamond_db(protein_file)
 validating_ORFs("revised_candidates.pep", "diamond_revised.tsv")
-'''
 
-#Getting first final output: hints.gff3
-#from_pep_file_to_gff3("revised_candidates.pep", "transcripts.gtf", "revised_candidates.gff3")
-#from_transcript_to_genome("revised_candidates.gff3","transcripts.gff3","transcripts.fasta", "pre_hints.gff3")
-#appending_hints_file("pre_hints.gff3", "transcripts.gtf")
-#creating_intron_hints_file("pre_hints.gff3", "hints.gff3", "hints.gff3")
-#prepare_hints_compare(reference_annotation, "intron_reference.txt")
-#prepare_hints_compare("hints.gff3", "intron_query.txt")
-prepare_hints_cds(reference_annotation, "cds_reference.txt")
-prepare_hints_cds("hintsfile.gff", "cds_hints.txt") 
-control_hints("cds_hints.txt", "cds_reference.txt", "cds_overlap.txt")
-#control_hints("intron_query.txt", "intron_reference.txt", "intron_overlap.txt")
+#Getting first final output: high-confidence training.gff3
+q_dict = getting_hc_supported_by_proteins("diamond_revised.tsv", "revised_candidates.pep", protein_file)
+protein_aligning(genome_file, protein_file, scoring_matrix) 
+getting_hc_supported_by_intrinsic(q_dict)
+choose_one_isoform("hc_genes.pep", "one_chosen_isoform.pep")
+from_pep_file_to_gff3("one_chosen_isoform.pep", "transcripts.gtf", "one_chosen_isoform.gff3")
+from_transcript_to_genome("one_chosen_isoform.gff3","transcripts.gff3","transcripts.fasta", "training.gff3")
+print("------> Training genes file 'training.gff3' was generated successfully!")
 
-#Getting second final output: high-confidence training.gff3
-#q_dict = getting_hc_supported_by_proteins("diamond_revised.tsv", "revised_candidates.pep", protein_file)
-#protein_aligning(genome_file, protein_file, scoring_matrix) 
-#getting_hc_supported_by_intrinsic(q_dict)
-#choose_one_isoform("hc_genes.pep", "one_chosen_isoform.pep")
-#from_pep_file_to_gff3("one_chosen_isoform.pep", "transcripts.gtf", "one_chosen_isoform.gff3")
-#from_transcript_to_genome("one_chosen_isoform.gff3","transcripts.gff3","transcripts.fasta", "training.gff3")
-#only_cds_in_annotation("training.gff3", "training_cds.gff3")
+#Getting second final output: hints.gff3
+from_pep_file_to_gff3("hc_genes.pep", "transcripts.gtf", "hc_genes.gff3")
+from_pep_file_to_gff3("lc_genes.pep", "transcripts.gtf", "lc_genes.gff3")
+from_transcript_to_genome("hc_genes.gff3","transcripts.gff3","transcripts.fasta", "pre_hc_hints.gff3")
+from_transcript_to_genome("lc_genes.gff3","transcripts.gff3","transcripts.fasta", "pre_lc_hints.gff3")
+creating_intron_hints_file("pre_hc_hints.gff3", "pre_lc_hints.gff3",  "hints.gff3")
+print("------> Hints file 'hints.gff3' was generated successfully!")
 
 print("                                                                                     ")
 print("                                     Finished                                        ")
 print("*************************************************************************************")
-#choose_one_isoform("revised_candidates.pep", "one_chosen_isoform.pep")
-#choose_one_isoform("transcripts.fasta.transdecoder.pep", "one_chosen_isoform.pep")
-#transdecoder_id_dict = parse_transdecoder_file("one_chosen_isoform.pep")
-#from_transcript_to_genome_coords("transcripts.gtf", transdecoder_id_dict, "annotation.gtf")
-#from_pep_file_to_gff3("one_chosen_isoform.pep", "transcripts.gtf", "one_chosen_isoform.gff3")
-#from_transcript_to_genome("transcripts.fasta.transdecoder.gff3","transcripts.gff3","transcripts.fasta", "transcripts.fasta.transdecoder.genome.gff3")
-#from_transcript_to_genome("one_chosen_isoform.gff3","transcripts.gff3","transcripts.fasta", "transcripts.fasta.transdecoder.genome.gff3")
-###frame_in_annotation("transcripts.fasta.transdecoder.genome.gff3")
-#only_cds_in_annotation("annotation_with_frame.gff3")
-#only_cds_in_annotation("transcripts.fasta.transdecoder.genome.gff3")
-#control_annotation("training_cds.gff3", reference_annotation, projname) #noch testen
-#frame_in_annotation("annotation.gtf")
-#only_cds_in_annotation("annotation_with_frame.gtf")
-#control_annotation("annotation_only_cds.gtf", reference_annotation, projname) #noch testen
-#only_cds_in_annotation("/home/s-amknut/GALBA/braker_ara_isoseq/GeneMark-ETP/training.gtf", "training_cds.gtf")
-#control_annotation("training_cds.gtf", reference_annotation, projname) #noch testen
-#only_cds_in_annotation("transcripts.fasta.transdecoder.genome.gff3")
-#control_annotation("annotation_only_cds.gtf", reference_annotation, projname) #noch testen
-#control_annotation("/home/s-amknut/GALBA/braker/GeneMark-ETP/training_cds.gtf", reference_annotation, "new_braker_cds")
-#preparing_miniprot_gff_for_conflict_comparison("miniprot_parsed.gff")
-#preparing_candidates_for_conflict_comparison(t_dict)
-#finding_protein_conflicts("candidates.bed", "reference.bed")
-
-#TO DOs:
-#-Variablen und Funktionsnamen anpassen
-#-Funktion die prüft ob files vorhanden wie CreateThis() von GeneMark 
-#-cwd integrieren
-#-verstehen was das --dta in hisat2 bedeutet 
-#-prints überarbeiten
-#-Ausgaben für subprocess.run überarbeiten, bei error mehr ausprinten lassen.
-#-yaml-file prüfen, ob namen keine weiteren dots oder unterstriche enthalten sind. Alle Rnaseq files und alle isoseq files
-# müssen dasselbe Format haben (Also unter sich)
-#-Exception as e: print(e) einbauen
-#-Vielleicht noch Option einbauen, dass nur einmal Pfad angegeben werden muss und sonst nur Namen der Files
-#-Abfangen, wenn keine files in config liegen/Unter dem falschen Listennamen
-#-Threads überall hinzufügen
-#-f-strings da einfügen wo möglich
-#-überlegen, wo Scoring Matrix eingefügt werden soll (Eine vorgeben oder von Nutzer hinzufügen lassen?)
-#-Threads max. rausfinden und festlegen
-#-Outputnamen vom Nutzer festlegen lassen und dann einzelne outputs an den Namen anpassen
-#-Nutze seqIO Funktion um pep file inhalt überall in dictionary zu speichern: shortened_pep_dict = SeqIO.to_dict(SeqIO.parse(shortened_pep, "fasta"))
-#-Optionen für einzelne Programe einführen, wie --genemark_path=/home/... oder --diamond_path=/home/...
-#-Sind in der output file noch gene ohne cds? Wenn ja rausnehmen
-
-#FRAGEN:
-#-Sollte ich mit -G die stringtie Option nutzen, eine Referenzannotation zu verwenden? --> Diese dann in die yaml file oder parser?
-#-Optionen in Ordnung oder noch Unterscheidung zwischen single und paired-end?
-#-Ist es richtig, dass man single-end und paired-end beide nutzt? Oder wird in der Regel nur eins davon genutzt?
-#-Soll die Übergabe von Proteinfiles optional sein?
-#-Richtig, dass alle erstellten files in cwd gespeichert werden? Soll ich Funktion einfügen, dass man sich das aussuchen kann wohin?
-#-Scoring Matrix von Nutzer einfügen lassen oder selbst eine vorgeben?
-#-Ist es richtig, dass ein Trankript nach dem splicing mehrere CDS haben kann? D.h. dass man UTR mittig hat?
-
-'''Neue Fragen'''
-#-Wie bekomme ich von der miniprot file die Chromosomennummer
-#-Bedtools okay?
-#Betrag bei candidates 
-#-Wähle ich zu viele HC Gene aus #28490 complete & hc von insgesamt 42797 complete candidates 
-#-Gibt es eine Möglichkeit, dass ich einzelne mit dem von GeneMark vergleichen kann?
-
-#Plan:
-#-Transdecoder macht ORF prediction -> Davor intron hints von spliced rnaseq daten wie bei genemark?
-#-miniprot macht protein alignment
-#-Proteinalignment von miniprot mit dem von Transdecoder vergleichen -> Prediction ergänzen oder verwerfen???
-#-Mit miniprot trainingsgenen Augustus trainieren und hc hints an Augustus übergeben
-
-#Oder:
-#-Transdecoder macht ORF prediction -> Davor intron hints von spliced rnaseq daten wie bei genemark?
-#-Diamond nutzt .pep file von Transdecoder und sucht homologe Proteine 
-#-Spaln aligniert die homologen Proteine zurück ans Genom, um predictions genauer zu machen 
-
-#File, die training.gtf entspricht + file mit allen hc genen + file mit allen genen + file mit allen hc introns
-#Nur eine Isoform pro Gen wählen: Längste CDS und sonst niedrigste StringTie Nummer 
-#CDS ohne Protein support 
-
-'''
--Gibt hier auch unter hc noch ein paar wenige doppelte cds pro gen. Die werden rausgelöscht aus output file
-    -> Idee: Wenn zwei hc cds in einem Gen sind, dann die mit dem besseren score behalten
--in trainigsgene file normalerweise (transcript, gene, exon, cds) und in hints (introns, start, stop). Ich habe jetzt 
-    gerade alles in einem. Brauche ich auch beides?
--Gar kein Unterschied erkennbar bei Kategorisierung oder keiner Kategorisierung
--Wie kann es sein, dass die Exon level so viel schlechter sind und sollten wir sensitivität erhöhen?
--HC Auswahl bezieht sich gerade ausschließlich auf die CDS, weil wir dafür Proteindaten nutzen.
-    Schmeißen wir transkript/gen raus wenn keine cds gefunden wurden oder sie nicht als hc kategorisiert wurden?
--Score für nicht Proteingestützte CDS: 
-    -Inframe Stopcodon in 5' UTR verstehe ich nicht weil 1. Stopcodon in CDS und 2. Stopcodon in 3' UTR
-    -GMS-T log-odds score > 50, ersetzen durch bit score? Z.B. Median berechnen von den anderen HC Genen und das festlegen als Grenze
-    -Plan:
-        -Habe hc.gff file von miniprot, hier stehen introns/start/stop drin
-        -Nehme mir die exon/intron Struktur von Transkript wo CDS drin ist, ohne CDS ansich zu berücksichtigen
-        -Suche danach wo mein Kandidat liegen könnte. 
-        -Wenn es mehrere passende abschnitte gibt, nehme ich Protein mit dem besten score.
-        -Wenn es keine Konflikte gibt ist es approved 
-
-NEU
--Wie kann es sein, dass in Stringtie file die verschiedenen Isoformen leicht unterschiedliche Transkriptgrenzen haben?
--Entscheiden uns für Isoform mit längster CDS. Dadurch gibt tomas ja quasi auch vor, dass wir uns bei mehreren CDS im selben Transkript immer für die längste entscheiden.
-Schließlich entscheiden wir uns ja nur wegen dieser CDS für die Isoform.
--Frames hinterfragen.
--Wozu TSEBRA, wenn wir schon eigentlich die Isoformen schon von Stringtie bekommen?
--Log-odds score 
--Abgabedatum passt mit Korrektur?
--Finale files: 
-    -gene_models: Alle HC Genstrukturen
-    -hints_file: Wie die von Tomas, nur CDS,Introns,Start,Stop (Keine Incomplete), habe ja jetzt gerade nur CDS, ändern?
-    -Introns: Alle HC Introns
-    -Alle HC und Low Confidence CDS
-    Wo sind die incomplete HC? 
-    Gibt es file mit allen isoforms
--CDS getrimmt?
--Kategorisierung macht gerade keinen Unterschied 
-
--Dockerfile in Material erklären?
--Bedtools in die Dockerfile schreiben
-'''
