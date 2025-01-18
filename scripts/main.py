@@ -184,19 +184,20 @@ def mapping_long(genome, isoseq_sets):
         sys.exit(1)
 
 ''' Converting files in SAM format into files in BAM format using SAMtools'''
-def sam_to_bam(samfile):
+def sam_to_bam(sam_file_list):
     try:  
         path = samtools + "/samtools"  
-        output_bam = file_name(samfile) + ".bam"
-        command = [
-            path,
-            "sort",
-            "-@",
-            str(threads), 
-            samfile,
-            "-o",
-            output_bam
-        ]
+        for samfile in sam_file_list:
+            output_bam = file_name(samfile) + ".bam"
+            command = [
+                path,
+                "sort",
+                "-@",
+                str(threads), 
+                samfile,
+                "-o",
+                output_bam
+            ]
 
         print("Converting " + samfile +" to " + output_bam + "...")
         result = subprocess.run(command, capture_output=True)
