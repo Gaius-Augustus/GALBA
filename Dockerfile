@@ -136,11 +136,6 @@ RUN cd /opt && \
     tar -zxvf stringtie-2.2.3.Linux_x86_64.tar.gz && \
     rm stringtie-2.2.3.Linux_x86_64.tar.gz && \
     mv stringtie-2.2.3.Linux_x86_64 stringtie    
-    
-#RUN cd /opt && \
- #   git clone https://github.com/arq5x/bedtools2.git && \
-  #  cd bedtools2 && \ 
-   # make
 
 # transdecoder
 RUN cd /opt && \
@@ -154,17 +149,11 @@ RUN cd /opt && \
     cd minimap2 && \
     make
 
-#RUN cd /opt && \
- #   wget https://github.com/arq5x/bedtools2/releases/download/v2.31.1/bedtools && \
-  #  tar -zxvf bedtools-2.31.1.tar.gz && \
-   # rm bedtools-2.31.1.tar.gz && \
-    #cd bedtools2 && \
-    #make
-# bedtools2
+# bedtools
 RUN cd /opt && \
     wget https://github.com/arq5x/bedtools2/releases/download/v2.30.0/bedtools.static.binary && \
-    mv bedtools.static.binary bedtools2 && \
-    chmod a+x bedtools2
+    mv bedtools.static.binary bedtools && \
+    chmod a+x bedtools
 
 FROM $BASE_CONTAINER
 
@@ -172,8 +161,7 @@ USER root
 
 COPY --from=base /opt/ /opt/
 
-#ENV PATH=${PATH}:/opt/seqstats:/opt/cdbfasta:/opt/hisat2:/opt/diamond:/opt/TSEBRA/bin:/opt/MakeHub:/opt/miniprot:/opt/GALBA/scripts:/opt/miniprot-boundary-scorer:/opt/miniprothint
-ENV PATH=${PATH}:/opt/seqstats:/opt/cdbfasta:/opt/hisat2:/opt/stringtie:/opt/TransDecoder:/opt/TransDecoder/util:/opt/minimap2:/opt/bedtools2/bin:/opt/diamond:/opt/TSEBRA/bin:/opt/MakeHub:/opt/miniprot:/opt/GALBA/scripts:/opt/miniprot-boundary-scorer:/opt/miniprothint
+ENV PATH=${PATH}:/opt/seqstats:/opt/cdbfasta:/opt/hisat2:/opt/stringtie:/opt/TransDecoder:/opt/TransDecoder/util:/opt/minimap2:/opt/bedtools:/opt/diamond:/opt/TSEBRA/bin:/opt/MakeHub:/opt/miniprot:/opt/GALBA/scripts:/opt/miniprot-boundary-scorer:/opt/miniprothint
 
 # AUGUSTUS does need several libraries that are now gone, re-install them:
 RUN apt-get update --yes && \
