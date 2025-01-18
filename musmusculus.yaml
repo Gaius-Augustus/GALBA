@@ -1,0 +1,44 @@
+---
+species: Mus_musculus
+genome: /home/nas-hs/projs/galba-isoseq/data/Mus_musculus/genome/genome.fasta.masked
+
+rnaseq_paired_sets: [
+/home/nas-hs/projs/galba-isoseq/data/Mus_musculus/rnaseq/ERR3005082_1.fastq,
+/home/nas-hs/projs/galba-isoseq/data/Mus_musculus/rnaseq/ERR3005082_2.fastq,
+/home/nas-hs/projs/galba-isoseq/data/Mus_musculus/rnaseq/SRR10115888_1.fastq,
+/home/nas-hs/projs/galba-isoseq/data/Mus_musculus/rnaseq/SRR10115888_2.fastq,
+/home/nas-hs/projs/galba-isoseq/data/Mus_musculus/rnaseq/SRR3094250_1.fastq,
+/home/nas-hs/projs/galba-isoseq/data/Mus_musculus/rnaseq/SRR3094250_2.fastq,
+/home/nas-hs/projs/galba-isoseq/data/Mus_musculus/rnaseq/SRR5197958_1.fastq,
+/home/nas-hs/projs/galba-isoseq/data/Mus_musculus/rnaseq/SRR5197958_2.fastq,
+/home/nas-hs/projs/galba-isoseq/data/Mus_musculus/rnaseq/SRR6067921_1.fastq,
+/home/nas-hs/projs/galba-isoseq/data/Mus_musculus/rnaseq/SRR6067921_2.fastq,
+/home/nas-hs/projs/galba-isoseq/data/Mus_musculus/rnaseq/SRR9202226_1.fastq,
+/home/nas-hs/projs/galba-isoseq/data/Mus_musculus/rnaseq/SRR9202226_2.fastq
+] 
+rnaseq_single_sets: [
+]
+isoseq_sets: [
+/home/nas-hs/projs/galba-isoseq/data/Mus_musculus/isoseq/flnc_strict/MouseA.flnc.fastq,
+/home/nas-hs/projs/galba-isoseq/data/Mus_musculus/isoseq/flnc_strict/MouseB.flnc.fastq,
+/home/nas-hs/projs/galba-isoseq/data/Mus_musculus/isoseq/flnc_strict/MouseC.flnc.fastq,
+/home/nas-hs/projs/galba-isoseq/data/Mus_musculus/isoseq/flnc_strict/MouseD.flnc.fastq,
+/home/nas-hs/projs/galba-isoseq/data/Mus_musculus/isoseq/flnc_strict/MouseE.flnc.fastq,
+/home/nas-hs/projs/galba-isoseq/data/Mus_musculus/isoseq/flnc_strict/MouseF.flnc.fastq,
+/home/nas-hs/projs/galba-isoseq/data/Mus_musculus/isoseq/flnc_strict/MouseG.flnc.fastq,
+/home/nas-hs/projs/galba-isoseq/data/Mus_musculus/isoseq/flnc_strict/MouseH.flnc.fastq
+]
+
+protein: /home/nas-hs/projs/galba-isoseq/data/Mus_musculus/proteins/proteins.fa
+
+scoring_matrix: 
+
+hisat: 
+minimap: 
+stringtie:  
+samtools:
+transdecoder: 
+diamond: 
+bedtools:
+miniprot: 
+miniprot_boundary_scorer: 
