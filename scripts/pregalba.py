@@ -449,6 +449,8 @@ def protein_aligning(genome, protein, alignment_scoring):
 
     try: 
         path = miniprot_boundary_scorer + "/miniprot_boundary_scorer"
+        if alignment_scoring == None:
+            alignment_scoring = miniprot_boundary_scorer + "/blosum62.csv"
         command = f"{path} -o miniprot_parsed.gff -s {alignment_scoring} < miniprot.aln"
         print("Scoring the protein to genome alignment...")
         
@@ -1165,7 +1167,9 @@ if args.config:
     miniprot_boundary_scorer = input_files.get("miniprot_boundary_scorer", None) 
 
 else:
+    scoring_matrix = None
     projname = "pregalba"
+
 #Option 2: Providing the data with the program call
 #If both is given, the program will use the data provided with the program call
 
@@ -1215,9 +1219,6 @@ if protein_file == None:
     sys.exit(1)
 if file_format(protein_file) != "fasta":
     print("Error: Incompatible file format for protein file. Please provide a file in FASTA format.")
-    sys.exit(1)
-if scoring_matrix == None:
-    print("Error: No path to an amino acid scoring matrix found. Please provide a scoring matrix file.")
     sys.exit(1)
 if rnaseq_paired_sets == [] and rnaseq_single_sets == [] and isoseq_sets == []:
     print("Error: No transcriptomic data found in config file. Please provide at least one set of RNA-Seq or Iso-Seq data.")
