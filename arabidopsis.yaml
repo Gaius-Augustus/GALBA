@@ -50,7 +50,7 @@ isoseq_sets: [
 
 protein: /home/nas-hs/projs/galba-isoseq/data/Arabidopsis_thaliana/proteins/proteins.fa
 
-scoring_matrix: /home/s-amknut/GALBA/blosum62_1.csv 
+scoring_matrix: 
 
 hisat: 
 minimap: 
