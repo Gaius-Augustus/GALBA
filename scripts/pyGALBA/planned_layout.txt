@@ -1,0 +1,13 @@
+my_galba_pipeline/
+    ├─ main.py
+    ├─ pipeline/
+    │   ├─ __init__.py
+    │   ├─ arguments.py        # Argparse CLI parser
+    │   ├─ checkpoint.py       # Functions for reading/writing pipeline state
+    │   ├─ alignment.py        # Functions for Miniprot/GTH alignment
+    │   ├─ hints.py            # Functions for generating or processing hints
+    │   ├─ training.py         # Functions for running AUGUSTUS training
+    │   ├─ prediction.py       # Functions for final gene prediction
+    │   ├─ postprocessing.py   # Merging or filtering gene models, e.g. TSEBRA
+    │   └─ utils.py            # Shared utilities
+    └─ README.md
