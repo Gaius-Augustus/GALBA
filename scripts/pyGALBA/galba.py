@@ -18,6 +18,7 @@ from pipeline.postprocessing import postprocess_predictions
 def main():
     # 1) Parse command-line arguments
     args = parse_arguments(sys.argv[1:])
+    check_dependencies(args) # checks for required executables and scripts
     
     # 2) Set up logging
     logging.basicConfig(
