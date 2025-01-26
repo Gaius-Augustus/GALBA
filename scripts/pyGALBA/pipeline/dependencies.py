@@ -41,14 +41,13 @@ def check_dependencies(args):
 
     logger = logging.getLogger("galba_pipeline.deps")
     
-    # 1) Always required: diamond, bedtools, miniprot, miniprot_boundary_scorer, TSEBRA, AUGUSTUS, etc.
+    # 1) Always required: diamond, miniprot, miniprot_boundary_scorer, TSEBRA, AUGUSTUS, etc.
     #    We'll do a quick check that these are in PATH or a user-specified location:
     #    If the script eventually calls them via a path like args.DIAMOND_PATH, 
     #    you might check that path. For simplicity here, we check in $PATH:
 
     # Example approach:
     which_executable("diamond", "DIAMOND")
-    which_executable("bedtools", "bedtools")
     which_executable("miniprot", "miniprot")
     which_executable("miniprot_boundary_scorer", "miniprot_boundary_scorer")
     which_executable("tsebra.py", "TSEBRA")      # Or just "tsebra" if that’s how your pipeline calls it.

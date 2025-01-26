@@ -8,6 +8,7 @@ import logging
 import sys
 
 from pipeline.arguments import parse_arguments
+from pipeline.dependencies import check_dependencies
 from pipeline.checkpoint import load_state, save_state
 from pipeline.alignment import run_alignment
 from pipeline.hints import generate_hints
