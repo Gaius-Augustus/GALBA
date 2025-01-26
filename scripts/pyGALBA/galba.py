@@ -14,7 +14,6 @@ from pipeline.hints import generate_hints
 from pipeline.training import run_training
 from pipeline.prediction import run_prediction
 from pipeline.postprocessing import postprocess_predictions
-from pipeline.evaluation import evaluate_predictions
 
 def main():
     # 1) Parse command-line arguments
