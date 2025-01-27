@@ -13,7 +13,7 @@ from pipeline.dependencies import check_dependencies
 from pipeline.augustus_config import locate_augustus_config
 from pipeline.fileformats import check_fileformats
 from pipeline.checkpoint import load_state, save_state
-from pipeline.alignment import run_alignment
+from pipeline.runminiprot import run_miniprot
 from pipeline.hints import generate_hints
 from pipeline.training import run_training
 from pipeline.prediction import run_prediction
@@ -47,11 +47,11 @@ def main():
     # 5) Potentially skip steps if checkpoint says they're done
     #    e.g., if pipeline_state["alignment_done"] is True, skip alignment, etc.
     
-    # Step A: Alignment (only if not done)
-    if not pipeline_state.get("alignment_done", False):
-        logger.info("Starting alignment step...")
-        run_alignment(args)
-        pipeline_state["alignment_done"] = True
+    # Step A: Protein alignment (only if not done)
+    if not pipeline_state.get("runminiprot_done", False):
+        logger.info("Starting runminiprot step...")
+        run_miniprot(args)
+        pipeline_state["runminiprot_done"] = True
         save_state(args.workingdir, pipeline_state)
     
     # Step B: Generate/merge hints
