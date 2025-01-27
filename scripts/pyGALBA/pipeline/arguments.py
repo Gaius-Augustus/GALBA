@@ -81,4 +81,19 @@ def parse_arguments(cli_args):
                 "Iso-Seq / RNA-seq / StringTie evidence."
             )
 
+    # If prot_seq and protein_db are the same, warn the user, do not error, it 
+    # is only for information
+    if args.prot_seq == args.protein_db:
+        print("WARNING: The protein database (--protein_db) is the same as the "
+              "protein sequence (--prot_seq). This is not an error, but it "
+              "may be a mistake. The file that is provided at --protein_db "
+              "must contain more than 4 species proteomes, and the file "
+              "provided at --prot_seq could contain less than 4 species "
+              "proteomes. The file provided at --protein_db can be huge, e.g. "
+              "an OrthoDB partition, while the file provided at --prot_seq "
+              "should be much smaller, e.g. protein sets from closely related "
+              "species only. If you find this problematic, you may want to "
+              "reconsider the files provided at --prot_seq and --protein_db.")
+
+
     return args

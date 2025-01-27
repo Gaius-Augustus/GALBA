@@ -6,9 +6,11 @@ main.py - Entry point for the refactored GALBA pipeline.
 
 import logging
 import sys
+import os
 
 from pipeline.arguments import parse_arguments
 from pipeline.dependencies import check_dependencies
+from pipeline.fileformats import check_fileformats
 from pipeline.checkpoint import load_state, save_state
 from pipeline.alignment import run_alignment
 from pipeline.hints import generate_hints
@@ -20,7 +22,7 @@ def main():
     # 1) Parse command-line arguments
     args = parse_arguments(sys.argv[1:])
     check_dependencies(args) # checks for required executables and scripts
-    
+    check_fileformats(args) # checks for required file formats
     # 2) Set up logging
     logging.basicConfig(
         level=logging.INFO,
@@ -28,10 +30,18 @@ def main():
     )
     logger = logging.getLogger("galba_pipeline")
 
-    # 3) Load or create pipeline state to allow resuming
+    # 3) Create working directory
+    try:
+        if not os.path.exists(args.workingdir):
+            os.makedirs(args.workingdir)
+    except Exception as e:
+        logger.error(f"Error creating working directory: {e}")
+        sys.exit(1)
+
+    # 4) Load or create pipeline state to allow resuming
     pipeline_state = load_state(args.workingdir)
     
-    # 4) Potentially skip steps if checkpoint says they're done
+    # 5) Potentially skip steps if checkpoint says they're done
     #    e.g., if pipeline_state["alignment_done"] is True, skip alignment, etc.
     
     # Step A: Alignment (only if not done)

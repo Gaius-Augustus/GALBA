@@ -10,12 +10,11 @@ def run_alignment(args):
     logger = logging.getLogger("galba_pipeline.alignment")
 
     if args.prot_seq:
-        logger.info("Running Miniprot or GTH with protein sequences...")
+        logger.info("Running Miniprot with protein sequences...")
 
         # For miniprot example:
         #   Build index: miniprot -d genome.mpi genome.fa
         #   Then align: miniprot -I -ut $threads ...
-        #   Or for GTH: gth -genomic ...
         # Using subprocess:
         # cmd = ["miniprot", "--some-arg", args.genome, args.prot_seq, ...]
         # subprocess.run(cmd, check=True)
