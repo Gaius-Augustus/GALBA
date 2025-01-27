@@ -38,8 +38,8 @@ def main():
     except Exception as e:
         logger.error(f"Error creating working directory: {e}")
         sys.exit(1)
-    # 3.1) Locate AUGUSTUS config
-    locate_augustus_config(args)
+    # 3.1) Locate AUGUSTUS config (possibly copying into workingdir)
+    locate_augustus_config(args.workingdir)
 
     # 4) Load or create pipeline state to allow resuming
     pipeline_state = load_state(args.workingdir)
