@@ -3,6 +3,8 @@ import sys
 import shutil
 from pathlib import Path
 import logging
+import urllib.request
+
 
 def locate_augustus_config(working_dir):
     """
@@ -92,6 +94,11 @@ def locate_augustus_config(working_dir):
         logger.info(
             f"Reset $AUGUSTUS_CONFIG_PATH to {alt_path} because the original was not writable."
         )
+
+        # 6) check whether the file config/parameters/aug_cmdln_parameters.json exists
+        #    and is readable; if not, kill the pipeline with an error message.
+        ensure_aug_cmdln_params_exists(alt_path)
+
         return str(alt_path)
 
 def is_writable(path):
@@ -110,3 +117,40 @@ def is_writable(path):
     can_execute = os.access(path, os.X_OK)
 
     return can_write and can_execute
+
+def ensure_aug_cmdln_params_exists(alt_path):
+    """
+    If 'aug_cmdln_parameters.json' is missing from alt_path/parameters/,
+    attempt to download it from a known URL, place it there, and log an info message.
+
+    alt_path: Path to the local AUGUSTUS config directory, e.g. ~/.augustus
+    """
+
+    logger = logging.getLogger("galba_pipeline.augustus")
+    param_file = alt_path / "parameters" / "aug_cmdln_parameters.json"
+    
+    if param_file.is_file():
+        logger.info(f"AUGUSTUS param file is present: {param_file}")
+        return
+
+    # If missing, create parent folder (if needed) and download the file
+    logger.warning(
+        f"AUGUSTUS param file {param_file} is missing. "
+        "We will attempt to download it from GitHub now."
+    )
+    param_file.parent.mkdir(parents=True, exist_ok=True)
+
+    config_url = (
+        "https://raw.githubusercontent.com/Gaius-Augustus/Augustus/refs/heads/master/config/parameters/aug_cmdln_parameters.json"
+    )
+
+    try:
+        logger.info(f"Downloading {config_url} to {param_file}...")
+        urllib.request.urlretrieve(config_url, param_file)
+        logger.info(f"Successfully downloaded aug_cmdln_parameters.json.")
+    except Exception as e:
+        logger.error(
+            f"Failed to download param file from {config_url}. "
+            f"Cannot proceed with Pygustus without it.\nError: {e}"
+        )
+        sys.exit(1) 

@@ -10,6 +10,7 @@ import os
 
 from pipeline.arguments import parse_arguments
 from pipeline.dependencies import check_dependencies
+from pipeline.augustus_config import locate_augustus_config
 from pipeline.fileformats import check_fileformats
 from pipeline.checkpoint import load_state, save_state
 from pipeline.alignment import run_alignment
@@ -37,6 +38,8 @@ def main():
     except Exception as e:
         logger.error(f"Error creating working directory: {e}")
         sys.exit(1)
+    # 3.1) Locate AUGUSTUS config
+    locate_augustus_config(args)
 
     # 4) Load or create pipeline state to allow resuming
     pipeline_state = load_state(args.workingdir)
