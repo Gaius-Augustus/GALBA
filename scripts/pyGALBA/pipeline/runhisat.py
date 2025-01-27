@@ -57,10 +57,10 @@ def run_hisat(args):
 
     # For a minimal example, let's pretend user must explicitly
     # provide the separate lists. If not, you can do some auto-detection.
-    if getattr(args, "rnaseq_paired_sets", None):
-        paired_files = args.rnaseq_paired_sets  # e.g. from your snippet
-    if getattr(args, "rnaseq_single_sets", None):
-        single_files = args.rnaseq_single_sets
+    if getattr(args, "rnaseq_paired_fq", None):
+        paired_files = args.rnaseq_paired_fq  # e.g. from your snippet
+    if getattr(args, "rnaseq_single_fq", None):
+        single_files = args.rnaseq_single_fq
 
     alignments_sam = []
 
