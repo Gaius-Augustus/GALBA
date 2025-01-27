@@ -47,8 +47,8 @@ def check_fileformats(args):
             )
     
     # 3) If user gave any rnaseq_fq => check each is present & is FASTQ
-    if args.rnaseq_fq:
-        for fq in args.rnaseq_fq:
+    if args.rnaseq_single_fq or args.rnaseq_paired_fq:
+        for fq in args.rnaseq_single_fq + args.rnaseq_paired_fq:
             if not os.path.isfile(fq):
                 errors.append(f"RNA-seq FASTQ file not found: {fq}")
             else:

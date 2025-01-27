@@ -7,7 +7,6 @@ def check_python_libraries(missing_deps):
     """
     Make sure Python 3 + needed packages are installed: 
     BioPython, pandas, PyYAML, pygustus, etc.
-
     Instead of raising an exception immediately, we accumulate
     the missing dependencies in 'missing_deps' and return after checking all.
     """
@@ -15,7 +14,9 @@ def check_python_libraries(missing_deps):
     for lib in required_libraries:
         spec = importlib.util.find_spec(lib)
         if spec is None:
-            missing_deps.append(f"Missing Python library '{lib}' (try 'pip install {lib}')")
+            missing_deps.append(
+                f"Missing Python library '{lib}' (try 'pip install {lib}')"
+            )
 
 def which_executable(exec_name, tool_label, missing_deps):
     """
@@ -37,8 +38,6 @@ def check_dependencies(args):
     """
 
     logger = logging.getLogger("galba_pipeline.deps")
-
-    # We'll store all missing dependencies in this list of strings:
     missing_deps = []
 
     # 1) Always-required external tools:
@@ -56,67 +55,68 @@ def check_dependencies(args):
     # 2) Required Python libraries:
     check_python_libraries(missing_deps)
 
-    # 3) Conditionals for RNA-seq / Iso-Seq:
-    # If user provided FASTQ-based short reads (rnaseq_fq), we need HISAT2:
-    if args.rnaseq_fq and len(args.rnaseq_fq) > 0:
-        logger.info("User provided RNA-seq in FASTQ => Checking for 'hisat2' tools.")
+    # 3) Conditionals for RNA-seq. 
+    #    If user provided FASTQ-based short reads => we need HISAT2:
+    needs_hisat = False
+    if (args.rnaseq_single_fq and len(args.rnaseq_single_fq) > 0) \
+       or (args.rnaseq_paired_fq and len(args.rnaseq_paired_fq) > 0):
+        needs_hisat = True
+
+    if needs_hisat:
+        logger.info("User provided short reads => Checking for 'hisat2' tools.")
         which_executable("hisat2", "HISAT2 (hisat2)", missing_deps)
         which_executable("hisat2-build", "HISAT2 (hisat2-build)", missing_deps)
 
-    # If user provided FASTQ-based Iso-Seq => minimap2 is required:
+    # 4) If user provided Iso-Seq in FASTQ => we need minimap2:
+    #    (If you use separate args for iso-seq, keep them here)
     if args.isoseq_fq and len(args.isoseq_fq) > 0:
         logger.info("User provided Iso-Seq in FASTQ => Checking for 'minimap2'.")
         which_executable("minimap2", "minimap2", missing_deps)
 
-    # If user provided any rnaseq_bam or isoseq_bam or rnaseq_fq or isoseq_fq, 
-    # we might need samtools unless the user gave a StringTie GTF:
+    # 5) If user provided any transcript reads (in FASTQ/BAM) but no pre-assembled GTF => 
+    #    we need samtools (for BAM sorting/merging) and stringtie (assembly).
+    #    For example:
     need_samtools = False
-    if (args.rnaseq_bam and len(args.rnaseq_bam) > 0) or \
-       (args.isoseq_bam and len(args.isoseq_bam) > 0) or \
-       (args.rnaseq_fq and len(args.rnaseq_fq) > 0) or \
-       (args.isoseq_fq and len(args.isoseq_fq) > 0):
-        # If user *didn't* provide a stringtie_gtf => we need samtools
-        if not args.stringtie_gtf:
-            need_samtools = True
+    need_stringtie = False
+
+    # Check if there's any transcript data in any form:
+    have_any_transcripts = (
+        (args.rnaseq_single_fq and len(args.rnaseq_single_fq) > 0)
+        or (args.rnaseq_paired_fq and len(args.rnaseq_paired_fq) > 0)
+        or (args.rnaseq_bam and len(args.rnaseq_bam) > 0)
+        or (args.isoseq_fq and len(args.isoseq_fq) > 0)
+        or (args.isoseq_bam and len(args.isoseq_bam) > 0)
+    )
+
+    if have_any_transcripts and not args.stringtie_gtf:
+        # => we are assembling ourselves => need samtools and stringtie
+        need_samtools = True
+        need_stringtie = True
 
     if need_samtools:
-        logger.info("Transcript reads (RNA-seq or Iso-Seq) not in StringTie => Checking for 'samtools'.")
+        logger.info("Transcript reads provided but no pre-assembled GTF => Checking samtools.")
         which_executable("samtools", "samtools", missing_deps)
 
-    # 4) For any RNASEQ or ISOSEQ that is not a pre-assembled stringtie -> we need stringtie:
-    need_stringtie = False
-    if not args.stringtie_gtf:
-        # Means user must do assembly themselves => stringtie is needed
-        if (args.rnaseq_fq and len(args.rnaseq_fq) > 0) or \
-           (args.rnaseq_bam and len(args.rnaseq_bam) > 0) or \
-           (args.isoseq_fq and len(args.isoseq_fq) > 0) or \
-           (args.isoseq_bam and len(args.isoseq_bam) > 0):
-            need_stringtie = True
-
     if need_stringtie:
-        logger.info("No StringTie GTF => Need to run StringTie ourselves.")
+        logger.info("No StringTie GTF => need to run StringTie ourselves.")
         which_executable("stringtie", "StringTie", missing_deps)
 
-    # 5) If any rnaseq or isoseq was provided in any format, we need TransDecoder + bedtools
-    if (args.rnaseq_fq or args.rnaseq_bam or 
-        args.isoseq_fq or args.isoseq_bam or 
-        args.stringtie_gtf):
-        logger.info("Transcript data was provided => Checking TransDecoder + bedtools.")
+    # 6) If any transcripts (in any format), we need TransDecoder & bedtools
+    if have_any_transcripts or args.stringtie_gtf:
+        logger.info("Transcript data provided => Checking TransDecoder + bedtools.")
         which_executable("TransDecoder.LongOrfs", "TransDecoder.LongOrfs", missing_deps)
         which_executable("TransDecoder.Predict", "TransDecoder.Predict", missing_deps)
-        # TransDecoder "util" scripts if needed:
-        #   check "gtf_genome_to_cdna_fasta.pl" etc. if you call them by name
         which_executable("bedtools", "bedtools", missing_deps)
+        # If you call TransDecoder utility scripts by name, check them too:
+        # e.g. gtf_genome_to_cdna_fasta.pl, etc.
 
-    # End of dependency checks: raise an error if anything is missing
+    # End of checks: if missing any dependencies, report them all at once:
     if missing_deps:
-        # Format them into one multi-line or single-line error
         error_msg = (
             "The following dependencies are missing or not found:\n  - " 
             + "\n  - ".join(missing_deps)
             + "\nPlease install or configure them before running galba.py again."
         )
-        # Could be a custom exception, or just sys.exit
         logger.error(error_msg)
         sys.exit(1)
     else:

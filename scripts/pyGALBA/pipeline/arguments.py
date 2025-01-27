@@ -31,8 +31,10 @@ def parse_arguments(cli_args):
     # New RNA-seq / Iso-Seq input options; all optional, but restricted:
     parser.add_argument("--isoseq_fq", nargs='*',
         help="One or more FASTQ files containing Iso-Seq reads.")
-    parser.add_argument("--rnaseq_fq", nargs='*',
-        help="One or more FASTQ files containing RNA-seq reads.")
+    parser.add_argument("--rnaseq_paired_fq", nargs='*',
+        help="One or more FASTQ files containing RNA-seq paired end reads.")
+    parser.add_argument("--rnaseq_single_fq", nargs='*',
+        help="One or more FASTQ files containing RNA-seq single end reads.")
     parser.add_argument("--isoseq_bam", nargs='*',
         help="One or more BAM files containing Iso-Seq alignments.")
     parser.add_argument("--rnaseq_bam", nargs='*',
@@ -62,7 +64,7 @@ def parse_arguments(cli_args):
     #   4) Or no transcript evidence at all (use no iso/rna/stringtie).
     # -------------------------------------------------------------------------
 
-    has_fastq = bool(args.isoseq_fq or args.rnaseq_fq)
+    has_fastq = bool(args.isoseq_fq or args.rnaseq_paired_fq or args.rnaseq_single_fq)
     has_bam = bool(args.isoseq_bam or args.rnaseq_bam)
     has_stringtie = bool(args.stringtie_gtf)
 
