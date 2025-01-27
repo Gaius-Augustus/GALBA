@@ -94,8 +94,7 @@ def run_miniprot(args):
         sys.exit(1)
 
     # 5) miniprothint.py step
-    miniprot_gtf = os.path.join(workdir, "miniprot.gtf")
-    prothint_cmd = [
+    miniprothint_cmd = [
         "miniprothint.py",
         scorer_output,
         "--workdir", workdir,
@@ -104,7 +103,7 @@ def run_miniprot(args):
         "--minScoreFraction", "0.5"
     ]
     logger.info("Converting boundary-scored alignment to final GTF via miniprothint.py...")
-    logger.debug(f"Command: {' '.join(prothint_cmd)}")
+    logger.debug(f"Command: {' '.join(miniprothint_cmd)}")
 
     try:
         subprocess.run(prothint_cmd, check=True)
