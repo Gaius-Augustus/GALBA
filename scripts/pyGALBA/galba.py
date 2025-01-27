@@ -14,6 +14,7 @@ from pipeline.augustus_config import locate_augustus_config
 from pipeline.fileformats import check_fileformats
 from pipeline.checkpoint import load_state, save_state
 from pipeline.runminiprot import run_miniprot
+from pipeline.runhisat import run_hisat
 from pipeline.hints import generate_hints
 from pipeline.training import run_training
 from pipeline.prediction import run_prediction
@@ -52,6 +53,13 @@ def main():
         logger.info("Starting runminiprot step...")
         run_miniprot(args)
         pipeline_state["runminiprot_done"] = True
+        save_state(args.workingdir, pipeline_state)
+
+    # Step A.1: HISAT2 alignment of RNA-Seq (only if not done and only if provided)
+    if not pipeline_state.get("hisat2_done", False):
+        logger.info("Starting HISAT2 alignment...")
+        run_hisat(args)
+        pipeline_state["hisat2_done"] = True
         save_state(args.workingdir, pipeline_state)
     
     # Step B: Generate/merge hints
