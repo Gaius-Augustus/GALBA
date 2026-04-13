@@ -2,6 +2,7 @@
 
 ![Docker Pulls](https://img.shields.io/docker/pulls/katharinahoff/galba-notebook) ![GitHub last commit (branch)](https://img.shields.io/github/last-commit/Gaius-Augustus/GALBA/main) ![GitHub issues](https://img.shields.io/github/issues/Gaius-Augustus/GALBA)
 
+**GALBA is deprecated. Try GALBA2: https://github.com/Gaius-Augustus/GALBA2**
 
 <u>Contact for Github Repository of GALBA at
 https://github.com/Gaius-Augustus/GALBA:</u>
